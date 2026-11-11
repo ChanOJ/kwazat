@@ -1,0 +1,17 @@
+{
+  "name": "waza",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "research": "pnpm --filter @waza/researcher research",
+    "sheet": "pnpm --filter @waza/researcher sheet",
+    "eval": "pnpm --filter @waza/researcher eval",
+    "db:generate": "pnpm --filter @waza/db generate",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

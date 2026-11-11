@@ -1,0 +1,105 @@
+# Golden set for the "person" playbook.
+#
+# Each case checks that:
+#   - the query resolves to the expected Wikidata item (homonym protection),
+#   - the generated sheet contains (or does not contain) some expected facts.
+#
+# `pattern` is a case-insensitive regex matched against the statements and structured data of the
+# given section ("*" = any section). Keep patterns loose: they test recall, not wording.
+# Only add facts that are well established and stable; review this file when the news changes.
+
+cases:
+  - query: Nicolas Sarkozy
+    expected_wikidata_id: Q329
+    checks:
+      - section: convictions
+        pattern: "bismuth|wiretap|écoutes|corruption"
+        description: Final conviction in the wiretapping (Bismuth) case
+      - section: convictions
+        pattern: "bygmalion|campaign financ|financement"
+        description: Conviction for illegal campaign financing (Bygmalion)
+      - section: "*"
+        pattern: "libya|libye"
+        description: Libyan financing case is mentioned (convictions or ongoing cases)
+      - section: political_affiliation
+        pattern: "UMP|Les Républicains|RPR"
+        description: Right-wing party history
+
+  - query: François Fillon
+    expected_wikidata_id: Q101410
+    # A homonym (politician born in 1970) exists on Wikidata: resolution must not pick it blindly.
+    expect_ambiguous: true
+    checks:
+      - section: convictions
+        pattern: "fictitious|fake job|emplois fictifs|embezzl|détournement"
+        description: Conviction in the fake jobs case (Penelope Fillon)
+
+  - query: Jérôme Cahuzac
+    expected_wikidata_id: Q57751
+    checks:
+      - section: convictions
+        pattern: "tax|fraude fiscale|money laundering|blanchiment"
+        description: Final conviction for tax fraud and money laundering
+      - section: investigative_revelations
+        pattern: "mediapart"
+        description: Mediapart revealed the hidden foreign account in 2012
+
+  - query: Patrick Balkany
+    expected_wikidata_id: Q945181
+    checks:
+      - section: convictions
+        pattern: "tax|fraude fiscale|money laundering|blanchiment"
+        description: Convictions for tax fraud and money laundering
+      - section: notable_relations
+        pattern: "isabelle"
+        description: Spouse Isabelle Balkany, also convicted
+
+  - query: Marine Le Pen
+    expected_wikidata_id: Q12927
+    checks:
+      - section: "*"
+        pattern: "parliamentary assistant|assistants parlementaires|european parliament|embezzl"
+        description: European Parliament assistants case
+      - section: political_affiliation
+        pattern: "Front national|Rassemblement national"
+        description: FN / RN membership
+      - section: notable_relations
+        pattern: "jean-marie|bardella|marion"
+        description: Family or political links (father, Bardella, niece)
+
+  - query: Gérard Depardieu
+    expected_wikidata_id: Q106508
+    checks:
+      - section: "*"
+        pattern: "sexual assault|agression sexuelle"
+        description: Sexual assault proceedings
+      - section: political_affiliation
+        expect_empty: true
+        description: No public party affiliation expected (should not invent one)
+
+  - query: Vincent Bolloré
+    expected_wikidata_id: Q721491
+    checks:
+      - section: notable_relations
+        pattern: "vivendi|canal|havas|lagardère|bolloré"
+        description: Ownership/control of the Vivendi / Canal+ / Lagardère group
+      - section: "*"
+        pattern: "togo|corruption"
+        description: Togo corruption case
+
+  - query: Xavier Niel
+    expected_wikidata_id: Q1450891
+    checks:
+      - section: notable_relations
+        pattern: "le monde|iliad|free"
+        description: Iliad founder, Le Monde shareholder
+
+  - query: Éric Zemmour
+    expected_wikidata_id: Q288477
+    checks:
+      - section: convictions
+        pattern: "incitement|provocation|hatred|haine|discrimination"
+        description: Convictions for incitement to racial hatred
+      - section: political_affiliation
+        pattern: "reconquête"
+        description: Founder of Reconquête

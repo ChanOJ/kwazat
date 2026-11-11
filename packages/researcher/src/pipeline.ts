@@ -1,0 +1,256 @@
+import { and, eq } from "@waza/db";
+import { entities, facts, relations, sectionRuns, type Db, type Source } from "@waza/db";
+import {
+  addUsage,
+  emptyUsage,
+  extract,
+  normalizeUrl,
+  research,
+  type ExtractedSource,
+  type SubjectContext,
+  type Usage,
+} from "./claude.ts";
+import { sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
+import { getPersonIdentity, searchCandidates, type Candidate } from "./wikidata.ts";
+
+export type Entity = typeof entities.$inferSelect;
+
+export type Resolution =
+  | { kind: "resolved"; wikidataId: string }
+  | { kind: "ambiguous"; candidates: Candidate[] }
+  | { kind: "not_found" };
+
+/**
+ * Turns a free-text query into a single Wikidata item. A Q-id is taken as is.
+ * With several candidates the caller must pick one (homonym protection).
+ */
+export async function resolve(playbook: Playbook, query: string, pick?: number): Promise<Resolution> {
+  if (/^Q\d+$/.test(query.trim())) return { kind: "resolved", wikidataId: query.trim() };
+  const candidates = await searchCandidates(query, { humansOnly: playbook.entity_type === "person" });
+  if (!candidates.length) return { kind: "not_found" };
+  if (pick !== undefined) {
+    const chosen = candidates[pick - 1];
+    if (!chosen) throw new Error(`--pick ${pick} is out of range (1..${candidates.length})`);
+    return { kind: "resolved", wikidataId: chosen.wikidataId };
+  }
+  if (candidates.length === 1) return { kind: "resolved", wikidataId: candidates[0]!.wikidataId };
+  return { kind: "ambiguous", candidates };
+}
+
+/** Creates or refreshes the entity and its deterministic Wikidata relations. */
+export async function upsertPerson(db: Db, wikidataId: string): Promise<Entity> {
+  const person = await getPersonIdentity(wikidataId);
+  return db.transaction(async (tx) => {
+    const values = {
+      type: "person" as const,
+      wikidataId,
+      label: person.label,
+      description: person.description,
+      aliases: person.aliases,
+      identity: person.identity,
+      updatedAt: new Date(),
+    };
+    const [entity] = await tx
+      .insert(entities)
+      .values(values)
+      .onConflictDoUpdate({ target: entities.wikidataId, set: values })
+      .returning();
+    if (!entity) throw new Error("Entity upsert failed");
+
+    await tx.delete(relations).where(and(eq(relations.fromEntityId, entity.id), eq(relations.origin, "wikidata")));
+    if (person.relations.length) {
+      await tx.insert(relations).values(
+        person.relations.map((r) => ({
+          fromEntityId: entity.id,
+          toLabel: r.toLabel,
+          toWikidataId: r.toWikidataId,
+          relationType: r.relationType,
+          strength: r.strength,
+          description: [r.from && `from ${r.from}`, r.to && `to ${r.to}`].filter(Boolean).join(" ") || null,
+          sources: [
+            {
+              url: person.identity.wikidataUrl,
+              outlet: "Wikidata",
+              publishedAt: null,
+              quote: null,
+              verified: true,
+            },
+          ],
+          origin: "wikidata",
+          reviewStatus: "published" as const,
+        })),
+      );
+    }
+    return entity;
+  });
+}
+
+export function subjectOf(entity: Entity): SubjectContext {
+  const id = entity.identity as { birthDate?: string; occupations?: string[]; nationalities?: string[] };
+  return {
+    label: entity.label,
+    wikidataId: entity.wikidataId,
+    description: entity.description,
+    birthDate: id.birthDate ?? null,
+    occupations: id.occupations ?? [],
+    nationalities: id.nationalities ?? [],
+  };
+}
+
+export type SectionOutcome =
+  | { status: "skipped"; reason: string }
+  | { status: "succeeded"; facts: number; relations: number; needsReview: number; usage: Usage; durationMs: number }
+  | { status: "failed"; error: string; usage: Usage; durationMs: number };
+
+/** Runs one research section for an entity, unless a fresh result with the same hash exists. */
+export async function runSection(
+  db: Db,
+  entity: Entity,
+  playbook: Playbook,
+  section: ResearchSection,
+  model: string,
+  opts: { force?: boolean } = {},
+): Promise<SectionOutcome> {
+  const hash = sectionHash(playbook, section, model);
+
+  if (!opts.force) {
+    const [current] = await db
+      .select()
+      .from(sectionRuns)
+      .where(
+        and(eq(sectionRuns.entityId, entity.id), eq(sectionRuns.sectionId, section.id), eq(sectionRuns.isCurrent, true)),
+      );
+    if (current && current.sectionHash === hash && current.finishedAt) {
+      const ageDays = (Date.now() - current.finishedAt.getTime()) / 86_400_000;
+      if (ageDays < section.ttl_days) return { status: "skipped", reason: "up to date" };
+    }
+  }
+
+  const started = Date.now();
+  const [run] = await db
+    .insert(sectionRuns)
+    .values({
+      entityId: entity.id,
+      playbookId: playbook.id,
+      playbookVersion: playbook.version,
+      sectionId: section.id,
+      sectionHash: hash,
+      model,
+    })
+    .returning();
+  if (!run) throw new Error("Could not create section run");
+
+  let usage = emptyUsage();
+  try {
+    const subject = subjectOf(entity);
+    const found = await research(playbook, section, subject, model);
+    usage = addUsage(usage, found.usage);
+    const extracted = await extract(section, subject, found.notes, found.retrievedUrls, model);
+    usage = addUsage(usage, extracted.usage);
+
+    const retrieved = new Set(found.retrievedUrls);
+    const toSources = (sources: ExtractedSource[]): Source[] =>
+      sources.map((s) => ({
+        url: s.url,
+        outlet: s.outlet,
+        publishedAt: s.published_at,
+        quote: s.quote,
+        verified: retrieved.has(normalizeUrl(s.url)),
+      }));
+    // Sensitive sections and items without a verified source are held for human review.
+    const statusFor = (sources: Source[]) =>
+      section.sensitive || !sources.some((s) => s.verified) ? ("needs_review" as const) : ("published" as const);
+
+    const factRows = extracted.facts.map((f) => {
+      const sources = toSources(f.sources);
+      return {
+        entityId: entity.id,
+        sectionRunId: run.id,
+        sectionId: section.id,
+        statement: f.statement,
+        factDate: f.fact_date,
+        data: f.data,
+        sources,
+        confidence: sources.some((s) => s.verified) ? f.confidence : ("low" as const),
+        reviewStatus: statusFor(sources),
+      };
+    });
+    const relationRows = extracted.relations.map((r) => {
+      const sources = toSources(r.sources);
+      return {
+        fromEntityId: entity.id,
+        toLabel: r.target_name,
+        relationType: r.relation_type,
+        strength: r.strength,
+        sharePct: r.share_pct === null ? null : String(r.share_pct),
+        description: r.description,
+        sources,
+        origin: "research",
+        sectionRunId: run.id,
+        reviewStatus: statusFor(sources),
+      };
+    });
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(sectionRuns)
+        .set({ isCurrent: false })
+        .where(and(eq(sectionRuns.entityId, entity.id), eq(sectionRuns.sectionId, section.id)));
+      if (factRows.length) await tx.insert(facts).values(factRows);
+      if (relationRows.length) await tx.insert(relations).values(relationRows);
+      await tx
+        .update(sectionRuns)
+        .set({
+          status: "succeeded",
+          isCurrent: true,
+          researchNotes: found.notes,
+          retrievedUrls: found.retrievedUrls,
+          usage,
+          costUsd: usage.costUsd.toFixed(4),
+          finishedAt: new Date(),
+        })
+        .where(eq(sectionRuns.id, run.id));
+    });
+
+    const needsReview = [...factRows, ...relationRows].filter((r) => r.reviewStatus === "needs_review").length;
+    return {
+      status: "succeeded",
+      facts: factRows.length,
+      relations: relationRows.length,
+      needsReview,
+      usage,
+      durationMs: Date.now() - started,
+    };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    await db
+      .update(sectionRuns)
+      .set({ status: "failed", error, usage, costUsd: usage.costUsd.toFixed(4), finishedAt: new Date() })
+      .where(eq(sectionRuns.id, run.id));
+    return { status: "failed", error, usage, durationMs: Date.now() - started };
+  }
+}
+
+/** Loads the current sheet of an entity: identity, current facts per section, relations. */
+export async function loadSheet(db: Db, entityId: string) {
+  const [entity] = await db.select().from(entities).where(eq(entities.id, entityId));
+  if (!entity) throw new Error(`Unknown entity ${entityId}`);
+  const runs = await db
+    .select()
+    .from(sectionRuns)
+    .where(and(eq(sectionRuns.entityId, entityId), eq(sectionRuns.isCurrent, true)));
+  const currentRunIds = new Set(runs.map((r) => r.id));
+  const allFacts = await db.select().from(facts).where(eq(facts.entityId, entityId));
+  const allRelations = await db.select().from(relations).where(eq(relations.fromEntityId, entityId));
+  return {
+    entity,
+    runs,
+    facts: allFacts.filter((f) => currentRunIds.has(f.sectionRunId)),
+    relations: allRelations.filter((r) => r.origin === "wikidata" || (r.sectionRunId && currentRunIds.has(r.sectionRunId))),
+  };
+}
+
+export async function findEntityByWikidataId(db: Db, wikidataId: string): Promise<Entity | undefined> {
+  const [entity] = await db.select().from(entities).where(eq(entities.wikidataId, wikidataId));
+  return entity;
+}

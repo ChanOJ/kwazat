@@ -1,0 +1,262 @@
+# Playbook for natural persons (public figures only).
+#
+# Each section is researched independently: a research step (web search/fetch, free text)
+# then an extraction step (strict JSON). Editing a section changes its hash, which marks
+# that section as stale on every existing person sheet.
+
+id: person
+version: 1
+entity_type: person
+label: Person
+
+# Who is in scope. Checked during entity resolution.
+scope: >
+  Public figures only: people with a Wikidata item and a public role (politics, business,
+  media, culture, sport...). Private individuals are out of scope.
+
+# Shared editorial rules, applied to every section (Kagi News-like neutrality).
+style: |
+  - Write neutral, factual, attributed statements: "According to <outlet>, ..." for anything
+    that is not an official decision. No adjectives, no opinions, no speculation.
+  - Every statement must be backed by at least one source URL you actually retrieved.
+    Never invent or guess a URL. If you cannot source a claim, leave it out.
+  - Presumption of innocence: never present a person as guilty unless a conviction is final.
+    Always state the procedural stage (investigation, indictment, first instance, appeal,
+    cassation, final) and mention pending appeals.
+  - Only report facts related to the person's public role or of clear public interest.
+    Nothing about health, sexual orientation, religion, or private family matters unless the
+    person made it public themselves and it is central to their public role.
+  - When the person or their lawyer responded publicly, include their position.
+  - Prefer the most recent information; mention when a decision was overturned.
+  - Do not confuse the person with homonyms: check name, birth date and occupation.
+
+# Outlets favoured for each kind of claim. Coverage is worldwide: these lists are examples of
+# recognised outlets, not an exhaustive whitelist. Reputable national outlets and official
+# websites of the subject's own country are equally acceptable (the research prompt says so).
+# Sources outside recognised media lower the confidence level.
+source_guidance: >
+  Prefer international wire services and newspapers of record, plus reputable national outlets
+  of the subject's country (in any language). For legal facts, prefer official court, ministry
+  or parliament websites of the relevant jurisdiction. Avoid tabloids, partisan blogs, social
+  media posts and content farms; Wikipedia may help find leads but is never a source.
+source_lists:
+  reference_media:
+    - reuters.com
+    - apnews.com
+    - afp.com
+    - bbc.com
+    - theguardian.com
+    - nytimes.com
+    - washingtonpost.com
+    - ft.com
+    - economist.com
+    - lemonde.fr
+    - spiegel.de
+    - elpais.com
+    - corriere.it
+    - nhk.or.jp
+    - aljazeera.com
+  investigative_media:
+    - icij.org
+    - occrp.org
+    - propublica.org
+    - bellingcat.com
+    - theguardian.com
+    - nytimes.com
+    - mediapart.fr
+    - disclose.ngo
+    - correctiv.org
+    - lecanardenchaine.fr
+  official:
+    - curia.europa.eu
+    - echr.coe.int
+    - europarl.europa.eu
+    - justice.gov
+    - supremecourt.gov
+    - legifrance.gouv.fr
+    - courdecassation.fr
+
+sections:
+  - id: identity
+    title: Identity
+    # Deterministic: built from Wikidata, no LLM call.
+    method: wikidata
+
+  - id: convictions
+    title: Criminal convictions
+    method: research
+    sensitive: true
+    ttl_days: 30
+    preferred_sources: [official, reference_media]
+    max_searches: 8
+    max_fetches: 6
+    instructions: |
+      List every criminal conviction of this person by a court, in any country.
+      For each case give: the case name commonly used by the press, the offences, the court,
+      the date of the latest decision, the procedural stage of that decision, whether it is
+      final, whether an appeal is pending, and the sentence.
+      Include convictions that were later overturned, marking them as overturned.
+      Do not include ongoing investigations or trials without a verdict (another section
+      covers them). Civil and administrative cases are out of scope here.
+    item_schema:
+      type: object
+      properties:
+        case_name: { type: string }
+        offenses: { type: array, items: { type: string } }
+        offense_class:
+          type: string
+          enum: [petty_offense, misdemeanor, felony, unknown]
+          description: "Closest equivalent in the jurisdiction's own classification (e.g. France: contravention, délit, crime)."
+        court: { type: string }
+        country: { type: string, description: "ISO 3166-1 alpha-2 code." }
+        decision_date: { type: [string, "null"], description: "ISO date, possibly partial." }
+        procedural_stage:
+          type: string
+          enum: [first_instance, appeal, cassation, final]
+        is_final: { type: boolean }
+        appeal_pending: { type: boolean }
+        overturned: { type: boolean }
+        sentence: { type: [string, "null"] }
+      required: [case_name, offenses, offense_class, court, country, decision_date, procedural_stage, is_final, appeal_pending, overturned, sentence]
+
+  - id: ongoing_cases
+    title: Ongoing legal proceedings
+    method: research
+    sensitive: true
+    ttl_days: 14
+    preferred_sources: [official, reference_media]
+    max_searches: 8
+    max_fetches: 6
+    instructions: |
+      List criminal proceedings currently involving this person without a final decision:
+      preliminary or judicial investigations, formal charges or indictments (whatever the
+      local name, e.g. "mise en examen" in France), trials pending or ongoing, verdicts under
+      appeal. State the person's role (suspect/defendant, witness,
+      plaintiff) and their public response if any. Remind that the person is presumed innocent.
+    item_schema:
+      type: object
+      properties:
+        case_name: { type: string }
+        allegations: { type: string }
+        role:
+          type: string
+          enum: [suspect_or_defendant, assisted_witness, witness, plaintiff, other]
+        procedural_status:
+          type: string
+          enum: [preliminary_investigation, judicial_investigation, indicted, trial_pending, trial_ongoing, awaiting_verdict, appeal_pending, other]
+        last_update_date: { type: [string, "null"] }
+        person_response: { type: [string, "null"] }
+      required: [case_name, allegations, role, procedural_status, last_update_date, person_response]
+
+  - id: investigative_revelations
+    title: Investigative revelations
+    method: research
+    sensitive: true
+    ttl_days: 14
+    preferred_sources: [investigative_media]
+    max_searches: 8
+    max_fetches: 6
+    instructions: |
+      List significant revelations about this person published by recognised investigative
+      outlets (original reporting, not opinion pieces). For each: the outlet that first
+      published it, the date, a neutral summary, any follow-up (official investigation,
+      resignation, lawsuit) and the person's response.
+    item_schema:
+      type: object
+      properties:
+        title: { type: string }
+        outlet: { type: string }
+        publication_date: { type: [string, "null"] }
+        summary: { type: string }
+        follow_up: { type: [string, "null"] }
+        person_response: { type: [string, "null"] }
+      required: [title, outlet, publication_date, summary, follow_up, person_response]
+
+  - id: controversies
+    title: Controversies
+    method: research
+    sensitive: false
+    ttl_days: 7
+    preferred_sources: [reference_media]
+    max_searches: 6
+    max_fetches: 4
+    instructions: |
+      List the most significant public controversies involving this person (statements,
+      decisions, behaviour) that received broad media coverage. Limit to the 8 most
+      significant. For each, give the perspectives of the main actors, including the person.
+    item_schema:
+      type: object
+      properties:
+        title: { type: string }
+        date: { type: [string, "null"] }
+        summary: { type: string }
+        perspectives:
+          type: array
+          items:
+            type: object
+            properties:
+              actor: { type: string }
+              position: { type: string }
+            required: [actor, position]
+      required: [title, date, summary, perspectives]
+
+  - id: political_affiliation
+    title: Political affiliation
+    method: research
+    sensitive: false
+    ttl_days: 30
+    preferred_sources: [official, reference_media]
+    max_searches: 5
+    max_fetches: 3
+    instructions: |
+      Describe the person's political affiliations over time, based only on what the person
+      made public: party memberships, mandates, official endorsements, candidacies.
+      Produce one item per period, the current one with "to" = null.
+      If the person has no public political position, return no item.
+    item_schema:
+      type: object
+      properties:
+        orientation:
+          type: string
+          enum: [far_left, left, centre_left, centre, centre_right, right, far_right, non_aligned, unknown]
+        parties: { type: array, items: { type: string } }
+        from: { type: [string, "null"] }
+        to: { type: [string, "null"] }
+        basis:
+          type: string
+          enum: [party_membership, elected_office, official_endorsement, candidacy, public_statements]
+        is_current: { type: boolean }
+      required: [orientation, parties, from, to, basis, is_current]
+
+  - id: notable_relations
+    title: Notable relations
+    method: research
+    sensitive: false
+    ttl_days: 60
+    preferred_sources: [reference_media]
+    max_searches: 6
+    max_fetches: 4
+    emits_relations: true
+    instructions: |
+      List notable, publicly documented links between this person and other public figures
+      or organisations: family ties, marriage witnesses, business partnerships, political
+      mentoring, employer/employee, ownership or board positions in companies.
+      Skip links already obvious from Wikidata family properties unless you add context.
+      Rate the strength of each link from 1 (anecdotal) to 5 (structural, e.g. owner, spouse).
+    relation_types:
+      - spouse_of
+      - former_spouse_of
+      - parent_of
+      - child_of
+      - sibling_of
+      - wedding_witness_of
+      - business_partner_of
+      - employer_of
+      - employee_of
+      - political_mentor_of
+      - political_ally_of
+      - owner_of
+      - shareholder_of
+      - board_member_of
+      - member_of
+      - other
