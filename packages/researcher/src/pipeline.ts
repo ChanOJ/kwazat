@@ -7,6 +7,7 @@ import {
   normalizeUrl,
   research,
   type ExtractedSource,
+  type RunConfig,
   type SubjectContext,
   type Usage,
 } from "./claude.ts";
@@ -108,10 +109,10 @@ export async function runSection(
   entity: Entity,
   playbook: Playbook,
   section: ResearchSection,
-  model: string,
+  config: RunConfig,
   opts: { force?: boolean } = {},
 ): Promise<SectionOutcome> {
-  const hash = sectionHash(playbook, section, model);
+  const hash = sectionHash(playbook, section, config);
 
   if (!opts.force) {
     const [current] = await db
@@ -135,7 +136,7 @@ export async function runSection(
       playbookVersion: playbook.version,
       sectionId: section.id,
       sectionHash: hash,
-      model,
+      model: `${config.researchModel}+${config.extractModel}`,
     })
     .returning();
   if (!run) throw new Error("Could not create section run");
@@ -143,9 +144,9 @@ export async function runSection(
   let usage = emptyUsage();
   try {
     const subject = subjectOf(entity);
-    const found = await research(playbook, section, subject, model);
+    const found = await research(playbook, section, subject, config);
     usage = addUsage(usage, found.usage);
-    const extracted = await extract(section, subject, found.notes, found.retrievedUrls, model);
+    const extracted = await extract(section, subject, found.notes, found.retrievedUrls, config);
     usage = addUsage(usage, extracted.usage);
 
     const retrieved = new Set(found.retrievedUrls);

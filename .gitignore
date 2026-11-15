@@ -1,7 +1,7 @@
 node_modules/
+# Safety net: secrets live in Proton Pass / GitHub / Scaleway, never in files (see secrets.env).
 .env
 .env.*
-!.env.example
 .data/
 dist/
 .DS_Store

@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
+import { PIPELINE_FINGERPRINT, toolBudget, type RunConfig } from "./claude.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const PLAYBOOKS_DIR = path.resolve(here, "../../../playbooks");
@@ -91,20 +92,25 @@ function stableStringify(value: unknown): string {
 
 /**
  * Hash of everything that influences a section's output: the section definition, the shared
- * style rules, the source lists it uses, and the model. A change in any of them makes
- * existing results for this section stale.
+ * style rules, the source lists it uses, the models, effort and tool budgets. A change in any
+ * of them makes existing results for this section stale.
  */
-export function sectionHash(playbook: Playbook, section: PlaybookSection, model: string): string {
-  const sourceLists =
-    section.method === "research"
-      ? Object.fromEntries(section.preferred_sources.map((l) => [l, playbook.source_lists[l]]))
-      : {};
+export function sectionHash(playbook: Playbook, section: PlaybookSection, config: RunConfig): string {
+  const research = section.method === "research";
+  const sourceLists = research
+    ? Object.fromEntries(section.preferred_sources.map((l) => [l, playbook.source_lists[l]]))
+    : {};
   const payload = stableStringify({
     section,
     style: playbook.style,
     sourceGuidance: playbook.source_guidance,
     sourceLists,
-    model,
+    researchModel: config.researchModel,
+    extractModel: config.extractModel,
+    researchEffort: config.researchEffort,
+    // Effective budgets (not the raw caps): raising a cap above a section's limit changes nothing.
+    budget: research ? toolBudget(section, config) : null,
+    pipeline: PIPELINE_FINGERPRINT,
   });
   return createHash("sha256").update(payload).digest("hex").slice(0, 16);
 }

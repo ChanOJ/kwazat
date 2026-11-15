@@ -34,12 +34,39 @@ eval/reports/         Eval reports (git-ignored)
 
 ## Setup
 
-Requires Node.js ≥ 22 and pnpm.
+Requires Node.js ≥ 22, pnpm, and a logged-in [Proton Pass CLI](https://proton.me/pass) (`pass-cli`).
 
 ```bash
 pnpm install
-cp .env.example .env   # then set ANTHROPIC_API_KEY
 ```
+
+### Secrets
+
+No secret is ever stored in a file. `secrets.env` (committed) only holds **Proton Pass
+references**; the root scripts `pnpm research` and `pnpm eval` run through
+`pass-cli run --env-file secrets.env -- ...`, which injects the values at runtime.
+
+| Secret | Local development | CI (GitHub Actions) | Production (Scaleway) |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | Proton Pass, vault `Waza`, item `anthropic-api-key` | repository secret | Secret Manager |
+
+Use a separate Anthropic key per environment, each in a workspace with its own spend limit.
+`pnpm sheet` and `pnpm research ... --identity-only` need no secret.
+
+### Run settings (not secrets)
+
+Defaults are tuned for cost during the design phase. Override with CLI flags or env variables:
+
+| Flag | Env variable | Default | Notes |
+|---|---|---|---|
+| `--research-model` | `WAZA_RESEARCH_MODEL` | `claude-sonnet-5-5` | Web research: judgement, cross-checking, homonyms |
+| `--extract-model` | `WAZA_EXTRACT_MODEL` | `claude-haiku-5-5` | Mechanical notes → JSON conversion |
+| `--effort` | `WAZA_RESEARCH_EFFORT` | `medium` | `low` / `medium` / `high` / `xhigh` / `max` |
+| `--max-searches` | `WAZA_MAX_SEARCHES` | `4` | Cap per section (each search is billed ~$0.01) |
+| `--max-fetches` | `WAZA_MAX_FETCHES` | `2` | Cap per section |
+
+These settings are part of each section's hash: changing them marks cached sections as stale.
+Reports split the cost between model tokens and web searches.
 
 ## Usage
 
@@ -64,5 +91,6 @@ pnpm eval person --only "Jérôme Cahuzac" --sections convictions
 pnpm db:generate
 ```
 
-The model defaults to `claude-opus-5-5` (override with `WAZA_MODEL` or `--model`).
-Requests use the API's server-side refusal fallback.
+To compare quality and cost, run the same eval with another configuration, e.g.
+`pnpm eval person --research-model claude-opus-5-5 --max-searches 8`.
+Requests to models that support it use the API's server-side refusal fallback (not Haiku).

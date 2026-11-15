@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "research": "pnpm --filter @waza/researcher research",
+    "research": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher research",
     "sheet": "pnpm --filter @waza/researcher sheet",
-    "eval": "pnpm --filter @waza/researcher eval",
+    "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher eval",
     "db:generate": "pnpm --filter @waza/db generate",
     "typecheck": "pnpm -r typecheck"
   },

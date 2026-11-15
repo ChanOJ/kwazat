@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "research": "tsx --env-file-if-exists=../../.env src/cli.ts research",
-    "sheet": "tsx --env-file-if-exists=../../.env src/cli.ts sheet",
-    "eval": "tsx --env-file-if-exists=../../.env src/cli.ts eval",
+    "research": "tsx src/cli.ts research",
+    "sheet": "tsx src/cli.ts sheet",
+    "eval": "tsx src/cli.ts eval",
     "typecheck": "tsc -p ."
   },
   "dependencies": {

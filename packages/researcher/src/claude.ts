@@ -1,17 +1,82 @@
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Playbook, ResearchSection } from "./playbook.ts";
 
-export const DEFAULT_MODEL = "claude-opus-5-5";
-
 const client = new Anthropic();
+
+// --- Run configuration -----------------------------------------------------------------------
+
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
+
+/**
+ * Models and budgets for a run. Defaults are tuned for cost during the design phase:
+ * Sonnet for the research step (judgement, cross-checking, homonyms), Haiku for the
+ * mechanical notes-to-JSON extraction, and a low cap on web searches (billed per search).
+ */
+export type RunConfig = {
+  researchModel: string;
+  extractModel: string;
+  researchEffort: Effort;
+  /** Global caps applied on top of each section's own max_searches / max_fetches. */
+  maxSearches: number;
+  maxFetches: number;
+};
+
+export const DEFAULT_CONFIG: RunConfig = {
+  researchModel: "claude-sonnet-5-5",
+  extractModel: "claude-haiku-5-5",
+  researchEffort: "medium",
+  maxSearches: 4,
+  maxFetches: 2,
+};
+
+function parseIntOr(value: string | undefined, fallback: number): number {
+  if (value === undefined || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) throw new Error(`Expected a non-negative integer, got "${value}"`);
+  return n;
+}
+
+/** Builds the run config from CLI overrides, then environment variables, then defaults. */
+export function resolveConfig(overrides: Partial<Record<keyof RunConfig, string | undefined>> = {}): RunConfig {
+  const env = process.env;
+  const effort = overrides.researchEffort ?? env.WAZA_RESEARCH_EFFORT ?? DEFAULT_CONFIG.researchEffort;
+  if (!EFFORTS.includes(effort as Effort)) throw new Error(`Invalid effort "${effort}" (${EFFORTS.join(", ")})`);
+  return {
+    researchModel: overrides.researchModel ?? env.WAZA_RESEARCH_MODEL ?? DEFAULT_CONFIG.researchModel,
+    extractModel: overrides.extractModel ?? env.WAZA_EXTRACT_MODEL ?? DEFAULT_CONFIG.extractModel,
+    researchEffort: effort as Effort,
+    maxSearches: parseIntOr(overrides.maxSearches ?? env.WAZA_MAX_SEARCHES, DEFAULT_CONFIG.maxSearches),
+    maxFetches: parseIntOr(overrides.maxFetches ?? env.WAZA_MAX_FETCHES, DEFAULT_CONFIG.maxFetches),
+  };
+}
+
+export const describeConfig = (c: RunConfig) =>
+  `research ${c.researchModel} (effort ${c.researchEffort}, ≤${c.maxSearches} searches, ≤${c.maxFetches} fetches) · extraction ${c.extractModel}`;
 
 // --- Cost estimation -------------------------------------------------------------------------
 
+type Price = {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+  /** Some models charge more once the prompt exceeds a size threshold. */
+  longContext?: { aboveInputTokens: number; input: number; output: number };
+};
+
 /** USD per million tokens. Estimates for reporting only; check current pricing before relying on them. */
-const PRICES: Record<string, { input: number; output: number; cacheWrite: number; cacheRead: number }> = {
+const PRICES: Record<string, Price> = {
   "claude-opus-5-5": { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
   "claude-sonnet-5-5": { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.1 },
-  "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01 },
+  "claude-haiku-5-5": {
+    input: 0.1,
+    output: 0.5,
+    cacheWrite: 0.125,
+    cacheRead: 0.01,
+    longContext: { aboveInputTokens: 100_000, input: 0.5, output: 2.5 },
+  },
 };
 const WEB_SEARCH_USD = 10 / 1000;
 
@@ -22,6 +87,10 @@ export type Usage = {
   cacheReadTokens: number;
   webSearches: number;
   webFetches: number;
+  /** Model tokens (input, output, cache). */
+  tokenCostUsd: number;
+  /** Web searches, billed per search whatever the model. */
+  searchCostUsd: number;
   costUsd: number;
 };
 
@@ -32,6 +101,8 @@ export const emptyUsage = (): Usage => ({
   cacheReadTokens: 0,
   webSearches: 0,
   webFetches: 0,
+  tokenCostUsd: 0,
+  searchCostUsd: 0,
   costUsd: 0,
 });
 
@@ -43,32 +114,45 @@ export function addUsage(a: Usage, b: Usage): Usage {
     cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
     webSearches: a.webSearches + b.webSearches,
     webFetches: a.webFetches + b.webFetches,
+    tokenCostUsd: a.tokenCostUsd + b.tokenCostUsd,
+    searchCostUsd: a.searchCostUsd + b.searchCostUsd,
     costUsd: a.costUsd + b.costUsd,
   };
 }
 
+export const formatCost = (u: Usage) =>
+  `$${u.costUsd.toFixed(3)} (tokens $${u.tokenCostUsd.toFixed(3)} + ${u.webSearches} searches $${u.searchCostUsd.toFixed(3)})`;
+
 function usageOf(message: Anthropic.Beta.BetaMessage): Usage {
   const u = message.usage;
-  const price = PRICES[message.model] ?? PRICES[DEFAULT_MODEL]!;
+  const price = PRICES[message.model];
+  if (!price) console.error(`  (no price known for ${message.model}: cost reported as 0)`);
+  const inputTokens = u.input_tokens;
+  const cacheWriteTokens = u.cache_creation_input_tokens ?? 0;
+  const cacheReadTokens = u.cache_read_input_tokens ?? 0;
+  const promptTokens = inputTokens + cacheWriteTokens + cacheReadTokens;
+  const long = price?.longContext && promptTokens > price.longContext.aboveInputTokens ? price.longContext : null;
   const webSearches = u.server_tool_use?.web_search_requests ?? 0;
-  const webFetches = u.server_tool_use?.web_fetch_requests ?? 0;
-  const usage = {
-    inputTokens: u.input_tokens,
+
+  const tokenCostUsd = price
+    ? (inputTokens * (long?.input ?? price.input) +
+        u.output_tokens * (long?.output ?? price.output) +
+        cacheWriteTokens * price.cacheWrite +
+        cacheReadTokens * price.cacheRead) /
+      1e6
+    : 0;
+  const searchCostUsd = webSearches * WEB_SEARCH_USD;
+  return {
+    inputTokens,
     outputTokens: u.output_tokens,
-    cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
-    cacheReadTokens: u.cache_read_input_tokens ?? 0,
+    cacheWriteTokens,
+    cacheReadTokens,
     webSearches,
-    webFetches,
-    costUsd: 0,
+    webFetches: u.server_tool_use?.web_fetch_requests ?? 0,
+    tokenCostUsd,
+    searchCostUsd,
+    costUsd: tokenCostUsd + searchCostUsd,
   };
-  usage.costUsd =
-    (usage.inputTokens * price.input +
-      usage.outputTokens * price.output +
-      usage.cacheWriteTokens * price.cacheWrite +
-      usage.cacheReadTokens * price.cacheRead) /
-      1e6 +
-    webSearches * WEB_SEARCH_USD;
-  return usage;
 }
 
 // --- Helpers ---------------------------------------------------------------------------------
@@ -115,10 +199,15 @@ function assertNotRefused(message: Anthropic.Beta.BetaMessage) {
 }
 
 // Server-side fallback: if the model declines, the API re-runs the request on a fallback model.
-const fallback = () => ({
-  betas: ["server-side-fallback-2026-07-01"] as Anthropic.Beta.AnthropicBeta[],
-  fallbacks: "default" as const,
-});
+// Only some models support it (not Haiku), so it is added per model.
+const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2", "claude-fable-5-1"]);
+const fallbackFor = (model: string) =>
+  FALLBACK_MODELS.has(model)
+    ? {
+        betas: ["server-side-fallback-2026-07-01"] as Anthropic.Beta.AnthropicBeta[],
+        fallbacks: "default" as const,
+      }
+    : {};
 
 // --- Research step ---------------------------------------------------------------------------
 
@@ -154,19 +243,72 @@ Editorial rules:
 ${playbook.style}
 
 Method:
+- Your tool budget is small and stated in the request: plan your searches before starting.
+  Write broad queries that return several relevant articles at once, and look for the most
+  recent developments first (final decisions, appeals, latest status), then fill in the history.
+- Read every search result you received before concluding: the information you need is often
+  already in the result titles and snippets. Fetch a page only when the results lack key details.
 - Use web search and web fetch to find and verify information. Prefer primary or recognised sources.
 - Cross-check important claims with a second source when possible.
-- Write your findings as research notes in English: one paragraph per item, with every relevant
-  detail (dates, courts, outlets, procedural stage), followed by the exact URLs you retrieved that
-  support it. Only cite URLs that appeared in your search results or fetched pages.
+- When you are done, write your findings as research notes in English: one paragraph per item,
+  with every relevant detail (dates, courts, outlets, procedural stage), followed by the exact
+  URLs you retrieved that support it. Only cite URLs that appeared in your search results or
+  fetched pages. Only the final notes are kept, so make them complete and self-contained.
 - If you find nothing relevant, say so explicitly. An empty result is a valid result.`;
+
+/** Effective tool budgets: the section's own limits, capped by the run config. */
+export function toolBudget(section: ResearchSection, config: RunConfig) {
+  return {
+    searches: Math.min(section.max_searches, config.maxSearches),
+    fetches: Math.min(section.max_fetches, config.maxFetches),
+  };
+}
+
+/** Caps the size of each fetched page: full articles are the main driver of input tokens. */
+const FETCH_MAX_CONTENT_TOKENS = 6000;
+
+function researchTools(section: ResearchSection, config: RunConfig) {
+  const budget = toolBudget(section, config);
+  return [
+    ...(budget.searches > 0
+      ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: budget.searches }]
+      : []),
+    ...(budget.fetches > 0
+      ? [
+          {
+            type: "web_fetch_20260209" as const,
+            name: "web_fetch" as const,
+            max_uses: budget.fetches,
+            max_content_tokens: FETCH_MAX_CONTENT_TOKENS,
+          },
+        ]
+      : []),
+  ];
+}
+
+/**
+ * The research notes are the model's final synthesis: the text written after its last tool
+ * result. Earlier text is running commentary ("let me search for...") and is dropped.
+ */
+function finalNotes(content: Anthropic.Beta.BetaContentBlock[]): string {
+  const lastToolIndex = content.findLastIndex((b) => b.type.endsWith("_tool_result") || b.type.endsWith("tool_use"));
+  const text = (blocks: Anthropic.Beta.BetaContentBlock[]) =>
+    blocks
+      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+  return text(content.slice(lastToolIndex + 1)) || text(content);
+}
 
 export async function research(
   playbook: Playbook,
   section: ResearchSection,
   subject: SubjectContext,
-  model: string,
+  config: RunConfig,
 ): Promise<ResearchResult> {
+  const model = config.researchModel;
+  const budget = toolBudget(section, config);
   const preferred = section.preferred_sources.flatMap((l) => playbook.source_lists[l] ?? []);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -182,6 +324,7 @@ ${section.instructions}
 Sources: ${playbook.source_guidance}
 Examples of preferred outlets for this section: ${[...new Set(preferred)].join(", ")}
 Search in the languages relevant to the subject (their country's language and English).
+Tool budget: ${budget.searches} web searches and ${budget.fetches} page fetches in total.
 Today's date: ${today}`,
     },
   ];
@@ -195,13 +338,10 @@ Today's date: ${today}`,
     const stream = client.beta.messages.stream({
       model,
       max_tokens: 32000,
-      ...fallback(),
+      ...fallbackFor(model),
       system: RESEARCH_SYSTEM(playbook),
-      output_config: { effort: "medium" },
-      tools: [
-        { type: "web_search_20260209", name: "web_search", max_uses: section.max_searches },
-        { type: "web_fetch_20260209", name: "web_fetch", max_uses: section.max_fetches },
-      ],
+      output_config: { effort: config.researchEffort },
+      tools: researchTools(section, config),
       messages,
     });
     const message = await stream.finalMessage();
@@ -213,13 +353,7 @@ Today's date: ${today}`,
     messages.push({ role: "assistant", content: message.content });
   }
 
-  const notes = content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("")
-    .trim();
-
-  return { notes, retrievedUrls: collectRetrievedUrls(content), usage, model: servedBy };
+  return { notes: finalNotes(content), retrievedUrls: collectRetrievedUrls(content), usage, model: servedBy };
 }
 
 // --- Extraction step -------------------------------------------------------------------------
@@ -316,6 +450,9 @@ const EXTRACTION_SYSTEM = `You convert research notes into structured JSON for a
 - Every item needs at least one source, and every source URL must be copied exactly from the
   notes. Drop items that have no source URL in the notes.
 - Statements are neutral, attributed, and in English. Follow the presumption of innocence.
+- Statements describe facts about the subject only: never mention the notes, the research
+  process or what could not be checked. Express uncertainty through the structured fields
+  (e.g. a lower confidence) instead.
 - If the notes report nothing relevant, return empty arrays.`;
 
 export async function extract(
@@ -323,12 +460,13 @@ export async function extract(
   subject: SubjectContext,
   notes: string,
   retrievedUrls: string[],
-  model: string,
+  config: RunConfig,
 ): Promise<Extraction> {
+  const model = config.extractModel;
   const message = await client.beta.messages.create({
     model,
     max_tokens: 16000,
-    ...fallback(),
+    ...fallbackFor(model),
     system: EXTRACTION_SYSTEM,
     output_config: {
       effort: "low",
@@ -360,3 +498,25 @@ ${retrievedUrls.join("\n")}
   const parsed = JSON.parse(text) as { facts?: ExtractedFact[]; relations?: ExtractedRelation[] };
   return { facts: parsed.facts ?? [], relations: parsed.relations ?? [], usage: usageOf(message) };
 }
+
+/**
+ * Fingerprint of the research/extraction code (prompts, tool setup, parsing). Included in each
+ * section hash so that editing a prompt in code marks cached sections as stale, like editing
+ * a playbook does. Function sources are used so that no manual version bump is needed.
+ */
+export const PIPELINE_FINGERPRINT = createHash("sha256")
+  .update(
+    [
+      RESEARCH_SYSTEM.toString(),
+      research.toString(),
+      researchTools.toString(),
+      finalNotes.toString(),
+      String(FETCH_MAX_CONTENT_TOKENS),
+      EXTRACTION_SYSTEM,
+      extract.toString(),
+      extractionSchema.toString(),
+      JSON.stringify(SOURCE_SCHEMA),
+    ].join("\n"),
+  )
+  .digest("hex")
+  .slice(0, 12);

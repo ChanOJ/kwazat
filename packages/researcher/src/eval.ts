@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
 import { openDb } from "@waza/db";
-import { addUsage, emptyUsage, type Usage } from "./claude.ts";
+import { addUsage, describeConfig, emptyUsage, formatCost, type RunConfig, type Usage } from "./claude.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { loadSheet, resolve, runSection, upsertPerson } from "./pipeline.ts";
 
@@ -41,7 +41,7 @@ type CaseResult = {
  */
 export async function runEval(
   playbookId: string,
-  opts: { model: string; only?: string; sections?: string[] },
+  opts: { config: RunConfig; only?: string; sections?: string[] },
 ): Promise<void> {
   const playbook = loadPlaybook(playbookId);
   const golden = Golden.parse(parse(fs.readFileSync(path.join(EVAL_DIR, "golden", `${playbookId}.yaml`), "utf8")));
@@ -84,7 +84,7 @@ export async function runEval(
       const entity = await upsertPerson(db, c.expected_wikidata_id);
       for (const section of sections) {
         process.stderr.write(`  ${section.id}... `);
-        const outcome = await runSection(db, entity, playbook, section, opts.model, { force: true });
+        const outcome = await runSection(db, entity, playbook, section, opts.config, { force: true });
         if (outcome.status === "skipped") continue;
         usage = addUsage(usage, outcome.usage);
         if (outcome.status === "failed") failures.push(`${section.id}: ${outcome.error}`);
@@ -121,7 +121,7 @@ export async function runEval(
     await db.close();
   }
 
-  const report = renderReport(playbook.id, playbook.version, opts.model, results);
+  const report = renderReport(playbook.id, playbook.version, opts.config, results);
   fs.mkdirSync(path.join(EVAL_DIR, "reports"), { recursive: true });
   const file = path.join(EVAL_DIR, "reports", `${stamp}-${playbook.id}-v${playbook.version}.md`);
   fs.writeFileSync(file, report);
@@ -129,22 +129,22 @@ export async function runEval(
   console.error(`\nReport written to ${path.relative(process.cwd(), file)}`);
 }
 
-function renderReport(playbookId: string, version: number, model: string, results: CaseResult[]): string {
+function renderReport(playbookId: string, version: number, config: RunConfig, results: CaseResult[]): string {
   const allChecks = results.flatMap((r) => [r.resolution, ...r.checks]);
   const passed = allChecks.filter((c) => c.passed).length;
   const total = results.reduce((acc, r) => addUsage(acc, r.usage), emptyUsage());
   const lines = [
     `# Eval — ${playbookId} v${version}`,
     "",
-    `- Model: ${model}`,
+    `- Config: ${describeConfig(config)}`,
     `- Score: **${passed}/${allChecks.length}** checks passed`,
-    `- Estimated cost: $${total.costUsd.toFixed(2)} (${total.webSearches} web searches) · $${(total.costUsd / Math.max(results.length, 1)).toFixed(2)} per entity`,
+    `- Estimated cost: ${formatCost(total)} · $${(total.costUsd / Math.max(results.length, 1)).toFixed(3)} per entity`,
     "",
-    "| Entity | Resolution | Checks | Cost | Time | Errors |",
-    "|---|---|---|---|---|---|",
+    "| Entity | Resolution | Checks | Cost | Tokens | Searches | Time | Errors |",
+    "|---|---|---|---|---|---|---|---|",
     ...results.map(
       (r) =>
-        `| ${r.query} | ${r.resolution.passed ? "✓" : "✗"} | ${r.checks.filter((c) => c.passed).length}/${r.checks.length} | $${r.usage.costUsd.toFixed(2)} | ${(r.durationMs / 1000).toFixed(0)}s | ${r.failures.length} |`,
+        `| ${r.query} | ${r.resolution.passed ? "✓" : "✗"} | ${r.checks.filter((c) => c.passed).length}/${r.checks.length} | $${r.usage.costUsd.toFixed(3)} | $${r.usage.tokenCostUsd.toFixed(3)} | ${r.usage.webSearches} ($${r.usage.searchCostUsd.toFixed(2)}) | ${(r.durationMs / 1000).toFixed(0)}s | ${r.failures.length} |`,
     ),
     "",
     "## Details",
