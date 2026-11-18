@@ -1,6 +1,7 @@
 # Infrastructure plan — Scaleway
 
-Status: **proposal** (2026-11-18). Nothing described here exists yet.
+Status (2026-11-18): phases 1 and 2 done — `infra/shared` and staging are applied; the staging
+`kwazat-migrate` and `kwazat-researcher` jobs run the first image. Phases 3 to 6 are still to do.
 
 ## Goals
 

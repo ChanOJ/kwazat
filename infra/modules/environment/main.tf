@@ -147,6 +147,11 @@ resource "scaleway_job_definition" "migrate" {
   local_storage_capacity = 1024
   timeout                = "10m"
 
+  # No automatic retry: a migration or a paid research run is never replayed silently.
+  retry_policy {
+    max_retries = 0
+  }
+
   secret_reference {
     secret_id   = scaleway_secret.database_url["migrate"].id
     environment = "DATABASE_URL"
@@ -165,6 +170,11 @@ resource "scaleway_job_definition" "researcher" {
   memory_limit           = 2048
   local_storage_capacity = 1024
   timeout                = "1h"
+
+  # No automatic retry: a migration or a paid research run is never replayed silently.
+  retry_policy {
+    max_retries = 0
+  }
 
   secret_reference {
     secret_id   = scaleway_secret.database_url["runtime"].id
