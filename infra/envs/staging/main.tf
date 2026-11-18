@@ -22,10 +22,10 @@ variable "web_image" {
   default     = ""
 }
 
-variable "dns_ready" {
-  description = "Set to true once kwazat.fyi and kwazat.com are validated in Scaleway (infra/README.md, DNS)."
-  type        = bool
-  default     = false
+variable "dns_ready_zones" {
+  description = "Zones validated in Scaleway (infra/README.md, DNS), e.g. [\"kwazat.fyi\", \"kwazat.com\"]."
+  type        = set(string)
+  default     = []
 }
 
 variable "database_url_version" {
@@ -54,8 +54,8 @@ module "environment" {
 
   database_url_version = var.database_url_version
 
-  web_image = var.web_image
-  dns_ready = var.dns_ready
+  web_image       = var.web_image
+  dns_ready_zones = var.dns_ready_zones
   web_domains = {
     "test.kwazat.fyi" = { zone = "kwazat.fyi", name = "test" }
   }

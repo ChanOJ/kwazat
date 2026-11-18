@@ -36,10 +36,10 @@ variable "web_domains" {
   default     = {}
 }
 
-variable "dns_ready" {
-  description = "True once the zones of web_domains are validated in Scaleway: records and custom domains are then created."
-  type        = bool
-  default     = false
+variable "dns_ready_zones" {
+  description = "Zones validated in Scaleway: records and custom domains of web_domains in these zones are created."
+  type        = set(string)
+  default     = []
 }
 
 variable "image" {
@@ -281,7 +281,7 @@ resource "scaleway_container" "web" {
   image                  = var.web_image
   port                   = 8080
   cpu_limit              = 140
-  memory_limit_bytes     = 268435456
+  memory_limit_bytes     = 268000000 # Scaleway stores memory in decimal megabytes (268 MB)
   min_scale              = 0
   max_scale              = 2
   privacy                = "public"
@@ -299,7 +299,8 @@ resource "scaleway_container" "web" {
 locals {
   web_host = length(scaleway_container.web) == 0 ? "" : trimsuffix(trimprefix(scaleway_container.web[0].public_endpoint, "https://"), "/")
   # Records and custom domains need both the container and validated zones.
-  web_domains = var.dns_ready && local.web_host != "" ? var.web_domains : {}
+  # Keys must be known at plan time: they depend on the inputs only, not on the container.
+  web_domains = var.web_image == "" ? {} : { for host, d in var.web_domains : host => d if contains(var.dns_ready_zones, d.zone) }
 }
 
 # Apex names use ALIAS (a CNAME is not allowed there), other names CNAME.
