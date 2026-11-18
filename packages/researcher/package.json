@@ -7,6 +7,7 @@
     "sheet": "tsx src/cli.ts sheet",
     "sources": "tsx src/cli.ts sources",
     "indices": "tsx src/cli.ts indices",
+    "trust": "tsx src/cli.ts trust",
     "reach": "tsx src/cli.ts reach",
     "eval": "tsx src/cli.ts eval",
     "typecheck": "tsc -p ."

@@ -136,7 +136,8 @@ function tdmReservedByWellKnown(entries: TdmRepEntry[], path: string): boolean {
 
 // --- Fetching --------------------------------------------------------------------------------
 
-async function get(url: string, accept: string): Promise<Response> {
+/** GET as KwazatBot (honest user agent, timeout, redirects followed). */
+export async function botGet(url: string, accept: string): Promise<Response> {
   return fetch(url, {
     headers: { "User-Agent": BOT_UA, Accept: accept, "Accept-Language": "en, fr;q=0.9, *;q=0.5" },
     redirect: "follow",
@@ -180,7 +181,7 @@ export class Fetcher {
         origin,
         (async () => {
           try {
-            const res = await get(`${origin}/robots.txt`, "text/plain");
+            const res = await botGet(`${origin}/robots.txt`, "text/plain");
             // RFC 9309: a missing file allows everything; a server error means "assume disallowed".
             if (res.status >= 500) return "unreachable" as const;
             return res.ok ? parseRobots(await res.text()) : [];
@@ -199,7 +200,7 @@ export class Fetcher {
         origin,
         (async () => {
           try {
-            const res = await get(`${origin}/.well-known/tdmrep.json`, "application/json");
+            const res = await botGet(`${origin}/.well-known/tdmrep.json`, "application/json");
             if (!res.ok) return [];
             const json = (await res.json()) as unknown;
             return Array.isArray(json) ? (json as TdmRepEntry[]) : [];
@@ -233,7 +234,7 @@ export class Fetcher {
       const refused = await this.policy(url);
       if (refused) return { ...base, status: "snippet_only", reason: refused };
 
-      const res = await get(url, "text/html,application/xhtml+xml");
+      const res = await botGet(url, "text/html,application/xhtml+xml");
       if (!res.ok) return { ...base, status: "failed", reason: `HTTP ${res.status}` };
       if (res.headers.get("tdm-reservation") === "1") {
         await res.body?.cancel();

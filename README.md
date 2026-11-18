@@ -98,6 +98,9 @@ pnpm indices
 # List registry domains the web tools cannot reach, into sources/access.json (free API check)
 pnpm reach
 
+# Read the trust.txt of registry domains (ownership, affiliations) into sources/trust.json (free)
+pnpm trust
+
 # Print a stored sheet (--all includes items pending review)
 pnpm sheet Q101410 --all
 

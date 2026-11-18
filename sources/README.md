@@ -113,6 +113,25 @@ publishers' stated wishes:
 - paywalls and logins are never bypassed: only what the page serves publicly is read;
 - page texts are not stored: only extracted facts, quotes of 25 words at most, and URLs.
 
+## trust.txt declarations
+
+[trust.txt](https://journallist.net) is a plain-text file in which a news publisher declares
+who controls it (`controlledby=`), which associations it belongs to (`belongto=`), its official
+contacts and whether its content may be used for AI training (`datatrainingallowed=`).
+`pnpm trust` (free, no API key) reads it for every registry domain, at `/.well-known/trust.txt`
+then `/trust.txt`, plus the files of the owners and associations they point to, and stores the
+result in `trust.json`.
+
+- A declaration is a claim: a link is **confirmed** only when the other side declares it too
+  (`controlledby=` ↔ `control=`, `belongto=` ↔ `member=`).
+- Declarations **do not change any tier**: they help fill in `owner`, `owner_id` and signal
+  evidence, which a person then records with their own evidence URL.
+- `datatrainingallowed` is recorded for information only: it concerns model training, which
+  Kwazat does not do, so it does not restrict reading (unlike the signals in "Fetching policy").
+- The parser is strict: HTML error pages served with status 200 and files without any known
+  variable are ignored.
+- Adoption is low outside US local news: on 2026-11-18, 1 of 106 registry domains published one.
+
 ## Reachability (Claude web tools only)
 
 With `--search-provider anthropic`, many publishers block Anthropic's crawler: their pages never appear in the web tools' results,
