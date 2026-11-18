@@ -5,13 +5,15 @@
   "scripts": {
     "research": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher research",
     "sheet": "pnpm --filter @kwazat/researcher sheet",
+    "lookup": "pnpm --filter @kwazat/researcher lookup",
     "sources": "pnpm --filter @kwazat/researcher sources",
     "indices": "pnpm --filter @kwazat/researcher indices",
     "trust": "pnpm --filter @kwazat/researcher trust",
     "reach": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher reach",
     "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher eval",
     "db:generate": "pnpm --filter @kwazat/db generate",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

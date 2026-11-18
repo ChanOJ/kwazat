@@ -64,7 +64,7 @@ export async function runEval(
       const failures: string[] = [];
 
       // 1. Resolution: the expected item must be found; ambiguity must be surfaced when expected.
-      const first = await resolve(playbook, c.query);
+      const first = await resolve(db, playbook, c.query);
       let resolution: CaseResult["resolution"];
       if (first.kind === "resolved") {
         resolution = {

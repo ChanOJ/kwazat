@@ -21,19 +21,63 @@ type WdEntity = {
   sitelinks?: Record<string, { title: string }>;
 };
 
+/**
+ * Global throttle towards Wikidata: at most MAX_CONCURRENT requests in flight and MIN_INTERVAL_MS
+ * between starts, per process. Wikimedia asks API clients to stay polite and serial-ish.
+ */
+const MAX_CONCURRENT = 1;
+const MIN_INTERVAL_MS = 200;
+let inFlight = 0;
+let lastStart = 0;
+const waiting: (() => void)[] = [];
+
+async function acquire() {
+  while (inFlight >= MAX_CONCURRENT) await new Promise<void>((r) => waiting.push(r));
+  inFlight++;
+  const wait = lastStart + MIN_INTERVAL_MS - Date.now();
+  lastStart = Math.max(Date.now(), lastStart + MIN_INTERVAL_MS);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+}
+
+function release() {
+  inFlight--;
+  waiting.shift()?.();
+}
+
 async function call(params: Record<string, string>): Promise<any> {
+  await acquire();
+  try {
+    return await callUnthrottled(params);
+  } finally {
+    release();
+  }
+}
+
+async function callUnthrottled(params: Record<string, string>): Promise<any> {
   const url = new URL(API);
-  for (const [k, v] of Object.entries({ ...params, format: "json" })) url.searchParams.set(k, v);
+  // maxlag: Wikidata answers "busy" instead of serving us when its replicas lag (bot etiquette).
+  for (const [k, v] of Object.entries({ ...params, format: "json", maxlag: "5" })) url.searchParams.set(k, v);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     // Rate limited: wait as asked (Retry-After, in seconds) and retry a few times.
     if (res.status === 429 && attempt < 3) {
-      const wait = Number(res.headers.get("retry-after")) || 2 ** attempt;
-      await new Promise((r) => setTimeout(r, Math.min(wait, 30) * 1000));
+      const wait = Math.min(Number(res.headers.get("retry-after")) || 2 ** attempt, 5);
+      process.stderr.write(`(Wikidata rate limit: retry in ${wait} s) `);
+      await new Promise((r) => setTimeout(r, wait * 1000));
       continue;
     }
     if (!res.ok) throw new Error(`Wikidata ${res.status} for ${url}`);
-    return res.json();
+    const json = await res.json();
+    // maxlag: the API answers with an error and Retry-After while its replicas catch up.
+    if (json?.error?.code === "maxlag" && attempt < 3) {
+      // Searches are interactive: wait briefly, never the full Retry-After.
+      const wait = Number(res.headers.get("retry-after")) || 2;
+      process.stderr.write(`(Wikidata busy: maxlag, retry in ${Math.min(wait, 5)} s) `);
+      await new Promise((r) => setTimeout(r, Math.min(wait, 5) * 1000));
+      continue;
+    }
+    if (json?.error) throw new Error(`Wikidata error ${json.error.code}: ${json.error.info}`);
+    return json;
   }
 }
 
@@ -91,7 +135,20 @@ export async function searchCandidates(query: string, opts: { humansOnly: boolea
     type: "item",
     limit: "10",
   });
-  const ids: string[] = found.search.map((s: { id: string }) => s.id);
+  let ids: string[] = found.search.map((s: { id: string }) => s.id);
+  if (opts.humansOnly) {
+    // Label search ranks places and other items first ("Cahuzac" is also a commune): add a
+    // full-text search restricted to humans, and keep label matches first.
+    const humans = await call({
+      action: "query",
+      list: "search",
+      srsearch: `${query} haswbstatement:P31=Q5`,
+      srnamespace: "0",
+      srlimit: "10",
+    });
+    const humanIds: string[] = (humans.query?.search ?? []).map((r: { title: string }) => r.title);
+    ids = [...new Set([...ids, ...humanIds])];
+  }
   const entities = await getEntities(ids, "labels|descriptions|claims");
   const candidates = ids
     .map((id) => entities[id])
@@ -120,6 +177,8 @@ export type PersonIdentity = {
   label: string;
   description: string | null;
   aliases: string[];
+  /** Labels and aliases with their language, for name search. */
+  names: { name: string; lang: string }[];
   identity: {
     fullName: string;
     gender: string | null;
@@ -185,6 +244,10 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
     label,
     description: pick(e.descriptions),
     aliases: LANGS.flatMap((l) => e.aliases?.[l]?.map((a) => a.value) ?? []),
+    names: LANGS.flatMap((l) => [
+      ...(e.labels?.[l] ? [{ name: e.labels[l].value, lang: l }] : []),
+      ...(e.aliases?.[l]?.map((a) => ({ name: a.value, lang: l })) ?? []),
+    ]),
     identity: {
       fullName: label,
       gender: itemIds(e, "P21").map(labelOf)[0] ?? null,

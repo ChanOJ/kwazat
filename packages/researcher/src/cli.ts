@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
-import { openDb } from "@kwazat/db";
+import { openDb, type Db } from "@kwazat/db";
+import { searchKnownEntities, wikidataCandidates } from "./names.ts";
 import { addUsage, describeConfig, emptyUsage, formatCost, resolveConfig } from "./claude.ts";
 import { runEval } from "./eval.ts";
 import { updateIndices } from "./indices.ts";
@@ -15,6 +16,7 @@ const RUN_OPTIONS =
 const USAGE = `Usage:
   research <name|Q-id> [--type person] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
   sheet <name|Q-id> [--type person] [--pick N] [--all]
+  lookup <name> [--type person]  (name search: known entities, then cached Wikidata candidates)
   sources <name|Q-id> [--type person] [--pick N] [--sections a,b]
   indices                      (downloads country indices into sources/countries.json)
   reach                        (lists registry domains the web tools cannot reach)
@@ -62,11 +64,12 @@ function selectSections(playbookSections: ReturnType<typeof loadPlaybook>["secti
   return research.filter((s) => sectionFilter.includes(s.id));
 }
 
-async function resolveOrExit(playbook: ReturnType<typeof loadPlaybook>) {
+async function resolveOrExit(db: Db, playbook: ReturnType<typeof loadPlaybook>) {
   if (!query) throw new Error(USAGE);
-  const result = await resolve(playbook, query, values.pick ? Number(values.pick) : undefined);
+  const result = await resolve(db, playbook, query, values.pick ? Number(values.pick) : undefined);
   if (result.kind === "not_found") {
     console.error(`No ${playbook.label.toLowerCase()} found for "${query}".`);
+    await db.close();
     process.exit(1);
   }
   if (result.kind === "ambiguous") {
@@ -74,6 +77,7 @@ async function resolveOrExit(playbook: ReturnType<typeof loadPlaybook>) {
     result.candidates.forEach((c, i) =>
       console.error(`  ${i + 1}. ${c.label} (${c.wikidataId}) — ${c.description ?? "no description"}${c.birthDate ? `, born ${c.birthDate}` : ""}`),
     );
+    await db.close();
     process.exit(2);
   }
   return result.wikidataId;
@@ -132,13 +136,31 @@ async function main() {
     for (const src of file.sources) console.log(`  ${src.id} (${src.year}): ${src.url}`);
     return;
   }
+  if (command === "lookup") {
+    // Name search as the API will do it: known entities first, then cached Wikidata candidates.
+    if (!query) throw new Error(USAGE);
+    const db = await openDb();
+    try {
+      let t = Date.now();
+      const known = await searchKnownEntities(db, query);
+      console.log(`Known entities (${Date.now() - t} ms):`);
+      for (const k of known) console.log(`  ${k.label} — ${k.description ?? ""} [${k.entityId}] score ${k.score.toFixed(2)}`);
+      t = Date.now();
+      const candidates = await wikidataCandidates(db, query, { humansOnly: values.type === "person" });
+      console.log(`Wikidata candidates (${Date.now() - t} ms):`);
+      for (const c of candidates) console.log(`  ${c.label} (${c.wikidataId}) — ${c.description ?? ""}`);
+    } finally {
+      await db.close();
+    }
+    return;
+  }
   if (command !== "research" && command !== "sheet" && command !== "sources") throw new Error(USAGE);
 
   const playbook = loadPlaybook(values.type);
   if (playbook.entity_type !== "person") throw new Error(`Playbook "${playbook.id}" is not supported yet`);
-  const wikidataId = await resolveOrExit(playbook);
   const registry = loadRegistry();
   const db = await openDb();
+  const wikidataId = await resolveOrExit(db, playbook);
   try {
     if (command === "sources") {
       // Free: shows which sources each section would use for this subject (no LLM call).
