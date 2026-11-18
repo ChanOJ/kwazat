@@ -1,5 +1,6 @@
-import { and, eq } from "@kwazat/db";
-import { entities, facts, relations, sectionRuns, type Db, type Source } from "@kwazat/db";
+import { and, eq, uuidv7 } from "@kwazat/db";
+import { entities, entityIdentifiers, facts, relations, sectionRuns, type Db, type Source } from "@kwazat/db";
+import { findEntityByIdentifier, setEntityNames, wikidataCandidates } from "./names.ts";
 import {
   addUsage,
   emptyUsage,
@@ -15,7 +16,7 @@ import {
 import { researchWithSearch } from "./research.ts";
 import { sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
 import { confidenceCap, lookupSource, minConfidence, selectSources, type Registry } from "./sources.ts";
-import { getPersonIdentity, searchCandidates, type Candidate } from "./wikidata.ts";
+import { getPersonIdentity, type Candidate } from "./wikidata.ts";
 
 export type Entity = typeof entities.$inferSelect;
 
@@ -27,10 +28,11 @@ export type Resolution =
 /**
  * Turns a free-text query into a single Wikidata item. A Q-id is taken as is.
  * With several candidates the caller must pick one (homonym protection).
+ * Candidate lists are cached (see names.ts).
  */
-export async function resolve(playbook: Playbook, query: string, pick?: number): Promise<Resolution> {
+export async function resolve(db: Db, playbook: Playbook, query: string, pick?: number): Promise<Resolution> {
   if (/^Q\d+$/.test(query.trim())) return { kind: "resolved", wikidataId: query.trim() };
-  const candidates = await searchCandidates(query, { humansOnly: playbook.entity_type === "person" });
+  const candidates = await wikidataCandidates(db, query, { humansOnly: playbook.entity_type === "person" });
   if (!candidates.length) return { kind: "not_found" };
   if (pick !== undefined) {
     const chosen = candidates[pick - 1];
@@ -41,25 +43,30 @@ export async function resolve(playbook: Playbook, query: string, pick?: number):
   return { kind: "ambiguous", candidates };
 }
 
-/** Creates or refreshes the entity and its deterministic Wikidata relations. */
+/**
+ * Creates or refreshes a person from Wikidata: entity (Kwazat id), Wikidata identifier,
+ * searchable names, and deterministic Wikidata relations.
+ */
 export async function upsertPerson(db: Db, wikidataId: string): Promise<Entity> {
   const person = await getPersonIdentity(wikidataId);
+  const existing = await findEntityByIdentifier(db, "wikidata", wikidataId);
   return db.transaction(async (tx) => {
     const values = {
       type: "person" as const,
-      wikidataId,
       label: person.label,
       description: person.description,
       aliases: person.aliases,
       identity: person.identity,
       updatedAt: new Date(),
     };
-    const [entity] = await tx
-      .insert(entities)
-      .values(values)
-      .onConflictDoUpdate({ target: entities.wikidataId, set: values })
-      .returning();
+    const [entity] = existing
+      ? await tx.update(entities).set(values).where(eq(entities.id, existing.id)).returning()
+      : await tx.insert(entities).values({ id: uuidv7(), ...values }).returning();
     if (!entity) throw new Error("Entity upsert failed");
+    if (!existing) {
+      await tx.insert(entityIdentifiers).values({ entityId: entity.id, scheme: "wikidata", value: wikidataId, source: "wikidata" });
+    }
+    await setEntityNames(tx, entity.id, person.names);
 
     await tx.delete(relations).where(and(eq(relations.fromEntityId, entity.id), eq(relations.origin, "wikidata")));
     if (person.relations.length) {
@@ -94,11 +101,17 @@ export function countryCodesOf(entity: Entity): string[] {
   return (entity.identity as { countryCodes?: string[] }).countryCodes ?? [];
 }
 
+/** Wikidata id of an entity built from Wikidata (kept in its identity block). */
+export function wikidataIdOf(entity: Entity): string | null {
+  const url = (entity.identity as { wikidataUrl?: string }).wikidataUrl;
+  return url?.match(/(Q\d+)$/)?.[1] ?? null;
+}
+
 export function subjectOf(entity: Entity): SubjectContext {
   const id = entity.identity as { birthDate?: string; occupations?: string[]; nationalities?: string[] };
   return {
     label: entity.label,
-    wikidataId: entity.wikidataId,
+    wikidataId: wikidataIdOf(entity),
     description: entity.description,
     birthDate: id.birthDate ?? null,
     occupations: id.occupations ?? [],
@@ -274,6 +287,5 @@ export async function loadSheet(db: Db, entityId: string) {
 }
 
 export async function findEntityByWikidataId(db: Db, wikidataId: string): Promise<Entity | undefined> {
-  const [entity] = await db.select().from(entities).where(eq(entities.wikidataId, wikidataId));
-  return entity;
+  return findEntityByIdentifier(db, "wikidata", wikidataId);
 }

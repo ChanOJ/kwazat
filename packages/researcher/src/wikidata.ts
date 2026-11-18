@@ -21,19 +21,63 @@ type WdEntity = {
   sitelinks?: Record<string, { title: string }>;
 };
 
+/**
+ * Global throttle towards Wikidata: at most MAX_CONCURRENT requests in flight and MIN_INTERVAL_MS
+ * between starts, per process. Wikimedia asks API clients to stay polite and serial-ish.
+ */
+const MAX_CONCURRENT = 1;
+const MIN_INTERVAL_MS = 200;
+let inFlight = 0;
+let lastStart = 0;
+const waiting: (() => void)[] = [];
+
+async function acquire() {
+  while (inFlight >= MAX_CONCURRENT) await new Promise<void>((r) => waiting.push(r));
+  inFlight++;
+  const wait = lastStart + MIN_INTERVAL_MS - Date.now();
+  lastStart = Math.max(Date.now(), lastStart + MIN_INTERVAL_MS);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+}
+
+function release() {
+  inFlight--;
+  waiting.shift()?.();
+}
+
 async function call(params: Record<string, string>): Promise<any> {
+  await acquire();
+  try {
+    return await callUnthrottled(params);
+  } finally {
+    release();
+  }
+}
+
+async function callUnthrottled(params: Record<string, string>): Promise<any> {
   const url = new URL(API);
-  for (const [k, v] of Object.entries({ ...params, format: "json" })) url.searchParams.set(k, v);
+  // maxlag: Wikidata answers "busy" instead of serving us when its replicas lag (bot etiquette).
+  for (const [k, v] of Object.entries({ ...params, format: "json", maxlag: "5" })) url.searchParams.set(k, v);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
     // Rate limited: wait as asked (Retry-After, in seconds) and retry a few times.
     if (res.status === 429 && attempt < 3) {
-      const wait = Number(res.headers.get("retry-after")) || 2 ** attempt;
-      await new Promise((r) => setTimeout(r, Math.min(wait, 30) * 1000));
+      const wait = Math.min(Number(res.headers.get("retry-after")) || 2 ** attempt, 5);
+      process.stderr.write(`(Wikidata rate limit: retry in ${wait} s) `);
+      await new Promise((r) => setTimeout(r, wait * 1000));
       continue;
     }
     if (!res.ok) throw new Error(`Wikidata ${res.status} for ${url}`);
-    return res.json();
+    const json = await res.json();
+    // maxlag: the API answers with an error and Retry-After while its replicas catch up.
+    if (json?.error?.code === "maxlag" && attempt < 3) {
+      // Searches are interactive: wait briefly, never the full Retry-After.
+      const wait = Number(res.headers.get("retry-after")) || 2;
+      process.stderr.write(`(Wikidata busy: maxlag, retry in ${Math.min(wait, 5)} s) `);
+      await new Promise((r) => setTimeout(r, Math.min(wait, 5) * 1000));
+      continue;
+    }
+    if (json?.error) throw new Error(`Wikidata error ${json.error.code}: ${json.error.info}`);
+    return json;
   }
 }
 
@@ -91,19 +135,36 @@ export async function searchCandidates(query: string, opts: { humansOnly: boolea
     type: "item",
     limit: "10",
   });
-  const ids: string[] = found.search.map((s: { id: string }) => s.id);
-  const entities = await getEntities(ids, "labels|descriptions|claims");
-  const candidates = ids
-    .map((id) => entities[id])
-    .filter((e): e is WdEntity => !!e)
-    .map((e) => ({
-      wikidataId: e.id,
-      label: pick(e.labels) ?? e.id,
-      description: pick(e.descriptions),
-      birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
-      isHuman: itemIds(e, "P31").includes(HUMAN),
-    }));
-  return opts.humansOnly ? candidates.filter((c) => c.isHuman) : candidates;
+  const toCandidates = async (ids: string[]) => {
+    const entities = await getEntities(ids, "labels|descriptions|claims");
+    return ids
+      .map((id) => entities[id])
+      .filter((e): e is WdEntity => !!e)
+      .map((e) => ({
+        wikidataId: e.id,
+        label: pick(e.labels) ?? e.id,
+        description: pick(e.descriptions),
+        birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
+        isHuman: itemIds(e, "P31").includes(HUMAN),
+      }));
+  };
+  const candidates = await toCandidates(found.search.map((s: { id: string }) => s.id));
+  if (!opts.humansOnly) return candidates;
+  const humansFound = candidates.filter((c) => c.isHuman);
+  if (humansFound.length) return humansFound;
+  {
+    // Label search ranks places and other items first and may return no person at all
+    // ("Cahuzac" is also a commune): fall back to a full-text search restricted to humans.
+    const humans = await call({
+      action: "query",
+      list: "search",
+      srsearch: `${query} haswbstatement:P31=Q5`,
+      srnamespace: "0",
+      srlimit: "10",
+    });
+    const humanIds: string[] = (humans.query?.search ?? []).map((r: { title: string }) => r.title);
+    return (await toCandidates(humanIds)).filter((c) => c.isHuman);
+  }
 }
 
 export type WikidataRelation = {
@@ -120,6 +181,8 @@ export type PersonIdentity = {
   label: string;
   description: string | null;
   aliases: string[];
+  /** Labels and aliases with their language, for name search. */
+  names: { name: string; lang: string }[];
   identity: {
     fullName: string;
     gender: string | null;
@@ -185,6 +248,10 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
     label,
     description: pick(e.descriptions),
     aliases: LANGS.flatMap((l) => e.aliases?.[l]?.map((a) => a.value) ?? []),
+    names: LANGS.flatMap((l) => [
+      ...(e.labels?.[l] ? [{ name: e.labels[l].value, lang: l }] : []),
+      ...(e.aliases?.[l]?.map((a) => ({ name: a.value, lang: l })) ?? []),
+    ]),
     identity: {
       fullName: label,
       gender: itemIds(e, "P21").map(labelOf)[0] ?? null,

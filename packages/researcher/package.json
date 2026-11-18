@@ -5,12 +5,14 @@
   "scripts": {
     "research": "tsx src/cli.ts research",
     "sheet": "tsx src/cli.ts sheet",
+    "lookup": "tsx src/cli.ts lookup",
     "sources": "tsx src/cli.ts sources",
     "indices": "tsx src/cli.ts indices",
     "trust": "tsx src/cli.ts trust",
     "reach": "tsx src/cli.ts reach",
     "eval": "tsx src/cli.ts eval",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

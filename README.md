@@ -14,7 +14,7 @@ Tune playbooks and measure quality/cost before building the web app.
 ```
 playbooks/            One YAML playbook per entity type (sections, instructions, schemas, source types)
 sources/              Source registry: trusted outlets and official sites per country (see sources/README.md)
-packages/db/          Drizzle schema + local embedded Postgres (PGlite) + migrations
+packages/db/          Drizzle schema, migrations, job queue; PGlite locally, Postgres via DATABASE_URL
 packages/researcher/  Wikidata resolution, Claude research/extraction pipeline, CLI, eval runner
 eval/golden/          Golden set per playbook (expected Wikidata ids + fact checks)
 eval/reports/         Eval reports (git-ignored)
@@ -23,7 +23,11 @@ eval/reports/         Eval reports (git-ignored)
 ### How a sheet is built
 
 1. **Resolution** — the query is matched against Wikidata (humans only for persons). Several
-   candidates → the user picks one (homonym protection). The Wikidata id is the entity key.
+   candidates → the user picks one (homonym protection). Candidate lists are cached 24 h and
+   Wikidata calls are serialized and throttled; known entities are also searched locally
+   (trigram index, typo-tolerant). Entities get Kwazat's own id (UUIDv7); Wikidata ids and other
+   external identifiers (GTIN, SIREN, LEI...) live in a correspondence table, and merged
+   duplicates redirect to the entity they were merged into.
 2. **Identity + family/party relations** — deterministic, from Wikidata (no LLM).
 3. **Each research section**, independently:
    - *sources*: outlets are picked from the registry for the subject's countries (Wikidata
@@ -44,7 +48,16 @@ Requires Node.js ≥ 22, pnpm, and a logged-in [Proton Pass CLI](https://proton.
 
 ```bash
 pnpm install
+pnpm indices   # country indices used by the source registry (free, not committed)
+pnpm test      # unit and database tests (PGlite and the Postgres wire protocol)
 ```
+
+### Database
+
+Without configuration, an embedded Postgres (PGlite) is stored in `.data/pglite`: nothing to
+install. Set `DATABASE_URL` to use a Postgres server instead (production, CI); migrations run
+automatically on start. Long tasks go through a Postgres-backed job queue (`jobs` table,
+`FOR UPDATE SKIP LOCKED`), so no extra queue service is needed.
 
 ### Secrets
 
@@ -88,6 +101,9 @@ pnpm research "François Fillon" --pick 1 --identity-only
 pnpm research Q101410
 pnpm research Q101410 --sections convictions,ongoing_cases
 pnpm research Q101410 --force                          # ignore cached sections
+
+# Name search as the API will do it: known entities, then cached Wikidata candidates (free)
+pnpm lookup "Jerome Cahusac"
 
 # Show which sources each section would use for a subject (free)
 pnpm sources Q57751

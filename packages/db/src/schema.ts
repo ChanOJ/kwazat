@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -6,6 +7,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -35,13 +37,18 @@ export type Source = {
   tier?: number | null;
 };
 
-/** Canonical entity. For persons, `wikidataId` is the disambiguation key (no homonym confusion). */
+/**
+ * Canonical entity. `id` is Kwazat's own public identifier (UUIDv7, set by the application):
+ * many entities (most products, many brands) have no Wikidata item. External identifiers
+ * live in `entity_identifiers`.
+ */
 export const entities = pgTable(
   "entities",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: uuid("id").primaryKey(),
     type: entityType("type").notNull(),
-    wikidataId: text("wikidata_id"),
+    /** Set when this entity turned out to duplicate another: its id then redirects there. */
+    mergedInto: uuid("merged_into"),
     label: text("label").notNull(),
     description: text("description"),
     aliases: jsonb("aliases").$type<string[]>().notNull().default([]),
@@ -50,7 +57,99 @@ export const entities = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("entities_wikidata_id_idx").on(t.wikidataId)],
+  (t) => [index("entities_merged_into_idx").on(t.mergedInto)],
+);
+
+/**
+ * Identifier schemes of other datasets. An entity can have several (a company: Wikidata,
+ * SIREN, LEI; a product: GTIN barcode, Open Food Facts...). Lowercase, stable strings.
+ */
+export const IDENTIFIER_SCHEMES = ["wikidata", "gtin", "siren", "lei", "openfoodfacts", "isni"] as const;
+export type IdentifierScheme = (typeof IDENTIFIER_SCHEMES)[number];
+
+/** Correspondence between Kwazat entities and external identifiers. */
+export const entityIdentifiers = pgTable(
+  "entity_identifiers",
+  {
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    scheme: text("scheme").$type<IdentifierScheme>().notNull(),
+    value: text("value").notNull(),
+    /** Where the correspondence comes from (e.g. "wikidata", "openfoodfacts", "research"). */
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.scheme, t.value] }),
+    index("entity_identifiers_entity_idx").on(t.entityId),
+  ],
+);
+
+/** Names and aliases of known entities, normalized, for instant search (trigram index). */
+export const entityNames = pgTable(
+  "entity_names",
+  {
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** ISO 639-1 code, "mul" for language-neutral names, null if unknown. */
+    lang: text("lang"),
+    normalized: text("normalized").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.entityId, t.normalized] }),
+    index("entity_names_trgm_idx").using("gin", t.normalized.op("gin_trgm_ops")),
+  ],
+);
+
+/**
+ * Cached Wikidata candidate lists per normalized query, so that popular searches do not hit
+ * Wikidata again. The full list is kept (not only known entities): homonyms must stay visible.
+ */
+export const wikidataSearchCache = pgTable(
+  "wikidata_search_cache",
+  {
+    query: text("query").notNull(),
+    lang: text("lang").notNull(),
+    humansOnly: boolean("humans_only").notNull(),
+    results: jsonb("results").$type<unknown[]>().notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.query, t.lang, t.humansOnly] })],
+);
+
+export const jobStatus = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
+
+/**
+ * Background jobs (research runs...), processed by workers with SELECT ... FOR UPDATE SKIP
+ * LOCKED. `dedupeKey` prevents the same work from being queued twice while one is pending.
+ */
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: uuid("id").primaryKey(),
+    kind: text("kind").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    status: jobStatus("status").notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(3),
+    runAfter: timestamp("run_after", { withTimezone: true }).notNull().defaultNow(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: text("locked_by"),
+    lastError: text("last_error"),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("jobs_pending_dedupe_idx")
+      .on(t.dedupeKey)
+      .where(sql`${t.status} in ('queued', 'running')`),
+    index("jobs_claim_idx").on(t.status, t.runAfter),
+  ],
 );
 
 /**

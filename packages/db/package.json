@@ -7,13 +7,16 @@
   },
   "scripts": {
     "generate": "drizzle-kit generate",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
-    "drizzle-orm": "^0.45.4"
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
+    "@electric-sql/pglite-socket": "0.2.19",
     "drizzle-kit": "^0.31.11"
   }
 }
