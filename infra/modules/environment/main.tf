@@ -281,7 +281,7 @@ resource "scaleway_container" "web" {
   image                  = var.web_image
   port                   = 8080
   cpu_limit              = 140
-  memory_limit_bytes     = 268435456
+  memory_limit_bytes     = 268000000 # Scaleway stores memory in decimal megabytes (268 MB)
   min_scale              = 0
   max_scale              = 2
   privacy                = "public"
