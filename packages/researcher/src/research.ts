@@ -40,7 +40,13 @@ const RESULTS_PER_QUERY = 10;
 /** Extra candidates to try when some pages turn out to be snippet-only. */
 const TRIAGE_EXTRA = 3;
 
-type Doc = SearchResult & { index: number; tierLabel: string; fetch: FetchOutcome | null };
+type Doc = SearchResult & {
+  index: number;
+  tierLabel: string;
+  /** Why the page may not be read in full (publisher opt-out, robots.txt...), null if it may. */
+  refusal: string | null;
+  fetch: FetchOutcome | null;
+};
 
 async function jsonCall<T>(
   model: string,
@@ -240,23 +246,29 @@ export async function researchWithSearch(
       const key = normalizeUrl(r.url);
       if (seen.has(key) || !keep(registry, sources, r.url)) continue;
       seen.add(key);
-      docs.push({ ...r, index: docs.length + 1, tierLabel: tierLabel(registry, r.url), fetch: null });
+      docs.push({ ...r, index: docs.length + 1, tierLabel: tierLabel(registry, r.url), refusal: null, fetch: null });
     }
     log(`search "${q.q}" (${q.lang}) → ${results.length} results`);
   }
   const searchCost = queries.length * provider.costPerQueryUsd;
   usage = addUsage(usage, { ...emptyUsage(), webSearches: queries.length, searchCostUsd: searchCost, costUsd: searchCost });
 
-  // 4-5. Triage and fetch.
-  if (docs.length && budget.fetches > 0) {
-    const picked = await triage(section, subject, docs, budget.fetches + TRIAGE_EXTRA, config);
+  // 4-5. Access policy, triage among readable pages, fetch.
+  const fetcher = new Fetcher({ aiOptOutDomains: registry.aiOptOut });
+  if (budget.fetches > 0) {
+    // Free: robots.txt and TDMRep are fetched once per host and cached.
+    await Promise.all(docs.map(async (d) => (d.refusal = await fetcher.policy(d.url))));
+  }
+  const readable = docs.filter((d) => !d.refusal);
+  log(`${readable.length} of ${docs.length} results may be read in full; the others are used through their snippets`);
+  if (readable.length && budget.fetches > 0) {
+    const picked = await triage(section, subject, readable, budget.fetches + TRIAGE_EXTRA, config);
     usage = addUsage(usage, picked.usage);
-    const fetcher = new Fetcher({ aiOptOutDomains: registry.aiOptOut });
     let fetched = 0;
     for (const index of picked.data.read) {
       if (fetched >= budget.fetches) break;
       const doc = docs[index - 1];
-      if (!doc || doc.fetch) continue;
+      if (!doc || doc.fetch || doc.refusal) continue;
       doc.fetch = await fetcher.fetch(doc.url);
       if (doc.fetch.status === "fetched") fetched++;
       log(`${doc.fetch.status.padEnd(12)} ${doc.url}${doc.fetch.reason ? ` (${doc.fetch.reason})` : ""}`);
