@@ -31,6 +31,8 @@ export type Source = {
   quote: string | null;
   /** True when the URL was actually returned by web search/fetch during the run (anti-hallucination check). */
   verified: boolean;
+  /** Registry tier of the outlet (1 reference, 2 reliable, 3 positions only), null if not listed. */
+  tier?: number | null;
 };
 
 /** Canonical entity. For persons, `wikidataId` is the disambiguation key (no homonym confusion). */

@@ -1,0 +1,85 @@
+# International sources: always included, whatever the subject's country.
+# See sources/README.md for the fields and how they are used.
+
+country: international
+
+sources:
+  # Wire services
+  - { domain: reuters.com, name: Reuters, types: [ wire ], languages: [ en ] }
+  - { domain: apnews.com, name: Associated Press, types: [ wire ], languages: [ en ] }
+  - { domain: afp.com, name: Agence France-Presse, types: [ wire, fact_check ], languages: [ en, fr, es, de, pt, ar ] }
+  - { domain: bloomberg.com, name: Bloomberg, types: [ wire, newspaper ], languages: [ en ] }
+
+  # Newspapers and broadcasters with worldwide coverage
+  - { domain: bbc.com, name: BBC, types: [ broadcaster ], languages: [ en ] }
+  - { domain: bbc.co.uk, name: BBC, types: [ broadcaster ], languages: [ en ] }
+  - { domain: theguardian.com, name: The Guardian, types: [ newspaper, investigative ], languages: [ en ] }
+  - { domain: nytimes.com, name: The New York Times, types: [ newspaper, investigative ], languages: [ en ] }
+  - { domain: washingtonpost.com, name: The Washington Post, types: [ newspaper, investigative ], languages: [ en ] }
+  - { domain: wsj.com, name: The Wall Street Journal, types: [ newspaper ], languages: [ en ] }
+  - { domain: ft.com, name: Financial Times, types: [ newspaper ], languages: [ en ] }
+  - { domain: economist.com, name: The Economist, types: [ magazine ], languages: [ en ] }
+  - { domain: politico.eu, name: Politico Europe, types: [ newspaper ], languages: [ en ] }
+  - { domain: dw.com, name: Deutsche Welle, types: [ broadcaster ], languages: [ en, de, es, fr ] }
+  - domain: france24.com
+    name: France 24
+    types: [ broadcaster ]
+    languages: [ en, fr, es, ar ]
+    signals:
+      - id: jti_certified
+        evidence: https://aib.org.uk/france-medias-monde-renews-jti-certification/
+        note: France Médias Monde, renewed October 2025
+  - domain: rfi.fr
+    name: RFI
+    types: [ broadcaster ]
+    languages: [ fr, en, es ]
+    signals:
+      - id: jti_certified
+        evidence: https://aib.org.uk/france-medias-monde-renews-jti-certification/
+        note: France Médias Monde, renewed October 2025
+  - { domain: euronews.com, name: Euronews, types: [ broadcaster ], languages: [ en, fr, de, es, it ] }
+  - domain: aljazeera.com
+    name: Al Jazeera
+    types: [ broadcaster ]
+    languages: [ en, ar ]
+    owner: State of Qatar
+    notes: Qatari state-funded network (private foundation for public benefit since 2011).
+    home: QA
+    signals:
+      - id: state_owned
+        state: QA
+        evidence: https://statemediamonitor.com/2024/07/al-jazeera-media-network-ajmn/
+        note: State Media Monitor (Media and Journalism Research Center)
+
+  # Investigative networks
+  - { domain: icij.org, name: ICIJ, types: [ investigative ], languages: [ en ] }
+  - { domain: occrp.org, name: OCCRP, types: [ investigative ], languages: [ en ] }
+  - { domain: propublica.org, name: ProPublica, types: [ investigative ], languages: [ en ] }
+  - { domain: bellingcat.com, name: Bellingcat, types: [ investigative ], languages: [ en ] }
+  - { domain: forbiddenstories.org, name: Forbidden Stories, types: [ investigative ], languages: [ en, fr ] }
+  - { domain: eic.network, name: European Investigative Collaborations, types: [ investigative ], languages: [ en ] }
+
+  # International courts and organisations
+  - { domain: curia.europa.eu, name: Court of Justice of the EU, types: [ court ], languages: [ en, fr ], signals: [ { id: official } ] }
+  - { domain: echr.coe.int, name: European Court of Human Rights, types: [ court ], languages: [ en, fr ], signals: [ { id: official } ] }
+  - { domain: icc-cpi.int, name: International Criminal Court, types: [ court ], languages: [ en, fr ], signals: [ { id: official } ] }
+  - { domain: europarl.europa.eu, name: European Parliament, types: [ parliament ], languages: [ en, fr, de ], signals: [ { id: official } ] }
+  - { domain: ec.europa.eu, name: European Commission, types: [ government, regulator ], languages: [ en ], signals: [ { id: official } ] }
+  - { domain: eppo.europa.eu, name: European Public Prosecutor's Office, types: [ court ], languages: [ en ], signals: [ { id: official } ] }
+  - { domain: un.org, name: United Nations, types: [ international_org ], languages: [ en, fr ], signals: [ { id: official } ] }
+  - { domain: ohchr.org, name: "UN Human Rights Office (incl. Working Group on Arbitrary Detention, special rapporteurs)", types: [ international_org ], signals: [ { id: official } ], languages: [ en, fr, es ] }
+  - { domain: unesco.org, name: UNESCO (incl. Observatory of Killed Journalists), types: [ international_org ], signals: [ { id: official } ], languages: [ en, fr ] }
+  - { domain: undocs.org, name: UN Official Documents, types: [ international_org ], signals: [ { id: official } ], languages: [ en, fr ] }
+  - { domain: digitallibrary.un.org, name: UN Digital Library, types: [ international_org ], signals: [ { id: official } ], languages: [ en, fr ] }
+  - { domain: worldbank.org, name: World Bank (debarment list), types: [ international_org ], languages: [ en ], signals: [ { id: official } ] }
+  - { domain: sanctionssearch.ofac.treas.gov, name: OFAC sanctions list, types: [ registry ], languages: [ en ], signals: [ { id: official } ] }
+
+excluded:
+  - { domain: wikipedia.org, reason: "Useful to find leads, never a source (see playbook style)." }
+  - { domain: rt.com, reason: "State media banned in the EU for disinformation." }
+  - { domain: sputniknews.com, reason: "State media banned in the EU for disinformation." }
+  - { domain: x.com, reason: "Social media posts are not sources." }
+  - { domain: twitter.com, reason: "Social media posts are not sources." }
+  - { domain: facebook.com, reason: "Social media posts are not sources." }
+  - { domain: tiktok.com, reason: "Social media posts are not sources." }
+  - { domain: reddit.com, reason: "Social media posts are not sources." }

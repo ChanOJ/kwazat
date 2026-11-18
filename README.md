@@ -12,7 +12,8 @@ Coverage is worldwide and everything is stored in English; localisation happens 
 Tune playbooks and measure quality/cost before building the web app.
 
 ```
-playbooks/            One YAML playbook per entity type (sections, instructions, schemas, sources)
+playbooks/            One YAML playbook per entity type (sections, instructions, schemas, source types)
+sources/              Source registry: trusted outlets and official sites per country (see sources/README.md)
 packages/db/          Drizzle schema + local embedded Postgres (PGlite) + migrations
 packages/researcher/  Wikidata resolution, Claude research/extraction pipeline, CLI, eval runner
 eval/golden/          Golden set per playbook (expected Wikidata ids + fact checks)
@@ -25,11 +26,16 @@ eval/reports/         Eval reports (git-ignored)
    candidates → the user picks one (homonym protection). The Wikidata id is the entity key.
 2. **Identity + family/party relations** — deterministic, from Wikidata (no LLM).
 3. **Each research section**, independently:
-   - *research*: Claude with web search/fetch writes sourced notes;
+   - *sources*: outlets are picked from the registry for the subject's countries (Wikidata
+     citizenship) plus international ones; sensitive sections can only reach those domains;
+   - *research*: a search provider (Brave in alpha, swappable in `src/search/`) finds sources,
+     past included; WazaBot reads the useful pages within the publishers' wishes (publishers
+     refusing AI processing are used through search snippets only); Claude writes sourced notes;
    - *extraction*: Claude converts the notes to strict JSON (structured outputs);
    - *verification*: each source URL is checked against the URLs actually retrieved.
      Unverified items and every item of a `sensitive` section are stored as `needs_review`.
-4. Each section run stores a **hash** of its definition (section + style + sources + model).
+     Confidence is capped by the registry tier of the best verified source.
+4. Each section run stores a **hash** of its definition (section + style + selected sources + model).
    Editing a playbook section makes that section stale on every sheet; other sections are kept.
 
 ## Setup
@@ -49,6 +55,7 @@ references**; the root scripts `pnpm research` and `pnpm eval` run through
 | Secret | Local development | CI (GitHub Actions) | Production (Scaleway) |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | Proton Pass, vault `Waza`, item `anthropic-api-key` | repository secret | Secret Manager |
+| `BRAVE_SEARCH_API_KEY` | Proton Pass, vault `Waza`, item `brave-search-api-key` | repository secret | Secret Manager |
 
 Use a separate Anthropic key per environment, each in a workspace with its own spend limit.
 `pnpm sheet` and `pnpm research ... --identity-only` need no secret.
@@ -63,7 +70,9 @@ Defaults are tuned for cost during the design phase. Override with CLI flags or 
 | `--extract-model` | `WAZA_EXTRACT_MODEL` | `claude-haiku-5-5` | Mechanical notes → JSON conversion |
 | `--effort` | `WAZA_RESEARCH_EFFORT` | `medium` | `low` / `medium` / `high` / `xhigh` / `max` |
 | `--max-searches` | `WAZA_MAX_SEARCHES` | `4` | Cap per section (each search is billed ~$0.01) |
-| `--max-fetches` | `WAZA_MAX_FETCHES` | `2` | Cap per section |
+| `--max-fetches` | `WAZA_MAX_FETCHES` | `2` | Cap per section (pages read in full) |
+| `--search-provider` | `WAZA_SEARCH_PROVIDER` | `brave` | `brave` (Web Search + WazaBot), `brave-context` (LLM Context passages, trimmed to snippets for publishers refusing AI), or `anthropic` (Claude web tools) |
+| `--source-mode` | `WAZA_SOURCE_MODE` | `auto` | `auto`, `restricted` or `preferred` (see sources/README.md) |
 
 These settings are part of each section's hash: changing them marks cached sections as stale.
 Reports split the cost between model tokens and web searches.
@@ -79,6 +88,15 @@ pnpm research "François Fillon" --pick 1 --identity-only
 pnpm research Q101410
 pnpm research Q101410 --sections convictions,ongoing_cases
 pnpm research Q101410 --force                          # ignore cached sections
+
+# Show which sources each section would use for a subject (free)
+pnpm sources Q57751
+
+# Refresh the country indices (V-Dem, RSF, World Bank) in sources/countries.json (free)
+pnpm indices
+
+# List registry domains the web tools cannot reach, into sources/access.json (free API check)
+pnpm reach
 
 # Print a stored sheet (--all includes items pending review)
 pnpm sheet Q101410 --all

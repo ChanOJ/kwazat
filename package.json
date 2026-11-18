@@ -5,6 +5,9 @@
   "scripts": {
     "research": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher research",
     "sheet": "pnpm --filter @waza/researcher sheet",
+    "sources": "pnpm --filter @waza/researcher sources",
+    "indices": "pnpm --filter @waza/researcher indices",
+    "reach": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher reach",
     "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher eval",
     "db:generate": "pnpm --filter @waza/db generate",
     "typecheck": "pnpm -r typecheck"

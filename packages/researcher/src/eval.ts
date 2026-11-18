@@ -7,6 +7,7 @@ import { openDb } from "@waza/db";
 import { addUsage, describeConfig, emptyUsage, formatCost, type RunConfig, type Usage } from "./claude.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { loadSheet, resolve, runSection, upsertPerson } from "./pipeline.ts";
+import { loadRegistry } from "./sources.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const EVAL_DIR = path.resolve(here, "../../../eval");
@@ -51,6 +52,7 @@ export async function runEval(
     .filter((s) => !opts.sections || opts.sections.includes(s.id));
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const registry = loadRegistry();
   const db = await openDb(path.resolve(here, `../../../.data/eval-${stamp}`));
   const results: CaseResult[] = [];
 
@@ -84,7 +86,7 @@ export async function runEval(
       const entity = await upsertPerson(db, c.expected_wikidata_id);
       for (const section of sections) {
         process.stderr.write(`  ${section.id}... `);
-        const outcome = await runSection(db, entity, playbook, section, opts.config, { force: true });
+        const outcome = await runSection(db, entity, playbook, section, opts.config, registry, { force: true });
         if (outcome.status === "skipped") continue;
         usage = addUsage(usage, outcome.usage);
         if (outcome.status === "failed") failures.push(`${section.id}: ${outcome.error}`);

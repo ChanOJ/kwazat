@@ -30,51 +30,15 @@ style: |
   - Prefer the most recent information; mention when a decision was overturned.
   - Do not confuse the person with homonyms: check name, birth date and occupation.
 
-# Outlets favoured for each kind of claim. Coverage is worldwide: these lists are examples of
-# recognised outlets, not an exhaustive whitelist. Reputable national outlets and official
-# websites of the subject's own country are equally acceptable (the research prompt says so).
-# Sources outside recognised media lower the confidence level.
+# General guidance given to the model. The outlets themselves come from the source registry
+# (sources/*.yaml): each section lists the source types it wants (`source_types`), and the
+# registry files of the subject's countries plus the international one provide the domains.
+# Sensitive sections are restricted to those domains (see sources/README.md).
 source_guidance: >
   Prefer international wire services and newspapers of record, plus reputable national outlets
   of the subject's country (in any language). For legal facts, prefer official court, ministry
   or parliament websites of the relevant jurisdiction. Avoid tabloids, partisan blogs, social
   media posts and content farms; Wikipedia may help find leads but is never a source.
-source_lists:
-  reference_media:
-    - reuters.com
-    - apnews.com
-    - afp.com
-    - bbc.com
-    - theguardian.com
-    - nytimes.com
-    - washingtonpost.com
-    - ft.com
-    - economist.com
-    - lemonde.fr
-    - spiegel.de
-    - elpais.com
-    - corriere.it
-    - nhk.or.jp
-    - aljazeera.com
-  investigative_media:
-    - icij.org
-    - occrp.org
-    - propublica.org
-    - bellingcat.com
-    - theguardian.com
-    - nytimes.com
-    - mediapart.fr
-    - disclose.ngo
-    - correctiv.org
-    - lecanardenchaine.fr
-  official:
-    - curia.europa.eu
-    - echr.coe.int
-    - europarl.europa.eu
-    - justice.gov
-    - supremecourt.gov
-    - legifrance.gouv.fr
-    - courdecassation.fr
 
 sections:
   - id: identity
@@ -87,7 +51,7 @@ sections:
     method: research
     sensitive: true
     ttl_days: 30
-    preferred_sources: [official, reference_media]
+    source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
     max_searches: 8
     max_fetches: 6
     instructions: |
@@ -124,7 +88,7 @@ sections:
     method: research
     sensitive: true
     ttl_days: 14
-    preferred_sources: [official, reference_media]
+    source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
     max_searches: 8
     max_fetches: 6
     instructions: |
@@ -153,7 +117,7 @@ sections:
     method: research
     sensitive: true
     ttl_days: 14
-    preferred_sources: [investigative_media]
+    source_types: [investigative, wire, newspaper, broadcaster, magazine]
     max_searches: 8
     max_fetches: 6
     instructions: |
@@ -177,7 +141,7 @@ sections:
     method: research
     sensitive: false
     ttl_days: 7
-    preferred_sources: [reference_media]
+    source_types: [wire, newspaper, broadcaster, magazine, fact_check]
     max_searches: 6
     max_fetches: 4
     instructions: |
@@ -205,7 +169,7 @@ sections:
     method: research
     sensitive: false
     ttl_days: 30
-    preferred_sources: [official, reference_media]
+    source_types: [parliament, government, regulator, wire, newspaper, broadcaster, magazine]
     max_searches: 5
     max_fetches: 3
     instructions: |
@@ -233,7 +197,7 @@ sections:
     method: research
     sensitive: false
     ttl_days: 60
-    preferred_sources: [reference_media]
+    source_types: [wire, newspaper, magazine, broadcaster, investigative, registry, regulator]
     max_searches: 6
     max_fetches: 4
     emits_relations: true

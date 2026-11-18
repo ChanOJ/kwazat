@@ -23,9 +23,17 @@ type WdEntity = {
 async function call(params: Record<string, string>): Promise<any> {
   const url = new URL(API);
   for (const [k, v] of Object.entries({ ...params, format: "json" })) url.searchParams.set(k, v);
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-  if (!res.ok) throw new Error(`Wikidata ${res.status} for ${url}`);
-  return res.json();
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    // Rate limited: wait as asked (Retry-After, in seconds) and retry a few times.
+    if (res.status === 429 && attempt < 3) {
+      const wait = Number(res.headers.get("retry-after")) || 2 ** attempt;
+      await new Promise((r) => setTimeout(r, Math.min(wait, 30) * 1000));
+      continue;
+    }
+    if (!res.ok) throw new Error(`Wikidata ${res.status} for ${url}`);
+    return res.json();
+  }
 }
 
 function pick(map: Record<string, { value: string }> | undefined): string | null {
@@ -115,6 +123,8 @@ export type PersonIdentity = {
     fullName: string;
     gender: string | null;
     nationalities: string[];
+    /** ISO 3166-1 alpha-2 codes of the citizenships (P27 → P297), used to pick national sources. */
+    countryCodes: string[];
     occupations: string[];
     birthDate: string | null;
     deathDate: string | null;
@@ -138,6 +148,14 @@ const RELATION_PROPS: Record<string, { type: string; strength: number }> = {
   P1830: { type: "owner_of", strength: 5 },
 };
 
+/** ISO 3166-1 alpha-2 code of a country item (P297). Only that claim is fetched: country items are huge. */
+async function isoCountryCode(countryId: string): Promise<string | null> {
+  const data = await call({ action: "wbgetclaims", entity: countryId, property: "P297" });
+  const claims = ((data.claims?.P297 ?? []) as Claim[]).filter((c) => c.rank !== "deprecated");
+  const value = claims[0]?.mainsnak.datavalue?.value;
+  return typeof value === "string" ? value : null;
+}
+
 /** Builds the deterministic identity block and family/party relations from Wikidata. */
 export async function getPersonIdentity(wikidataId: string): Promise<PersonIdentity> {
   const e = (await getEntities([wikidataId], "labels|descriptions|aliases|claims|sitelinks"))[wikidataId];
@@ -154,6 +172,7 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
   ]);
   const labels = await getEntities([...referenced], "labels");
   const labelOf = (id: string) => pick(labels[id]?.labels) ?? id;
+  const countryCodes = (await Promise.all(itemIds(e, "P27").map(isoCountryCode))).filter((c): c is string => !!c);
 
   const image = claimsOf(e, "P18")[0]?.mainsnak.datavalue?.value as string | undefined;
   const frwiki = e.sitelinks?.frwiki?.title;
@@ -169,6 +188,7 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
       fullName: label,
       gender: itemIds(e, "P21").map(labelOf)[0] ?? null,
       nationalities: itemIds(e, "P27").map(labelOf),
+      countryCodes: [...new Set(countryCodes)],
       occupations: itemIds(e, "P106").map(labelOf),
       birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
       deathDate: timeValue(claimsOf(e, "P570")[0]?.mainsnak),

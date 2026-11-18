@@ -1,0 +1,10 @@
+# Owner groups, until the brand graph provides ownership chains. Outlets point here with
+# `owner_id`. An owner is flagged (all its outlets tier 3) when at least two of its outlets have
+# a recent regulator sanction or newsroom dispute: see sources/README.md, "Owner record".
+# Ownership is factual information only: it never lowers a tier by itself.
+
+owners:
+  - id: bollore_group
+    name: Bolloré group (Vincent Bolloré family; Canal+, Louis Hachette Group)
+    wikidata: Q444172
+    notes: CNews through Canal+; Le Journal du dimanche, Europe 1 and Paris Match through Louis Hachette Group.

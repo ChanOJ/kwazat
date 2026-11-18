@@ -5,12 +5,17 @@
   "scripts": {
     "research": "tsx src/cli.ts research",
     "sheet": "tsx src/cli.ts sheet",
+    "sources": "tsx src/cli.ts sources",
+    "indices": "tsx src/cli.ts indices",
+    "reach": "tsx src/cli.ts reach",
     "eval": "tsx src/cli.ts eval",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
+    "@mozilla/readability": "^0.6.0",
     "@waza/db": "workspace:*",
+    "linkedom": "^0.18.15",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   }

@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Playbook, ResearchSection } from "./playbook.ts";
+import { blockedDomainsFromError, recordBlocked } from "./access.ts";
+import type { SourceSelection } from "./sources.ts";
+import { SEARCH_PROVIDERS, type SearchProviderId } from "./search/index.ts";
 
-const client = new Anthropic();
+export const client = new Anthropic();
 
 // --- Run configuration -----------------------------------------------------------------------
 
@@ -21,6 +24,10 @@ export type RunConfig = {
   /** Global caps applied on top of each section's own max_searches / max_fetches. */
   maxSearches: number;
   maxFetches: number;
+  /** "auto" follows the registry rules; the others force a mode, e.g. to compare recall. */
+  sourceMode: "auto" | "restricted" | "preferred";
+  /** Web search provider (see search/index.ts); "anthropic" uses Claude's server-side web tools. */
+  searchProvider: SearchProviderId;
 };
 
 export const DEFAULT_CONFIG: RunConfig = {
@@ -29,6 +36,8 @@ export const DEFAULT_CONFIG: RunConfig = {
   researchEffort: "medium",
   maxSearches: 4,
   maxFetches: 2,
+  sourceMode: "auto",
+  searchProvider: "brave",
 };
 
 function parseIntOr(value: string | undefined, fallback: number): number {
@@ -49,11 +58,25 @@ export function resolveConfig(overrides: Partial<Record<keyof RunConfig, string 
     researchEffort: effort as Effort,
     maxSearches: parseIntOr(overrides.maxSearches ?? env.WAZA_MAX_SEARCHES, DEFAULT_CONFIG.maxSearches),
     maxFetches: parseIntOr(overrides.maxFetches ?? env.WAZA_MAX_FETCHES, DEFAULT_CONFIG.maxFetches),
+    sourceMode: parseSourceMode(overrides.sourceMode ?? env.WAZA_SOURCE_MODE),
+    searchProvider: parseProvider(overrides.searchProvider ?? env.WAZA_SEARCH_PROVIDER),
   };
 }
 
+function parseProvider(value: string | undefined): SearchProviderId {
+  if (!value) return DEFAULT_CONFIG.searchProvider;
+  if ((SEARCH_PROVIDERS as readonly string[]).includes(value)) return value as SearchProviderId;
+  throw new Error(`Invalid search provider "${value}" (${SEARCH_PROVIDERS.join(", ")})`);
+}
+
+function parseSourceMode(value: string | undefined): RunConfig["sourceMode"] {
+  if (!value) return DEFAULT_CONFIG.sourceMode;
+  if (value === "auto" || value === "restricted" || value === "preferred") return value;
+  throw new Error(`Invalid source mode "${value}" (auto, restricted, preferred)`);
+}
+
 export const describeConfig = (c: RunConfig) =>
-  `research ${c.researchModel} (effort ${c.researchEffort}, ≤${c.maxSearches} searches, ≤${c.maxFetches} fetches) · extraction ${c.extractModel}`;
+  `search ${c.searchProvider} · research ${c.researchModel} (effort ${c.researchEffort}, ≤${c.maxSearches} searches, ≤${c.maxFetches} fetches, sources ${c.sourceMode}) · extraction ${c.extractModel}`;
 
 // --- Cost estimation -------------------------------------------------------------------------
 
@@ -123,7 +146,7 @@ export function addUsage(a: Usage, b: Usage): Usage {
 export const formatCost = (u: Usage) =>
   `$${u.costUsd.toFixed(3)} (tokens $${u.tokenCostUsd.toFixed(3)} + ${u.webSearches} searches $${u.searchCostUsd.toFixed(3)})`;
 
-function usageOf(message: Anthropic.Beta.BetaMessage): Usage {
+export function usageOf(message: Anthropic.Beta.BetaMessage): Usage {
   const u = message.usage;
   const price = PRICES[message.model];
   if (!price) console.error(`  (no price known for ${message.model}: cost reported as 0)`);
@@ -191,7 +214,7 @@ function collectRetrievedUrls(content: Anthropic.Beta.BetaContentBlock[]): strin
 
 class RefusalError extends Error {}
 
-function assertNotRefused(message: Anthropic.Beta.BetaMessage) {
+export function assertNotRefused(message: Anthropic.Beta.BetaMessage) {
   if (message.stop_reason === "refusal") {
     const details = message.stop_details ? JSON.stringify(message.stop_details) : "no details";
     throw new RefusalError(`Model declined the request (${details})`);
@@ -201,7 +224,7 @@ function assertNotRefused(message: Anthropic.Beta.BetaMessage) {
 // Server-side fallback: if the model declines, the API re-runs the request on a fallback model.
 // Only some models support it (not Haiku), so it is added per model.
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2", "claude-fable-5-1"]);
-const fallbackFor = (model: string) =>
+export const fallbackFor = (model: string) =>
   FALLBACK_MODELS.has(model)
     ? {
         betas: ["server-side-fallback-2026-07-01"] as Anthropic.Beta.AnthropicBeta[],
@@ -220,7 +243,7 @@ export type SubjectContext = {
   nationalities: string[];
 };
 
-function subjectBlock(s: SubjectContext): string {
+export function subjectBlock(s: SubjectContext): string {
   return [
     `Name: ${s.label}`,
     s.wikidataId ? `Wikidata: ${s.wikidataId}` : null,
@@ -267,11 +290,24 @@ export function toolBudget(section: ResearchSection, config: RunConfig) {
 /** Caps the size of each fetched page: full articles are the main driver of input tokens. */
 const FETCH_MAX_CONTENT_TOKENS = 6000;
 
-function researchTools(section: ResearchSection, config: RunConfig) {
+/**
+ * Domain filters for both web tools. Restricted mode whitelists the selected sources; preferred
+ * mode only blocks excluded domains (the API accepts one of the two lists, not both).
+ */
+function domainFilter(sources: SourceSelection) {
+  return sources.mode === "restricted"
+    ? { allowed_domains: sources.sources.map((s) => s.domain) }
+    : sources.excluded.length
+      ? { blocked_domains: sources.excluded }
+      : {};
+}
+
+function researchTools(section: ResearchSection, config: RunConfig, sources: SourceSelection) {
   const budget = toolBudget(section, config);
+  const filter = domainFilter(sources);
   return [
     ...(budget.searches > 0
-      ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: budget.searches }]
+      ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: budget.searches, ...filter }]
       : []),
     ...(budget.fetches > 0
       ? [
@@ -280,10 +316,39 @@ function researchTools(section: ResearchSection, config: RunConfig) {
             name: "web_fetch" as const,
             max_uses: budget.fetches,
             max_content_tokens: FETCH_MAX_CONTENT_TOKENS,
+            ...filter,
           },
         ]
       : []),
   ];
+}
+
+function sourcesBlock(playbook: Playbook, sources: SourceSelection): string {
+  const list = sources.sources.map((s) => `${s.name} (${s.domain})`).join(", ");
+  const scope =
+    sources.mode === "restricted"
+      ? "Your web tools only reach the following outlets and official sites. Do not use anything else."
+      : "Preferred outlets and official sites (reputable outlets not listed here are also acceptable):";
+  return `Sources: ${playbook.source_guidance}\n${scope}\n${list}${countryContext(sources)}`;
+}
+
+/** Context for subjects from countries flagged by the country indices (see sources/README.md). */
+export function countryContext(sources: SourceSelection): string {
+  const flagged = sources.flagged.map((c) => {
+    const issues = [
+      c.ruleOfLaw.low ? `courts and state bodies are not independent (${c.ruleOfLaw.reasons.join("; ")})` : null,
+      c.pressFreedom.low ? `domestic media are not free (${c.pressFreedom.reasons.join("; ")})` : null,
+    ].filter(Boolean);
+    return `- ${c.name}: ${issues.join("; ")}.`;
+  });
+  const context = flagged.length
+    ? `\nCountry context, from independent indices:\n${flagged.join("\n")}\n` +
+      "Report decisions and statements of these institutions and media as attributed positions " +
+      '("according to the X court", "state media reported"), never as established facts. Look for ' +
+      "independent assessments: UN human rights bodies (ohchr.org, e.g. the Working Group on Arbitrary " +
+      "Detention), international courts, foreign and exile media."
+    : "";
+  return context;
 }
 
 /**
@@ -306,10 +371,10 @@ export async function research(
   section: ResearchSection,
   subject: SubjectContext,
   config: RunConfig,
+  sources: SourceSelection,
 ): Promise<ResearchResult> {
   const model = config.researchModel;
   const budget = toolBudget(section, config);
-  const preferred = section.preferred_sources.flatMap((l) => playbook.source_lists[l] ?? []);
   const today = new Date().toISOString().slice(0, 10);
 
   const messages: Anthropic.Beta.BetaMessageParam[] = [
@@ -321,8 +386,7 @@ ${subjectBlock(subject)}
 Section: ${section.title}
 ${section.instructions}
 
-Sources: ${playbook.source_guidance}
-Examples of preferred outlets for this section: ${[...new Set(preferred)].join(", ")}
+${sourcesBlock(playbook, sources)}
 Search in the languages relevant to the subject (their country's language and English).
 Tool budget: ${budget.searches} web searches and ${budget.fetches} page fetches in total.
 Today's date: ${today}`,
@@ -334,17 +398,29 @@ Today's date: ${today}`,
   let servedBy = model;
 
   // Server tools can pause long turns (stop_reason "pause_turn"): send the turn back to continue.
+  let current = sources;
   for (let i = 0; i < 6; i++) {
-    const stream = client.beta.messages.stream({
-      model,
-      max_tokens: 32000,
-      ...fallbackFor(model),
-      system: RESEARCH_SYSTEM(playbook),
-      output_config: { effort: config.researchEffort },
-      tools: researchTools(section, config),
-      messages,
-    });
-    const message = await stream.finalMessage();
+    let message: Anthropic.Beta.BetaMessage;
+    try {
+      const stream = client.beta.messages.stream({
+        model,
+        max_tokens: 32000,
+        ...fallbackFor(model),
+        system: RESEARCH_SYSTEM(playbook),
+        output_config: { effort: config.researchEffort },
+        tools: researchTools(section, config, current),
+        messages,
+      });
+      message = await stream.finalMessage();
+    } catch (err) {
+      // Some publishers block the crawler: record them and retry once without them.
+      const blocked = blockedDomainsFromError(err);
+      if (!blocked || current !== sources) throw err;
+      recordBlocked(blocked);
+      current = { ...current, sources: current.sources.filter((s) => !blocked.includes(s.domain)) };
+      i--;
+      continue;
+    }
     usage = addUsage(usage, usageOf(message));
     servedBy = message.model;
     content.push(...message.content);
@@ -510,6 +586,9 @@ export const PIPELINE_FINGERPRINT = createHash("sha256")
       RESEARCH_SYSTEM.toString(),
       research.toString(),
       researchTools.toString(),
+      domainFilter.toString(),
+      sourcesBlock.toString(),
+      countryContext.toString(),
       finalNotes.toString(),
       String(FETCH_MAX_CONTENT_TOKENS),
       EXTRACTION_SYSTEM,
