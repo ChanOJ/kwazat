@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { openDb } from "@waza/db";
+import { openDb } from "@kwazat/db";
 import { addUsage, describeConfig, emptyUsage, formatCost, resolveConfig } from "./claude.ts";
 import { runEval } from "./eval.ts";
 import { updateIndices } from "./indices.ts";
@@ -82,7 +82,7 @@ function assertApiKey() {
   if (config.searchProvider.startsWith("brave") && !process.env.BRAVE_SEARCH_API_KEY) {
     throw new Error(
       "BRAVE_SEARCH_API_KEY is not set. Create a key at https://api-dashboard.search.brave.com, store it in Proton " +
-        "Pass (vault Waza, item brave-search-api-key) and uncomment its line in secrets.env, or use --search-provider anthropic.",
+        "Pass (vault Kwazat, item brave-search-api-key) and uncomment its line in secrets.env, or use --search-provider anthropic.",
     );
   }
   if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) return;

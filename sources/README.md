@@ -98,13 +98,13 @@ or on people linked to it): they will be handled per query with the brand graph.
 5. Otherwise **unrated** (`[-]` in `pnpm sources`): usable, confidence capped at medium, like an
    outlet outside the registry. Collecting evidence is what moves an outlet out of this state.
 
-## Fetching policy (WazaBot)
+## Fetching policy (KwazatBot)
 
-Waza references facts and links back to the publisher for the full story; it never republishes
-articles. Pages are read by WazaBot (`packages/researcher/src/fetcher.ts`) within the
+Kwazat references facts and links back to the publisher for the full story; it never republishes
+articles. Pages are read by KwazatBot (`packages/researcher/src/fetcher.ts`) within the
 publishers' stated wishes:
 
-- it identifies itself as `WazaBot` (never as a browser) and obeys robots.txt rules addressed to
+- it identifies itself as `KwazatBot` (never as a browser) and obeys robots.txt rules addressed to
   it or to every robot;
 - a robots.txt that blocks known AI agents (GPTBot, ClaudeBot, CCBot, Google-Extended...), a TDM
   reservation (W3C TDMRep: `tdmrep.json`, HTTP header or meta tag) or a refusal written in plain

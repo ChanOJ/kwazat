@@ -20,7 +20,7 @@ export type Db = Awaited<ReturnType<typeof openDb>>;
  * Opens the local development database (embedded Postgres via PGlite) and applies migrations.
  * In production this will be swapped for a regular Postgres driver with the same schema.
  */
-export async function openDb(dataDir = process.env.WAZA_DB_DIR || path.join(repoRoot, ".data/pglite")) {
+export async function openDb(dataDir = process.env.KWAZAT_DB_DIR || path.join(repoRoot, ".data/pglite")) {
   fs.mkdirSync(dataDir, { recursive: true });
   const client = new PGlite(dataDir);
   const db = drizzle({ client, schema });

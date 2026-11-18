@@ -1,4 +1,4 @@
-# Waza
+# Kwazat
 
 Type the name of a public figure, brand or product and get a neutral, sourced fact sheet
 (convictions, ongoing cases, investigative revelations, controversies, political affiliation,
@@ -29,7 +29,7 @@ eval/reports/         Eval reports (git-ignored)
    - *sources*: outlets are picked from the registry for the subject's countries (Wikidata
      citizenship) plus international ones; sensitive sections can only reach those domains;
    - *research*: a search provider (Brave in alpha, swappable in `src/search/`) finds sources,
-     past included; WazaBot reads the useful pages within the publishers' wishes (publishers
+     past included; KwazatBot reads the useful pages within the publishers' wishes (publishers
      refusing AI processing are used through search snippets only); Claude writes sourced notes;
    - *extraction*: Claude converts the notes to strict JSON (structured outputs);
    - *verification*: each source URL is checked against the URLs actually retrieved.
@@ -54,8 +54,8 @@ references**; the root scripts `pnpm research` and `pnpm eval` run through
 
 | Secret | Local development | CI (GitHub Actions) | Production (Scaleway) |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | Proton Pass, vault `Waza`, item `anthropic-api-key` | repository secret | Secret Manager |
-| `BRAVE_SEARCH_API_KEY` | Proton Pass, vault `Waza`, item `brave-search-api-key` | repository secret | Secret Manager |
+| `ANTHROPIC_API_KEY` | Proton Pass, vault `Kwazat`, item `anthropic-api-key` | repository secret | Secret Manager |
+| `BRAVE_SEARCH_API_KEY` | Proton Pass, vault `Kwazat`, item `brave-search-api-key` | repository secret | Secret Manager |
 
 Use a separate Anthropic key per environment, each in a workspace with its own spend limit.
 `pnpm sheet` and `pnpm research ... --identity-only` need no secret.
@@ -66,13 +66,13 @@ Defaults are tuned for cost during the design phase. Override with CLI flags or 
 
 | Flag | Env variable | Default | Notes |
 |---|---|---|---|
-| `--research-model` | `WAZA_RESEARCH_MODEL` | `claude-sonnet-5-5` | Web research: judgement, cross-checking, homonyms |
-| `--extract-model` | `WAZA_EXTRACT_MODEL` | `claude-haiku-5-5` | Mechanical notes → JSON conversion |
-| `--effort` | `WAZA_RESEARCH_EFFORT` | `medium` | `low` / `medium` / `high` / `xhigh` / `max` |
-| `--max-searches` | `WAZA_MAX_SEARCHES` | `4` | Cap per section (each search is billed ~$0.01) |
-| `--max-fetches` | `WAZA_MAX_FETCHES` | `2` | Cap per section (pages read in full) |
-| `--search-provider` | `WAZA_SEARCH_PROVIDER` | `brave` | `brave` (Web Search + WazaBot), `brave-context` (LLM Context passages, trimmed to snippets for publishers refusing AI), or `anthropic` (Claude web tools) |
-| `--source-mode` | `WAZA_SOURCE_MODE` | `auto` | `auto`, `restricted` or `preferred` (see sources/README.md) |
+| `--research-model` | `KWAZAT_RESEARCH_MODEL` | `claude-sonnet-5-5` | Web research: judgement, cross-checking, homonyms |
+| `--extract-model` | `KWAZAT_EXTRACT_MODEL` | `claude-haiku-5-5` | Mechanical notes → JSON conversion |
+| `--effort` | `KWAZAT_RESEARCH_EFFORT` | `medium` | `low` / `medium` / `high` / `xhigh` / `max` |
+| `--max-searches` | `KWAZAT_MAX_SEARCHES` | `4` | Cap per section (each search is billed ~$0.01) |
+| `--max-fetches` | `KWAZAT_MAX_FETCHES` | `2` | Cap per section (pages read in full) |
+| `--search-provider` | `KWAZAT_SEARCH_PROVIDER` | `brave` | `brave` (Web Search + KwazatBot), `brave-context` (LLM Context passages, trimmed to snippets for publishers refusing AI), or `anthropic` (Claude web tools) |
+| `--source-mode` | `KWAZAT_SOURCE_MODE` | `auto` | `auto`, `restricted` or `preferred` (see sources/README.md) |
 
 These settings are part of each section's hash: changing them marks cached sections as stale.
 Reports split the cost between model tokens and web searches.

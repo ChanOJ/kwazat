@@ -1,9 +1,9 @@
 /**
- * WazaBot: downloads public pages to extract facts, within the publishers' stated wishes.
+ * KwazatBot: downloads public pages to extract facts, within the publishers' stated wishes.
  *
  * Guardrails (see sources/README.md, "Fetching policy"):
  * - identifies itself honestly (never a browser user agent);
- * - obeys robots.txt rules addressed to WazaBot or to every robot;
+ * - obeys robots.txt rules addressed to KwazatBot or to every robot;
  * - treats a robots.txt that blocks known AI agents (GPTBot, ClaudeBot, CCBot...) as an
  *   opt-out from AI processing, and so does the TDM reservation protocol (TDMRep) and a refusal
  *   written in plain text recorded in the registry (`ai_opt_out`);
@@ -14,8 +14,8 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 
-export const WAZA_BOT_NAME = "WazaBot";
-export const WAZA_BOT_UA = "WazaBot/0.1 (+https://github.com/ChanOJ/waza; fact extraction with links back to sources)";
+export const BOT_NAME = "KwazatBot";
+export const BOT_UA = "KwazatBot/0.1 (+https://github.com/ChanOJ/kwazat; fact extraction with links back to sources)";
 
 /** User agents of AI crawlers and assistants: blocking them signals an opt-out from AI processing. */
 const AI_AGENTS = [
@@ -117,8 +117,8 @@ function rulesFor(groups: Group[], agent: string, fallbackToStar: boolean): Rule
 }
 
 export function robotsVerdict(groups: Group[], path: string): { allowed: boolean; aiOptOut: string[] } {
-  const wazaRules = rulesFor(groups, WAZA_BOT_NAME.toLowerCase(), true);
-  const allowed = wazaRules ? rulesAllow(wazaRules, path) : true;
+  const botRules = rulesFor(groups, BOT_NAME.toLowerCase(), true);
+  const allowed = botRules ? rulesAllow(botRules, path) : true;
   const aiOptOut = AI_AGENTS.filter((agent) => {
     const rules = rulesFor(groups, agent, false);
     return rules !== null && !rulesAllow(rules, path);
@@ -138,7 +138,7 @@ function tdmReservedByWellKnown(entries: TdmRepEntry[], path: string): boolean {
 
 async function get(url: string, accept: string): Promise<Response> {
   return fetch(url, {
-    headers: { "User-Agent": WAZA_BOT_UA, Accept: accept, "Accept-Language": "en, fr;q=0.9, *;q=0.5" },
+    headers: { "User-Agent": BOT_UA, Accept: accept, "Accept-Language": "en, fr;q=0.9, *;q=0.5" },
     redirect: "follow",
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -221,7 +221,7 @@ export class Fetcher {
     const robots = await this.robotsFor(u.origin);
     if (robots === "unreachable") return "robots.txt unreachable";
     const verdict = robotsVerdict(robots, u.pathname + u.search);
-    if (!verdict.allowed) return "robots.txt disallows WazaBot";
+    if (!verdict.allowed) return "robots.txt disallows KwazatBot";
     if (verdict.aiOptOut.length) return `robots.txt blocks AI agents (${verdict.aiOptOut.slice(0, 3).join(", ")})`;
     if (tdmReservedByWellKnown(await this.tdmrepFor(u.origin), u.pathname)) return "TDM reservation (tdmrep.json)";
     return null;

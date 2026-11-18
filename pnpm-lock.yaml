@@ -36,12 +36,12 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^1.8.0
         version: 1.8.0(zod@4.6.7)
+      '@kwazat/db':
+        specifier: workspace:*
+        version: link:../db
       '@mozilla/readability':
         specifier: ^0.6.0
         version: 0.6.0
-      '@waza/db':
-        specifier: workspace:*
-        version: link:../db
       linkedom:
         specifier: ^0.18.15
         version: 0.18.15
