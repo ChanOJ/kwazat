@@ -10,7 +10,8 @@
 #   IMAGE           rg.fr-par.scw.cloud/kwazat/researcher@sha256:...
 #
 # Network hiccups are retried (reads and image updates are idempotent); a job that fails is
-# reported at once. A run interrupted by the platform is started once more.
+# reported at once. A run the platform loses (internal_error) is started once more; any other
+# state (unknown_state, or one this script does not know) fails at once rather than waiting.
 set -euo pipefail
 
 : "${SCW_SECRET_KEY:?}" "${SCW_PROJECT_ID:?}" "${IMAGE:?}"
@@ -52,13 +53,19 @@ run_job() {
           echo "$name: succeeded"
           return 0
           ;;
-        interrupted)
-          echo "$name: interrupted by the platform ($(jq -r '.error_message // "-"' <<<"$out"))" >&2
+        # States of the Serverless Jobs API (scaleway-sdk-go, jobs v1alpha1 JobRunState).
+        queued | scheduled | running) ;;
+        internal_error)
+          echo "$name: $state on the platform side ($(jq -r '.error_message // "no message"' <<<"$out")), run $run" >&2
           break
           ;;
         failed | canceled)
           echo "$name: $state: $(jq -r '.error_message // "no message"' <<<"$out") (exit code $(jq -r '.exit_code // "-"' <<<"$out"))" >&2
           echo "Logs: Scaleway console > project > Serverless Jobs > $name > run $run" >&2
+          exit 1
+          ;;
+        *)
+          echo "$name: unexpected state '$state' (run $run)" >&2
           exit 1
           ;;
       esac
@@ -68,7 +75,7 @@ run_job() {
       fi
     done
   done
-  echo "$name: interrupted twice, giving up" >&2
+  echo "$name: lost by the platform twice, giving up" >&2
   exit 1
 }
 
