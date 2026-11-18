@@ -54,8 +54,8 @@ references**; the root scripts `pnpm research` and `pnpm eval` run through
 
 | Secret | Local development | CI (GitHub Actions) | Production (Scaleway) |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | Proton Pass, vault `Waza`, item `anthropic-api-key` | repository secret | Secret Manager |
-| `BRAVE_SEARCH_API_KEY` | Proton Pass, vault `Waza`, item `brave-search-api-key` | repository secret | Secret Manager |
+| `ANTHROPIC_API_KEY` | Proton Pass, vault `Kwazat`, item `anthropic-api-key` | repository secret | Secret Manager |
+| `BRAVE_SEARCH_API_KEY` | Proton Pass, vault `Kwazat`, item `brave-search-api-key` | repository secret | Secret Manager |
 
 Use a separate Anthropic key per environment, each in a workspace with its own spend limit.
 `pnpm sheet` and `pnpm research ... --identity-only` need no secret.

@@ -30,7 +30,7 @@ function braveKey(key = process.env.BRAVE_SEARCH_API_KEY): string {
   if (!key) {
     throw new Error(
       "BRAVE_SEARCH_API_KEY is not set. Create a key at https://api-dashboard.search.brave.com, store it in " +
-        "Proton Pass (vault Waza, item brave-search-api-key) and uncomment it in secrets.env, " +
+        "Proton Pass (vault Kwazat, item brave-search-api-key) and uncomment it in secrets.env, " +
         "or run with --search-provider anthropic.",
     );
   }
