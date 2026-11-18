@@ -2,7 +2,7 @@
 
 Status (2026-11-18): phases 1 to 4 done — `infra/shared`, staging and prod are applied; every
 merge to `main` deploys staging, and a `v*` tag promotes the same image to prod after approval
-(first release still to come).
+(first release, v0.1.0: 2026-11-18).
 Phases 5 (DNS) and 6 (mail) are still to do.
 
 ## Goals

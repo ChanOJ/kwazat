@@ -28,11 +28,15 @@ call() {
 }
 
 job_id() {
-  local id
-  id=$(call "$API/job-definitions?project_id=$SCW_PROJECT_ID&page_size=100" |
-    jq -r --arg name "$1" '.job_definitions[] | select(.name == $name) | .id')
-  [[ -n "$id" ]] || { echo "Job definition $1 not found in project $SCW_PROJECT_ID" >&2; exit 1; }
-  echo "$id"
+  local ids count
+  ids=$(call "$API/job-definitions?project_id=$SCW_PROJECT_ID&page_size=100" |
+    jq -r --arg name "$1" '[.job_definitions[] | select(.name == $name) | .id] | join(" ")')
+  count=$(wc -w <<<"$ids" | tr -d ' ')
+  case "$count" in
+    1) echo "$ids" ;;
+    0) echo "Job definition $1 not found in project $SCW_PROJECT_ID" >&2; exit 1 ;;
+    *) echo "$count job definitions named $1 in project $SCW_PROJECT_ID ($ids): keep the one in the OpenTofu state" >&2; exit 1 ;;
+  esac
 }
 
 # Starts a run and waits for its end. Not retried automatically: starting twice would run twice.
