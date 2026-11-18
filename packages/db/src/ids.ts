@@ -8,6 +8,11 @@ let counter = 0;
  * UUID version 7 (RFC 9562): 48-bit Unix timestamp in milliseconds, a 12-bit counter, then
  * random bits. Kwazat's public identifiers: opaque and stable, index-friendly, and in creation
  * order within a process, even for ids created in the same millisecond.
+ *
+ * The counter is module state: async code is safe (one JS thread), but each worker thread or
+ * process has its own counter, so ids from different workers created in the same millisecond
+ * are not ordered between them. Never rely on id order across workers: use a database
+ * timestamp or sequence for that.
  */
 export function uuidv7(now = Date.now()): string {
   if (now > lastMs) {
