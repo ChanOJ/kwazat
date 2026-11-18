@@ -33,7 +33,7 @@ jobs:
       TF_VAR_state_passphrase: validate-only-not-a-secret
     steps:
       - uses: actions/checkout@v5
-      - uses: opentofu/setup-opentofu@v1
+      - uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.13.9
       - run: tofu fmt -check -recursive infra
