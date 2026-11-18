@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { openDb } from "@waza/db";
+import { openDb } from "@kwazat/db";
 import { addUsage, describeConfig, emptyUsage, formatCost, resolveConfig } from "./claude.ts";
 import { runEval } from "./eval.ts";
 import { updateIndices } from "./indices.ts";

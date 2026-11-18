@@ -4,8 +4,9 @@
  */
 
 const API = "https://www.wikidata.org/w/api.php";
-// Wikimedia asks for a descriptive User-Agent. Kept generic on purpose (no personal contact info).
-const USER_AGENT = "WazaResearcher/0.1 (development)";
+// Wikimedia asks for a descriptive User-Agent with a way to contact the operator: the project URL
+// (no personal contact details).
+const USER_AGENT = "KwazatBot/0.1 (https://github.com/ChanOJ/kwazat)";
 // English first (the product works in English everywhere), then "mul" (language-neutral labels).
 const LANGS = ["en", "mul", "fr", "de", "es", "it"];
 

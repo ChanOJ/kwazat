@@ -50,16 +50,16 @@ function parseIntOr(value: string | undefined, fallback: number): number {
 /** Builds the run config from CLI overrides, then environment variables, then defaults. */
 export function resolveConfig(overrides: Partial<Record<keyof RunConfig, string | undefined>> = {}): RunConfig {
   const env = process.env;
-  const effort = overrides.researchEffort ?? env.WAZA_RESEARCH_EFFORT ?? DEFAULT_CONFIG.researchEffort;
+  const effort = overrides.researchEffort ?? env.KWAZAT_RESEARCH_EFFORT ?? DEFAULT_CONFIG.researchEffort;
   if (!EFFORTS.includes(effort as Effort)) throw new Error(`Invalid effort "${effort}" (${EFFORTS.join(", ")})`);
   return {
-    researchModel: overrides.researchModel ?? env.WAZA_RESEARCH_MODEL ?? DEFAULT_CONFIG.researchModel,
-    extractModel: overrides.extractModel ?? env.WAZA_EXTRACT_MODEL ?? DEFAULT_CONFIG.extractModel,
+    researchModel: overrides.researchModel ?? env.KWAZAT_RESEARCH_MODEL ?? DEFAULT_CONFIG.researchModel,
+    extractModel: overrides.extractModel ?? env.KWAZAT_EXTRACT_MODEL ?? DEFAULT_CONFIG.extractModel,
     researchEffort: effort as Effort,
-    maxSearches: parseIntOr(overrides.maxSearches ?? env.WAZA_MAX_SEARCHES, DEFAULT_CONFIG.maxSearches),
-    maxFetches: parseIntOr(overrides.maxFetches ?? env.WAZA_MAX_FETCHES, DEFAULT_CONFIG.maxFetches),
-    sourceMode: parseSourceMode(overrides.sourceMode ?? env.WAZA_SOURCE_MODE),
-    searchProvider: parseProvider(overrides.searchProvider ?? env.WAZA_SEARCH_PROVIDER),
+    maxSearches: parseIntOr(overrides.maxSearches ?? env.KWAZAT_MAX_SEARCHES, DEFAULT_CONFIG.maxSearches),
+    maxFetches: parseIntOr(overrides.maxFetches ?? env.KWAZAT_MAX_FETCHES, DEFAULT_CONFIG.maxFetches),
+    sourceMode: parseSourceMode(overrides.sourceMode ?? env.KWAZAT_SOURCE_MODE),
+    searchProvider: parseProvider(overrides.searchProvider ?? env.KWAZAT_SEARCH_PROVIDER),
   };
 }
 

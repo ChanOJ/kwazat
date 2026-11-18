@@ -1,15 +1,15 @@
 {
-  "name": "waza",
+  "name": "kwazat",
   "private": true,
   "type": "module",
   "scripts": {
-    "research": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher research",
-    "sheet": "pnpm --filter @waza/researcher sheet",
-    "sources": "pnpm --filter @waza/researcher sources",
-    "indices": "pnpm --filter @waza/researcher indices",
-    "reach": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher reach",
-    "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @waza/researcher eval",
-    "db:generate": "pnpm --filter @waza/db generate",
+    "research": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher research",
+    "sheet": "pnpm --filter @kwazat/researcher sheet",
+    "sources": "pnpm --filter @kwazat/researcher sources",
+    "indices": "pnpm --filter @kwazat/researcher indices",
+    "reach": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher reach",
+    "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher eval",
+    "db:generate": "pnpm --filter @kwazat/db generate",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

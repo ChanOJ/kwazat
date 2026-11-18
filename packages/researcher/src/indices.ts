@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const COUNTRIES_FILE = path.resolve(here, "../../../sources/countries.json");
 
-const USER_AGENT = "WazaResearcher/0.1 (development)";
+const USER_AGENT = "KwazatBot/0.1 (https://github.com/ChanOJ/kwazat)";
 const OWID_REGIME = "https://ourworldindata.org/grapher/political-regime.csv?useColumnShortNames=true";
 const OWID_JUDICIAL =
   "https://ourworldindata.org/grapher/judicial-constraints-on-the-executive-index.csv?useColumnShortNames=true";

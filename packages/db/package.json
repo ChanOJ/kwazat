@@ -1,5 +1,5 @@
 {
-  "name": "@waza/db",
+  "name": "@kwazat/db",
   "private": true,
   "type": "module",
   "exports": {

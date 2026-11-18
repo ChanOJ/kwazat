@@ -1,5 +1,5 @@
-import { and, eq } from "@waza/db";
-import { entities, facts, relations, sectionRuns, type Db, type Source } from "@waza/db";
+import { and, eq } from "@kwazat/db";
+import { entities, facts, relations, sectionRuns, type Db, type Source } from "@kwazat/db";
 import {
   addUsage,
   emptyUsage,

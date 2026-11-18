@@ -1,12 +1,12 @@
 /**
- * Research with a web search provider (Brave in alpha) and WazaBot, instead of Claude's
+ * Research with a web search provider (Brave in alpha) and KwazatBot, instead of Claude's
  * server-side web tools:
  *
  *   1. plan    — a small model writes the search queries for the section;
  *   2. search  — the provider returns results (title, snippets), past included;
  *   3. filter  — excluded domains dropped; in restricted mode, only the selected sources kept;
  *   4. triage  — a small model picks the results worth reading in full;
- *   5. fetch   — WazaBot downloads them within the publishers' wishes (see fetcher.ts);
+ *   5. fetch   — KwazatBot downloads them within the publishers' wishes (see fetcher.ts);
  *                publishers that refuse AI processing are used through their snippets only;
  *   6. notes   — the research model writes the section notes from these documents only.
  *

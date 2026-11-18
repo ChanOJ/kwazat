@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
-import { openDb } from "@waza/db";
+import { openDb } from "@kwazat/db";
 import { addUsage, describeConfig, emptyUsage, formatCost, type RunConfig, type Usage } from "./claude.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { loadSheet, resolve, runSection, upsertPerson } from "./pipeline.ts";
