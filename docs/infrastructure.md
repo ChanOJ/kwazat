@@ -94,6 +94,8 @@ Hosted on Proton Mail (custom domain on the existing Proton Family plan).
 ```
 infra/
   bootstrap/README.md      Manual one-off steps (state bucket, first API key)
+  secrets.env              Proton Pass references for OpenTofu (no values)
+  tofu.sh                  Runs a stack with those secrets: `pnpm infra <stack> <command>`
   modules/environment/     Everything one environment needs (database, secrets, jobs, IAM)
   shared/                  Registry, DNS zones and records
   envs/staging/            Module call with staging variables
@@ -146,9 +148,9 @@ after retries, wrong content, failed migration).
 
 | # | Phase | Done when |
 |---|---|---|
-| 1 | Bootstrap | Projects, state bucket and CI API keys exist; `infra/shared` applies from a laptop |
+| 1 | Bootstrap | Shared project, state bucket and operator key exist; `infra/shared` applies from a laptop and creates the staging and prod projects and the registry |
 | 2 | Staging | Database, secrets and jobs in staging; `research --identity-only` runs there |
-| 3 | CI/CD | Merge to `main` deploys staging without a laptop |
+| 3 | CI/CD | CI keys, one per project, exist; merge to `main` deploys staging without a laptop |
 | 4 | Prod | A `v*` tag deploys prod after approval |
 | 5 | DNS | Zones delegated to Scaleway; `kwazat.com` redirects; placeholder page and `security.txt` (both paths) on HTTPS |
 | 6 | Mail | `abuse@` and `syndication@` receive mail; `kwazat.com` anti-spoofing records published |
