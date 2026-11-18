@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
 import { PIPELINE_FINGERPRINT, toolBudget, type RunConfig } from "./claude.ts";
+import { SEARCH_PIPELINE_FINGERPRINT } from "./research.ts";
+import { SourceTypeSchema, type SourceSelection } from "./sources.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const PLAYBOOKS_DIR = path.resolve(here, "../../../playbooks");
@@ -23,7 +25,8 @@ const ResearchSection = z.object({
   method: z.literal("research"),
   sensitive: z.boolean().default(false),
   ttl_days: z.number().int().positive(),
-  preferred_sources: z.array(z.string()).default([]),
+  /** Source types wanted from the registry (sources/*.yaml). */
+  source_types: z.array(SourceTypeSchema).min(1),
   max_searches: z.number().int().positive().default(5),
   max_fetches: z.number().int().nonnegative().default(3),
   instructions: z.string(),
@@ -43,7 +46,6 @@ const Playbook = z
     scope: z.string(),
     style: z.string(),
     source_guidance: z.string().default(""),
-    source_lists: z.record(z.string(), z.array(z.string())).default({}),
     sections: z.array(Section).min(1),
   })
   .superRefine((pb, ctx) => {
@@ -52,11 +54,6 @@ const Playbook = z
       if (ids.has(s.id)) ctx.addIssue({ code: "custom", message: `Duplicate section id: ${s.id}` });
       ids.add(s.id);
       if (s.method !== "research") continue;
-      for (const list of s.preferred_sources) {
-        if (!pb.source_lists[list]) {
-          ctx.addIssue({ code: "custom", message: `Section ${s.id}: unknown source list "${list}"` });
-        }
-      }
       if (!s.item_schema && !s.emits_relations) {
         ctx.addIssue({ code: "custom", message: `Section ${s.id}: needs item_schema or emits_relations` });
       }
@@ -92,25 +89,29 @@ function stableStringify(value: unknown): string {
 
 /**
  * Hash of everything that influences a section's output: the section definition, the shared
- * style rules, the source lists it uses, the models, effort and tool budgets. A change in any
- * of them makes existing results for this section stale.
+ * style rules, the sources selected for this subject, the models, effort and tool budgets. A
+ * change in any of them makes existing results for this section stale. The source selection
+ * depends on the subject's countries, so editing sources/FR.yaml only affects French subjects.
  */
-export function sectionHash(playbook: Playbook, section: PlaybookSection, config: RunConfig): string {
+export function sectionHash(
+  playbook: Playbook,
+  section: PlaybookSection,
+  config: RunConfig,
+  sources: SourceSelection | null,
+): string {
   const research = section.method === "research";
-  const sourceLists = research
-    ? Object.fromEntries(section.preferred_sources.map((l) => [l, playbook.source_lists[l]]))
-    : {};
   const payload = stableStringify({
     section,
     style: playbook.style,
     sourceGuidance: playbook.source_guidance,
-    sourceLists,
+    sources,
     researchModel: config.researchModel,
     extractModel: config.extractModel,
     researchEffort: config.researchEffort,
     // Effective budgets (not the raw caps): raising a cap above a section's limit changes nothing.
     budget: research ? toolBudget(section, config) : null,
-    pipeline: PIPELINE_FINGERPRINT,
+    searchProvider: config.searchProvider,
+    pipeline: config.searchProvider === "anthropic" ? PIPELINE_FINGERPRINT : SEARCH_PIPELINE_FINGERPRINT,
   });
   return createHash("sha256").update(payload).digest("hex").slice(0, 16);
 }

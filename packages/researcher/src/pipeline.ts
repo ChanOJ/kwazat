@@ -6,12 +6,15 @@ import {
   extract,
   normalizeUrl,
   research,
+  type ExtractedFact,
   type ExtractedSource,
   type RunConfig,
   type SubjectContext,
   type Usage,
 } from "./claude.ts";
+import { researchWithSearch } from "./research.ts";
 import { sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
+import { confidenceCap, lookupSource, minConfidence, selectSources, type Registry } from "./sources.ts";
 import { getPersonIdentity, searchCandidates, type Candidate } from "./wikidata.ts";
 
 export type Entity = typeof entities.$inferSelect;
@@ -86,6 +89,11 @@ export async function upsertPerson(db: Db, wikidataId: string): Promise<Entity> 
   });
 }
 
+/** ISO country codes of an entity, used to pick its national sources. */
+export function countryCodesOf(entity: Entity): string[] {
+  return (entity.identity as { countryCodes?: string[] }).countryCodes ?? [];
+}
+
 export function subjectOf(entity: Entity): SubjectContext {
   const id = entity.identity as { birthDate?: string; occupations?: string[]; nationalities?: string[] };
   return {
@@ -110,9 +118,17 @@ export async function runSection(
   playbook: Playbook,
   section: ResearchSection,
   config: RunConfig,
+  registry: Registry,
   opts: { force?: boolean } = {},
 ): Promise<SectionOutcome> {
-  const hash = sectionHash(playbook, section, config);
+  const sources = selectSources(registry, {
+    countryCodes: countryCodesOf(entity),
+    types: section.source_types,
+    sensitive: section.sensitive,
+    mode: config.sourceMode,
+    skipUnreachable: config.searchProvider === "anthropic",
+  });
+  const hash = sectionHash(playbook, section, config, sources);
 
   if (!opts.force) {
     const [current] = await db
@@ -144,7 +160,9 @@ export async function runSection(
   let usage = emptyUsage();
   try {
     const subject = subjectOf(entity);
-    const found = await research(playbook, section, subject, config);
+    const found = config.searchProvider === "anthropic"
+      ? await research(playbook, section, subject, config, sources)
+      : await researchWithSearch(playbook, section, subject, config, sources, registry);
     usage = addUsage(usage, found.usage);
     const extracted = await extract(section, subject, found.notes, found.retrievedUrls, config);
     usage = addUsage(usage, extracted.usage);
@@ -157,7 +175,11 @@ export async function runSection(
         publishedAt: s.published_at,
         quote: s.quote,
         verified: retrieved.has(normalizeUrl(s.url)),
+        tier: lookupSource(registry, s.url)?.tier ?? null,
       }));
+    // The model's confidence, capped by the best verified source tier (see sources/README.md).
+    const confidenceOf = (claimed: ExtractedFact["confidence"], sources: Source[]) =>
+      minConfidence(claimed, confidenceCap(registry, sources.filter((s) => s.verified).map((s) => s.url)));
     // Sensitive sections and items without a verified source are held for human review.
     const statusFor = (sources: Source[]) =>
       section.sensitive || !sources.some((s) => s.verified) ? ("needs_review" as const) : ("published" as const);
@@ -172,7 +194,7 @@ export async function runSection(
         factDate: f.fact_date,
         data: f.data,
         sources,
-        confidence: sources.some((s) => s.verified) ? f.confidence : ("low" as const),
+        confidence: confidenceOf(f.confidence, sources),
         reviewStatus: statusFor(sources),
       };
     });

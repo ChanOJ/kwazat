@@ -1,0 +1,189 @@
+# France. See sources/README.md for the fields and how they are used.
+#
+# Tiers are computed in code from evidence-backed `signals` and from the country indices
+# (see sources/README.md); nobody sets a tier by hand. Entries without deciding evidence are
+# unrated. Notes are factual only. Owners are informative and must be checked before being shown
+# to users: the brand graph will become the source of truth.
+
+country: FR
+languages: [ fr ]
+
+sources:
+  # Wire services (AFP is in international.yaml)
+
+  # Newspapers of record and national dailies
+  - domain: lemonde.fr
+    name: Le Monde
+    types: [ newspaper, investigative, fact_check ]
+    owner: Groupe Le Monde
+    notes: Includes the fact-checking desk Les Décodeurs (lemonde.fr/les-decodeurs).
+    ai_opt_out:
+      evidence: https://www.lemonde.fr/robots.txt
+      note: Content use beyond strictly individual use reserved to licensed partners (comment in robots.txt)
+  - { domain: lefigaro.fr, name: Le Figaro, types: [ newspaper ], owner: Groupe Dassault }
+  - domain: liberation.fr
+    name: Libération
+    types: [ newspaper, fact_check ]
+    notes: Includes the fact-checking desk CheckNews.
+  - { domain: lesechos.fr, name: Les Échos, types: [ newspaper ], owner: LVMH }
+  - { domain: la-croix.com, name: La Croix, types: [ newspaper ], owner: Bayard }
+  - { domain: leparisien.fr, name: Le Parisien, types: [ newspaper ], owner: LVMH }
+  - { domain: lopinion.fr, name: L'Opinion, types: [ newspaper ] }
+  - { domain: humanite.fr, name: L'Humanité, types: [ newspaper ] }
+
+  # Regional press (large dailies)
+  - { domain: ouest-france.fr, name: Ouest-France, types: [ newspaper ] }
+  - { domain: sudouest.fr, name: Sud Ouest, types: [ newspaper ] }
+  - domain: ledauphine.com
+    name: Le Dauphiné libéré
+    types: [ newspaper ]
+    signals:
+      - id: jti_certified
+        evidence: https://rsf.org/fr/france-groupe-ebra-renouvellement-certification-jti
+        note: EBRA group, renewed November 2025
+  - { domain: laprovence.com, name: La Provence, types: [ newspaper ] }
+  - { domain: ladepeche.fr, name: La Dépêche du Midi, types: [ newspaper ] }
+  - { domain: lavoixdunord.fr, name: La Voix du Nord, types: [ newspaper ] }
+  - domain: dna.fr
+    name: Dernières Nouvelles d'Alsace
+    types: [ newspaper ]
+    signals:
+      - id: jti_certified
+        evidence: https://rsf.org/fr/france-groupe-ebra-renouvellement-certification-jti
+        note: EBRA group, renewed November 2025
+  - domain: leprogres.fr
+    name: Le Progrès
+    types: [ newspaper ]
+    signals:
+      - id: jti_certified
+        evidence: https://rsf.org/fr/france-groupe-ebra-renouvellement-certification-jti
+        note: EBRA group, renewed November 2025
+  - { domain: nicematin.com, name: Nice-Matin, types: [ newspaper ] }
+
+  # Weekly magazines
+  - { domain: lepoint.fr, name: Le Point, types: [ magazine ], owner: Artémis (Pinault family) }
+  - { domain: lexpress.fr, name: L'Express, types: [ magazine ] }
+  - { domain: nouvelobs.com, name: L'Obs, types: [ magazine ] }
+  - { domain: challenges.fr, name: Challenges, types: [ magazine ] }
+  - { domain: marianne.net, name: Marianne, types: [ magazine ] }
+  - domain: lejdd.fr
+    name: Le Journal du dimanche
+    types: [ newspaper ]
+    owner: Bolloré group
+    owner_id: bollore_group
+    signals:
+      - id: newsroom_dispute
+        date: 2023-06-22
+        evidence: https://www.france24.com/fr/france/20230801-nous-n-avons-pas-gagn%C3%A9-les-journalistes-du-jdd-mettent-fin-%C3%A0-40-jours-de-gr%C3%A8ve
+        corroboration:
+          - https://www.lalibre.be/international/europe/2023/06/25/en-france-la-redaction-du-journal-du-dimanche-jdd-refuse-de-virer-a-lextreme-droite-4KCRO7SZTVCH5AKBE5FIK6TZTM/
+        note: 40-day newsroom strike against the editor appointed by the owner; ended 1 August 2023 without the newsroom's demands met
+  - domain: parismatch.com
+    name: Paris Match
+    types: [ magazine ]
+    owner: Bolloré group
+    owner_id: bollore_group
+  - { domain: valeursactuelles.com, name: Valeurs actuelles, types: [ magazine ] }
+
+  # Public broadcasters
+  - domain: francetvinfo.fr
+    name: franceinfo
+    types: [ broadcaster, fact_check ]
+    owner: France Télévisions (public)
+    notes: "Includes Vrai ou faux."
+    signals:
+      - id: jti_certified
+        evidence: https://www.francetvpro.fr/contenu-de-presse/30785654
+        note: France Télévisions news division, March 2022
+  - domain: radiofrance.fr
+    name: Radio France
+    types: [ broadcaster, investigative ]
+    owner: Radio France (public)
+    notes: "Includes France Inter's investigative unit."
+    signals:
+      - id: jti_certified
+        evidence: https://rsf.org/fr/france-rsf-salue-la-certification-journalism-trust-initiative-du-groupe-public-radio-france
+  - { domain: publicsenat.fr, name: Public Sénat, types: [ broadcaster ] }
+  - { domain: lcp.fr, name: LCP, types: [ broadcaster ] }
+  - { domain: arte.tv, name: Arte, types: [ broadcaster ] }
+  - { domain: ina.fr, name: INA (archives), types: [ broadcaster ] }
+
+  # Private broadcasters
+  - domain: tf1info.fr
+    name: TF1 Info
+    types: [ broadcaster ]
+    owner: Bouygues
+    signals:
+      - id: jti_certified
+        evidence: https://rsf.org/fr/tf1-premier-diffuseur-de-t%C3%A9l%C3%A9vision-priv%C3%A9e-en-europe-%C3%A0-obtenir-la-certification-journalism-trust
+        note: TF1, LCI, TF1 INFO, MYTF1, December 2023
+  - { domain: bfmtv.com, name: BFM TV, types: [ broadcaster ], owner: CMA CGM }
+  - { domain: rtl.fr, name: RTL, types: [ broadcaster ], owner: M6 group }
+  - domain: cnews.fr
+    name: CNews
+    types: [ broadcaster ]
+    owner: Bolloré group
+    signals:
+      - id: regulator_sanction
+        date: 2024-01-17
+        evidence: https://arcom.fr/sites/default/files/2024-01/Arcom-Decision-du-17-janvier-2024-portant-sanction-pecuniaire-a-encontre-de-la-Societe-exploitation-un-service-information-S.E.S.I.pdf
+        note: Arcom, EUR 50,000 fine for lack of rigour
+      - id: regulator_sanction
+        date: 2026-02-05
+        evidence: https://www.france24.com/fr/info-en-continu/20260211-l-arcom-inflige-100-000-euros-d-amende-%C3%A0-cnews-pour-deux-s%C3%A9quences-sur-les-alg%C3%A9riens-et-les-palestiniens
+        note: Arcom, EUR 100,000 in fines (two decisions)
+    owner_id: bollore_group
+  - domain: europe1.fr
+    name: Europe 1
+    types: [ broadcaster ]
+    owner: Bolloré group
+    owner_id: bollore_group
+
+  # Investigative outlets
+  - { domain: mediapart.fr, name: Mediapart, types: [ investigative ], notes: "Mostly paywalled: search snippets may be all the model sees." }
+  - { domain: lecanardenchaine.fr, name: Le Canard enchaîné, types: [ investigative ], notes: "Little online content: often cited through other outlets." }
+  - { domain: disclose.ngo, name: Disclose, types: [ investigative ] }
+  - { domain: mediacites.fr, name: Mediacités, types: [ investigative ] }
+  - { domain: lesjours.fr, name: Les Jours, types: [ investigative ] }
+  - { domain: splann.org, name: Splann !, types: [ investigative ] }
+  - { domain: streetpress.com, name: StreetPress, types: [ investigative ] }
+  - { domain: blast-info.fr, name: Blast, types: [ investigative ] }
+
+  # Courts and justice
+  - { domain: legifrance.gouv.fr, name: Légifrance, types: [ court, government ], signals: [ { id: official } ] }
+  - { domain: courdecassation.fr, name: Cour de cassation (incl. Judilibre), types: [ court ], signals: [ { id: official } ] }
+  - { domain: conseil-etat.fr, name: Conseil d'État, types: [ court ], signals: [ { id: official } ] }
+  - { domain: conseil-constitutionnel.fr, name: Conseil constitutionnel, types: [ court ], signals: [ { id: official } ] }
+  - { domain: ccomptes.fr, name: Cour des comptes, types: [ court, regulator ], signals: [ { id: official } ] }
+  - { domain: justice.gouv.fr, name: Ministry of Justice, types: [ government, court ], signals: [ { id: official } ] }
+  - { domain: cours-appel.justice.fr, name: Courts of appeal and prosecutors (incl. PNF), types: [ court ], signals: [ { id: official } ] }
+  - { domain: tribunal-de-paris.justice.fr, name: Tribunal judiciaire de Paris, types: [ court ], signals: [ { id: official } ] }
+
+  # Parliament, government, public ethics
+  - { domain: assemblee-nationale.fr, name: Assemblée nationale, types: [ parliament ], signals: [ { id: official } ] }
+  - { domain: senat.fr, name: Sénat, types: [ parliament ], signals: [ { id: official } ] }
+  - { domain: hatvp.fr, name: HATVP (public officials' declarations), types: [ regulator, registry ], signals: [ { id: official } ] }
+  - { domain: cnccfp.fr, name: CNCCFP (campaign finance), types: [ regulator ], signals: [ { id: official } ] }
+  - { domain: interieur.gouv.fr, name: Ministry of the Interior (election results), types: [ government ], signals: [ { id: official } ] }
+  - { domain: vie-publique.fr, name: Vie publique, types: [ government ], signals: [ { id: official } ] }
+  - { domain: arcom.fr, name: Arcom (media regulator), types: [ regulator ], signals: [ { id: official } ] }
+
+  # Companies, markets and products (brand and product playbooks)
+  - { domain: annuaire-entreprises.data.gouv.fr, name: Annuaire des entreprises, types: [ registry ], signals: [ { id: official } ] }
+  - { domain: bodacc.fr, name: BODACC, types: [ registry ], signals: [ { id: official } ] }
+  - { domain: amf-france.org, name: AMF (financial markets), types: [ regulator ], signals: [ { id: official } ] }
+  - { domain: autoritedelaconcurrence.fr, name: Autorité de la concurrence, types: [ regulator ], signals: [ { id: official } ] }
+  - { domain: cnil.fr, name: CNIL (data protection), types: [ regulator ], signals: [ { id: official } ] }
+  - { domain: rappel.conso.gouv.fr, name: RappelConso (product recalls), types: [ consumer_safety ], signals: [ { id: official } ] }
+  - { domain: anses.fr, name: ANSES (food and health safety), types: [ consumer_safety, regulator ], signals: [ { id: official } ] }
+  - { domain: economie.gouv.fr, name: Ministry of the Economy (incl. DGCCRF), types: [ government, consumer_safety ], signals: [ { id: official } ] }
+  - { domain: quechoisir.org, name: UFC-Que Choisir, types: [ consumer_safety ] }
+  - { domain: 60millions-mag.com, name: 60 Millions de consommateurs, types: [ consumer_safety ] }
+
+excluded:
+  - { domain: fdesouche.com, reason: "Partisan aggregator." }
+  - { domain: egaliteetreconciliation.fr, reason: "Site repeatedly convicted for hate speech." }
+  - { domain: legorafi.fr, reason: "Satire." }
+  - { domain: closermag.fr, reason: "Celebrity gossip." }
+  - { domain: voici.fr, reason: "Celebrity gossip." }
+  - { domain: public.fr, reason: "Celebrity gossip." }
