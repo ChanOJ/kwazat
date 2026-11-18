@@ -1,0 +1,48 @@
+# Builds the researcher image (linux/amd64) and pushes it to the Scaleway registry, tagged with
+# the commit. The job summary gives the digest to deploy (infra/README.md, "Deploy an image").
+# Manual for now; phase 3 runs it on every merge to main.
+name: Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      REGISTRY: rg.fr-par.scw.cloud
+      IMAGE: rg.fr-par.scw.cloud/kwazat/researcher
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log in to the Scaleway registry
+        env:
+          SCW_REGISTRY_SECRET_KEY: ${{ secrets.SCW_REGISTRY_SECRET_KEY }}
+        run: |
+          # Retries absorb registry hiccups; a wrong key still fails after the last attempt.
+          for attempt in 1 2 3; do
+            echo "$SCW_REGISTRY_SECRET_KEY" | docker login "$REGISTRY" -u nologin --password-stdin && exit 0
+            echo "Login attempt $attempt failed, retrying in $((attempt * 10)) s" >&2
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Build and push
+        run: |
+          tag="$IMAGE:sha-${GITHUB_SHA::12}"
+          docker buildx build --platform linux/amd64 --provenance=false \
+            --tag "$tag" --metadata-file metadata.json --push .
+          digest=$(jq -r '."containerimage.digest"' metadata.json)
+          {
+            echo "### Researcher image"
+            echo "- Tag: \`$tag\`"
+            echo "- Deploy by digest: \`$IMAGE@$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"

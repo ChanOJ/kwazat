@@ -5,6 +5,7 @@
   "scripts": {
     "research": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher research",
     "sheet": "pnpm --filter @kwazat/researcher sheet",
+    "migrate": "pnpm --filter @kwazat/researcher migrate",
     "lookup": "pnpm --filter @kwazat/researcher lookup",
     "sources": "pnpm --filter @kwazat/researcher sources",
     "indices": "pnpm --filter @kwazat/researcher indices",
@@ -16,6 +17,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
   },
+  "packageManager": "pnpm@12.18.0",
   "devDependencies": {
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",

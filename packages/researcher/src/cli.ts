@@ -17,6 +17,7 @@ const USAGE = `Usage:
   research <name|Q-id> [--type person] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
   sheet <name|Q-id> [--type person] [--pick N] [--all]
   lookup <name> [--type person]  (name search: known entities, then cached Wikidata candidates)
+  migrate                      (applies pending database migrations; run once per deploy)
   sources <name|Q-id> [--type person] [--pick N] [--sections a,b]
   indices                      (downloads country indices into sources/countries.json)
   reach                        (lists registry domains the web tools cannot reach)
@@ -134,6 +135,12 @@ async function main() {
     const file = await updateIndices();
     console.log(`Updated ${Object.keys(file.countries).length} countries:`);
     for (const src of file.sources) console.log(`  ${src.id} (${src.year}): ${src.url}`);
+    return;
+  }
+  if (command === "migrate") {
+    const db = await openDb({ migrate: true });
+    await db.close();
+    console.log(`Database migrated (${process.env.DATABASE_URL ? "Postgres" : "PGlite"}).`);
     return;
   }
   if (command === "lookup") {

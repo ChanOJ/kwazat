@@ -1,0 +1,12 @@
+**/node_modules
+.git
+.github
+.data
+.DS_Store
+infra
+docs
+eval/reports
+sources/countries.json
+secrets.env
+**/.env
+**/.env.*
