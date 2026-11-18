@@ -74,3 +74,36 @@ output "ci_registry_secret_key" {
   value     = scaleway_iam_api_key.ci_registry.secret_key
   sensitive = true
 }
+
+# --- DNS zones (kwazat.fyi, kwazat.com) --------------------------------------------------------
+# Both domains are registered at Infomaniak and delegated to Scaleway (infra/README.md, DNS).
+# The zones exist once the domains are validated; web records come from each environment.
+
+variable "dns_ready" {
+  description = "Set to true once kwazat.fyi and kwazat.com are validated in Scaleway."
+  type        = bool
+  default     = false
+}
+
+locals {
+  # No mail is sent from either domain yet: refuse anything claiming to come from them.
+  # kwazat.fyi gets its real mail records in phase 6 (Proton); kwazat.com never sends mail.
+  mail_lockdown = var.dns_ready ? {
+    "kwazat.fyi spf"    = { zone = "kwazat.fyi", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
+    "kwazat.fyi dmarc"  = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
+    "kwazat.com spf"    = { zone = "kwazat.com", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
+    "kwazat.com dmarc"  = { zone = "kwazat.com", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
+    "kwazat.com nullmx" = { zone = "kwazat.com", name = "", type = "MX", data = ".", priority = 0 } # RFC 7505
+  } : {}
+}
+
+resource "scaleway_domain_record" "mail_lockdown" {
+  for_each   = local.mail_lockdown
+  project_id = data.scaleway_account_project.shared.id
+  dns_zone   = each.value.zone
+  name       = each.value.name
+  type       = each.value.type
+  data       = each.value.data
+  priority   = each.value.priority
+  ttl        = 3600
+}

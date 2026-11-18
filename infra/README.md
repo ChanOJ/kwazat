@@ -127,3 +127,30 @@ Scaleway gives API keys a one-year expiry. Keys created on 2026-11-18 expire on 
 - CI registry key: `pnpm infra shared apply -replace=scaleway_iam_api_key.ci_registry`, then set
   the GitHub secret again;
 - the operator key (`scaleway-operator-*` in Proton Pass) is renewed by hand in the console.
+
+## DNS and web front
+
+`kwazat.fyi` and `kwazat.com` are registered at Infomaniak and delegated to Scaleway (project
+`kwazat-shared`). Each environment runs a `web` Serverless Container (image built from `web/`:
+Caddy serving the waiting page, `robots.txt` and `security.txt`) behind these names:
+
+| Environment | Hostnames | Records |
+|---|---|---|
+| staging | `test.kwazat.fyi` (not indexed) | CNAME |
+| prod | `www.kwazat.fyi` (canonical), `kwazat.fyi`, `kwazat.com`, `www.kwazat.com` (the last three redirect to `https://www.kwazat.fyi`) | ALIAS at the apex, CNAME for `www` |
+
+Scaleway issues the certificates. `infra/shared` also publishes `v=spf1 -all` and a `p=reject`
+DMARC record on both domains, and a null MX on `kwazat.com`, until mail is set up (phase 6).
+
+Setting it up, in order:
+
+1. Register both domains as external domains in `kwazat-shared` (done on 2026-11-18 through the
+   API) and add their `_scaleway-challenge` TXT records at Infomaniak (done on 2026-11-18).
+2. Once Scaleway shows them validated: `dns_ready = true` in `infra/shared` and in both
+   environments, plus `web_image` from the Image workflow, then plan and apply.
+3. At Infomaniak: replace the name servers of both domains with `ns0.dom.scw.cloud` and
+   `ns1.dom.scw.cloud`.
+4. GitHub environment variable `WEB_URL` (`https://test.kwazat.fyi` for `staging`,
+   `https://www.kwazat.fyi` for `production`), so that deploys check the public names too.
+
+Later web images are deployed by CI (`infra/scripts/deploy-web.sh`), like the jobs.

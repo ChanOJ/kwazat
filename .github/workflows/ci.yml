@@ -46,3 +46,37 @@ jobs:
           done
       - name: Check shell scripts
         run: for f in infra/*.sh infra/scripts/*.sh; do bash -n "$f"; done
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the web image
+        run: docker build --tag kwazat-web web
+      - name: Check the Caddyfile
+        run: docker run --rm kwazat-web caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Check what the site serves
+        run: |
+          docker run -d --name web-test -p 8081:8080 -e KWAZAT_ENV=test kwazat-web
+          docker run -d --name web-prod -p 8082:8080 -e KWAZAT_ENV=prod kwazat-web
+          for port in 8081 8082; do
+            for i in $(seq 1 20); do curl -sf "http://localhost:$port/" >/dev/null && break; sleep 1; done
+          done
+          fail() { echo "::error::$1"; exit 1; }
+          curl -sf http://localhost:8082/ | grep -q "<title>Kwazat</title>" || fail "page"
+          for path in /.well-known/security.txt /security.txt; do
+            curl -sf "http://localhost:8082$path" | grep -q "^Contact: mailto:abuse@kwazat.fyi" || fail "security.txt at $path"
+          done
+          curl -sfI http://localhost:8082/ | grep -qi "^strict-transport-security: max-age=" || fail "HSTS"
+          curl -sfI http://localhost:8082/ | grep -qi "^content-security-policy: default-src 'none'" || fail "CSP"
+          curl -sf http://localhost:8082/robots.txt | grep -q "^Allow: /" || fail "prod robots.txt"
+          curl -sfI http://localhost:8082/ | grep -qi "^x-robots-tag" && fail "prod must be indexable"
+          curl -sf http://localhost:8081/robots.txt | grep -q "^Disallow: /" || fail "test robots.txt"
+          curl -sfI http://localhost:8081/ | grep -qi "^x-robots-tag: noindex" || fail "test X-Robots-Tag"
+          for host in kwazat.fyi kwazat.com www.kwazat.com; do
+            location=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" -H "Host: $host" http://localhost:8082/a?b=1)
+            [[ "$location" == "301 https://www.kwazat.fyi/a?b=1" ]] || fail "redirect of $host: $location"
+          done
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/missing | grep -q "^404$" || fail "404"
+          echo "Web checks passed"

@@ -1,0 +1,41 @@
+# Kwazat web front, behind Scaleway Serverless Containers (TLS ends at Scaleway; this serves
+# plain HTTP on $PORT). KWAZAT_ENV is "prod" or "test".
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080} {
+	# The canonical host is www.kwazat.fyi: the bare domain and kwazat.com all move to it.
+	@other_hosts host kwazat.fyi kwazat.com www.kwazat.com
+	redir @other_hosts https://www.kwazat.fyi{uri} permanent
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Only prod is indexed.
+	@not_prod expression "{$KWAZAT_ENV:test}" != "prod"
+	header @not_prod X-Robots-Tag "noindex, nofollow"
+	@not_prod_robots {
+		path /robots.txt
+		expression "{$KWAZAT_ENV:test}" != "prod"
+	}
+	respond @not_prod_robots "User-agent: *
+Disallow: /
+" 200
+
+	# One security.txt, served at the RFC 9116 location and at the root.
+	rewrite /.well-known/security.txt /security.txt
+
+	root * /srv
+	file_server
+	handle_errors {
+		respond "{err.status_code} {err.status_text}"
+	}
+}

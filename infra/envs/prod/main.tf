@@ -16,6 +16,18 @@ variable "api_keys_ready" {
   default     = false
 }
 
+variable "web_image" {
+  description = "Web image by digest, from the Image workflow. Empty until the first build."
+  type        = string
+  default     = ""
+}
+
+variable "dns_ready" {
+  description = "Set to true once kwazat.fyi and kwazat.com are validated in Scaleway (infra/README.md, DNS)."
+  type        = bool
+  default     = false
+}
+
 variable "database_url_version" {
   description = "Bump (with -replace of the database API keys) to rotate the database credentials."
   type        = number
@@ -41,6 +53,15 @@ module "environment" {
   database_max_cpu    = 2
 
   database_url_version = var.database_url_version
+
+  web_image = var.web_image
+  dns_ready = var.dns_ready
+  web_domains = {
+    "kwazat.fyi"     = { zone = "kwazat.fyi", name = "" }
+    "www.kwazat.fyi" = { zone = "kwazat.fyi", name = "www" }
+    "kwazat.com"     = { zone = "kwazat.com", name = "" }
+    "www.kwazat.com" = { zone = "kwazat.com", name = "www" }
+  }
 }
 
 output "environment" {

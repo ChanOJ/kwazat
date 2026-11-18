@@ -1,5 +1,6 @@
-# Builds the researcher image (linux/amd64) and pushes it to the Scaleway registry, tagged with
-# the commit. Called by the staging deploy on every merge to main; can also be run by hand.
+# Builds the researcher and web images (linux/amd64) and pushes them to the Scaleway registry,
+# tagged with the commit. Called by the staging deploy on every merge to main; can also be run
+# by hand.
 name: Image
 
 on:
@@ -7,8 +8,11 @@ on:
   workflow_call:
     outputs:
       image:
-        description: Image reference by digest (rg.fr-par.scw.cloud/kwazat/researcher@sha256:...)
+        description: Researcher image by digest (rg.fr-par.scw.cloud/kwazat/researcher@sha256:...)
         value: ${{ jobs.build.outputs.image }}
+      web_image:
+        description: Web image by digest (rg.fr-par.scw.cloud/kwazat/web@sha256:...)
+        value: ${{ jobs.build.outputs.web_image }}
 
 permissions:
   contents: read
@@ -23,6 +27,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       image: ${{ steps.push.outputs.image }}
+      web_image: ${{ steps.push_web.outputs.image }}
     env:
       REGISTRY: rg.fr-par.scw.cloud
       IMAGE: rg.fr-par.scw.cloud/kwazat/researcher
@@ -56,3 +61,17 @@ jobs:
             echo "- Tag: \`$tag\`"
             echo "- Deploy by digest: \`$IMAGE@$digest\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build and push web
+        id: push_web
+        env:
+          WEB: rg.fr-par.scw.cloud/kwazat/web
+        run: |
+          tag="$WEB:sha-${GITHUB_SHA::12}"
+          docker buildx build --platform linux/amd64 --provenance=false \
+            --tag "$tag" --metadata-file web-metadata.json --push web
+          digest=$(jq -r '."containerimage.digest" // empty' web-metadata.json)
+          [[ "$digest" == sha256:* ]] || { echo "No digest in the web build metadata" >&2; exit 1; }
+          echo "Pushed $WEB@$digest"
+          echo "image=$WEB@$digest" >> "$GITHUB_OUTPUT"
+          echo "- Web: \`$WEB@$digest\`" >> "$GITHUB_STEP_SUMMARY"

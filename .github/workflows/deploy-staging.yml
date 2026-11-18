@@ -42,7 +42,15 @@ jobs:
           SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
           IMAGE: ${{ needs.image.outputs.image }}
         run: infra/scripts/deploy-jobs.sh
+      - name: Deploy the web front and check it
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
+          WEB_IMAGE: ${{ needs.image.outputs.web_image }}
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: infra/scripts/deploy-web.sh
       - name: Summary
         env:
           IMAGE: ${{ needs.image.outputs.image }}
-        run: echo "Staging runs \`$IMAGE\` (kwazat-migrate and smoke run succeeded)." >> "$GITHUB_STEP_SUMMARY"
+          WEB_IMAGE: ${{ needs.image.outputs.web_image }}
+        run: echo "Staging runs \`$IMAGE\` and \`$WEB_IMAGE\`." >> "$GITHUB_STEP_SUMMARY"

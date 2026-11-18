@@ -58,8 +58,19 @@ jobs:
           SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
           IMAGE_TAG: ${{ needs.verify.outputs.image_tag }}
         run: |
-          IMAGE=$(infra/scripts/image-digest.sh "$IMAGE_TAG")
+          IMAGE=$(infra/scripts/image-digest.sh researcher "$IMAGE_TAG")
           export IMAGE
           echo "Image: $IMAGE"
           infra/scripts/deploy-jobs.sh
           echo "Prod runs \`$IMAGE\` ($GITHUB_REF_NAME; kwazat-migrate and smoke run succeeded)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Promote the staging web image and check it
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
+          IMAGE_TAG: ${{ needs.verify.outputs.image_tag }}
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: |
+          WEB_IMAGE=$(infra/scripts/image-digest.sh web "$IMAGE_TAG")
+          export WEB_IMAGE
+          infra/scripts/deploy-web.sh
+          echo "Prod web runs \`$WEB_IMAGE\`." >> "$GITHUB_STEP_SUMMARY"
