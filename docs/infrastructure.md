@@ -128,9 +128,14 @@ Dockerfile                 Researcher image (Node 22, pnpm workspace, production
 3. **Tag `v*`** — GitHub environment `production` with required approval by the owner;
    `tofu apply` prod with the digest already deployed to staging, `migrate`, smoke job.
 
-Credentials: one GitHub environment per Scaleway environment (`staging`, `production`), each
-holding only that project's deploy API key. If Scaleway supports OIDC federation with GitHub
-Actions when this is implemented, use it instead of long-lived keys.
+Credentials: one deploy identity per Scaleway environment, limited to that project's jobs plus
+registry read (`kwazat-ci-deploy-<env>`), and a registry-only push identity. CI deploys by
+pointing the jobs at the new digest through the API (`infra/scripts/deploy-jobs.sh`); it does
+not run OpenTofu, which would need organisation-wide IAM rights. The repository is public, so
+GitHub environments are available: each deploy key is an environment secret
+(`SCW_DEPLOY_SECRET_KEY` of `staging`, later `production` with required approval), readable
+only by jobs of that environment from `main`. Plans on pull requests (step 1) are left for
+later.
 
 Checks follow the repository rule on false alarms: the smoke job and DNS/HTTPS checks retry
 with backoff to absorb propagation delays, and fail immediately on a real error (non-2xx

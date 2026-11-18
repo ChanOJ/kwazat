@@ -1,0 +1,46 @@
+# Checks on every pull request; on main they run as the first step of the staging deploy.
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  code:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - name: Install pnpm (same version as packageManager)
+        run: npm install --global pnpm@12.18.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  infra:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      # validate needs a value for the encryption passphrase; no state is read or written.
+      TF_VAR_state_passphrase: validate-only-not-a-secret
+    steps:
+      - uses: actions/checkout@v5
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.13.9
+      - run: tofu fmt -check -recursive infra
+      - name: Validate each stack
+        run: |
+          for stack in infra/shared infra/envs/staging; do
+            echo "== $stack"
+            tofu -chdir="$stack" init -backend=false -input=false
+            tofu -chdir="$stack" validate
+          done
+      - name: Check shell scripts
+        run: for f in infra/*.sh infra/scripts/*.sh; do bash -n "$f"; done

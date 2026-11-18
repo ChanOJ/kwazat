@@ -19,8 +19,13 @@ variable "project_id" {
   type        = string
 }
 
+variable "registry_project_id" {
+  description = "Project holding the image registry (kwazat-shared): CI must read it to deploy an image."
+  type        = string
+}
+
 variable "image" {
-  description = "Researcher image by digest (rg.fr-par.scw.cloud/kwazat/researcher@sha256:...). Empty: no jobs yet."
+  description = "Image the jobs are created with (rg.fr-par.scw.cloud/kwazat/researcher@sha256:...). Empty: no jobs yet. Later images are deployed by CI (infra/scripts/deploy-jobs.sh), not by OpenTofu."
   type        = string
   default     = ""
 }
@@ -132,6 +137,41 @@ resource "scaleway_secret" "api_key" {
   region      = local.region
 }
 
+# --- CI deployment ---------------------------------------------------------------------------
+
+# Used by GitHub Actions to point the jobs at a new image and run them. It cannot touch IAM,
+# secrets or the database directly (the jobs read their secrets on their own).
+resource "scaleway_iam_application" "ci_deploy" {
+  name        = "kwazat-ci-deploy-${var.env}"
+  description = "Kwazat CI: deploys images to the ${var.env} jobs."
+}
+
+resource "scaleway_iam_policy" "ci_deploy" {
+  name           = "kwazat-ci-deploy-${var.env}"
+  description    = "Kwazat CI: Serverless Jobs on the ${var.env} project, registry read on kwazat-shared."
+  application_id = scaleway_iam_application.ci_deploy.id
+  rule {
+    project_ids          = [var.project_id]
+    permission_set_names = ["ServerlessJobsFullAccess"]
+  }
+  # Scaleway checks that the image exists when a job definition changes image.
+  rule {
+    project_ids          = [var.registry_project_id]
+    permission_set_names = ["ContainerRegistryReadOnly"]
+  }
+}
+
+resource "scaleway_iam_api_key" "ci_deploy" {
+  application_id     = scaleway_iam_application.ci_deploy.id
+  default_project_id = var.project_id
+  description        = "Kwazat CI: deploys to ${var.env} (GitHub environment ${var.env})."
+
+  # Scaleway sets a one-year expiry on its own (see infra/README.md, "Key expiry").
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
+}
+
 # --- Jobs ------------------------------------------------------------------------------------
 
 resource "scaleway_job_definition" "migrate" {
@@ -150,6 +190,11 @@ resource "scaleway_job_definition" "migrate" {
   # No automatic retry: a migration or a paid research run is never replayed silently.
   retry_policy {
     max_retries = 0
+  }
+
+  # The image is deployed by CI after each merge (infra/scripts/deploy-jobs.sh).
+  lifecycle {
+    ignore_changes = [image_uri]
   }
 
   secret_reference {
@@ -174,6 +219,11 @@ resource "scaleway_job_definition" "researcher" {
   # No automatic retry: a migration or a paid research run is never replayed silently.
   retry_policy {
     max_retries = 0
+  }
+
+  # The image is deployed by CI after each merge (infra/scripts/deploy-jobs.sh).
+  lifecycle {
+    ignore_changes = [image_uri]
   }
 
   secret_reference {
@@ -204,4 +254,9 @@ output "job_definition_ids" {
     migrate    = one(scaleway_job_definition.migrate[*].id)
     researcher = one(scaleway_job_definition.researcher[*].id)
   }
+}
+
+output "ci_deploy_secret_key" {
+  value     = scaleway_iam_api_key.ci_deploy.secret_key
+  sensitive = true
 }

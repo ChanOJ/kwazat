@@ -32,8 +32,12 @@ Plans are encrypted like the state and git-ignored; delete them after applying.
 - **Third-party keys** (`ANTHROPIC_API_KEY`, `BRAVE_SEARCH_API_KEY`): OpenTofu declares the
   secrets; their values are entered by hand and never reach the state.
 - **Jobs**: `kwazat-migrate` (runs `migrate`) and `kwazat-researcher` (default arguments: a free
-  identity-only run; override them per run). They exist once `image` is set in
-  `envs/<env>/terraform.tfvars`.
+  identity-only run; override them per run). OpenTofu creates them with the `image` of
+  `envs/<env>/terraform.tfvars`; after that, CI owns their image (OpenTofu ignores it).
+- **CI identities**: `kwazat-ci-registry` pushes images (registry of `kwazat-shared` only);
+  `kwazat-ci-deploy-<env>` manages the jobs of its environment and reads the registry. Neither
+  can touch IAM, secrets or the database, so CI does not run OpenTofu: infrastructure changes
+  are planned and applied from a laptop.
 
 ## Owner steps
 
@@ -57,13 +61,45 @@ The key only goes from the encrypted state to GitHub; it is never displayed.
    your Brave plan allows it).
 4. Tell Claude: `api_keys_ready = true` goes into `envs/staging/terraform.tfvars`.
 
-### Deploy an image (until phase 3 automates it)
+### GitHub environment `staging` (once, then on key rotation)
 
-1. GitHub > **Actions** > **Image** > **Run workflow** on `main` (or `gh workflow run image.yml`).
-2. The run summary gives `rg.fr-par.scw.cloud/kwazat/researcher@sha256:...`: set it as `image` in
-   `envs/staging/terraform.tfvars`, then plan and apply.
-3. Run **`kwazat-migrate`**, then **`kwazat-researcher`**: Scaleway console > project
-   `kwazat-staging` > **Serverless Jobs** > job > **Run job**.
+The deploy key is an **environment secret**: only jobs running in the `staging` environment,
+from `main`, can read it.
+
+1. GitHub > repository **Settings** > **Environments** > **New environment**: `staging` >
+   **Configure environment**.
+2. **Deployment branches and tags**: **Selected branches and tags** > **Add deployment branch or
+   tag rule**: `main`.
+3. From the repository root, the key and the project id (the key is never displayed):
+
+```bash
+infra/tofu.sh envs/staging output -raw ci_deploy_secret_key | gh secret set SCW_DEPLOY_SECRET_KEY --env staging --repo ChanOJ/kwazat
+```
+
+```bash
+gh variable set SCW_PROJECT_ID --env staging --repo ChanOJ/kwazat --body "$(infra/tofu.sh envs/staging output -raw project_id)"
+```
+
+### Protect `main` (once)
+
+GitHub > repository **Settings** > **Rules** > **Rulesets** > **New ruleset** > **New branch
+ruleset**:
+
+1. Name `main`, enforcement **Active**, target **Include default branch**.
+2. Tick **Restrict deletions**, **Block force pushes**, **Require a pull request before merging**
+   (required approvals: **0**, since you merge your own pull requests), and **Require status
+   checks to pass** with `code` and `infra` (they appear once CI has run on a pull request).
+3. **Create**.
+
+## Deployments
+
+Every merge to `main` (except documentation-only changes) runs **Deploy staging**: CI checks,
+image build, then `infra/scripts/deploy-jobs.sh`, which points both jobs at the new image by
+digest, runs `kwazat-migrate`, then a free identity-only `kwazat-researcher` run. A failed job
+fails the workflow at once; network hiccups and platform interruptions are retried.
+
+To redeploy by hand: GitHub > **Actions** > **Deploy staging** > **Run workflow**. To run a job
+by hand: Scaleway console > project `kwazat-staging` > **Serverless Jobs** > job > **Run job**.
 
 ## Key expiry
 
