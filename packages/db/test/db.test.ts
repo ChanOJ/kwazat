@@ -46,7 +46,7 @@ const backends: Backend[] = [
       const server = new PGLiteSocketServer({ db: pglite, port: 0, host: "127.0.0.1" });
       await server.start();
       const address = server.getServerConn();
-      const db = await openDb({ url: `postgres://postgres:postgres@${address}/postgres?sslmode=disable` });
+      const db = await openDb({ url: `postgres://postgres:postgres@${address}/postgres?sslmode=disable`, migrate: true });
       return {
         db,
         stop: async () => {

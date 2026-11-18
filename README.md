@@ -55,8 +55,9 @@ pnpm test      # unit and database tests (PGlite and the Postgres wire protocol)
 ### Database
 
 Without configuration, an embedded Postgres (PGlite) is stored in `.data/pglite`: nothing to
-install. Set `DATABASE_URL` to use a Postgres server instead (production, CI); migrations run
-automatically on start. Long tasks go through a Postgres-backed job queue (`jobs` table,
+install, migrations applied automatically. Set `DATABASE_URL` to use a Postgres server instead
+(staging, prod); migrations then run only with `pnpm migrate`, once per deploy. Long tasks go
+through a Postgres-backed job queue (`jobs` table,
 `FOR UPDATE SKIP LOCKED`), so no extra queue service is needed.
 
 ### Secrets

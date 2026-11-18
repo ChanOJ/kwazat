@@ -29,12 +29,18 @@ export type OpenDbOptions = {
   url?: string;
   /** PGlite data directory; defaults to KWAZAT_DB_DIR or .data/pglite. */
   dataDir?: string;
+  /**
+   * Apply pending migrations. Defaults to true for PGlite (nothing to set up locally) and false
+   * for Postgres, where migrations run once per deploy (`migrate` command), not at every start.
+   */
+  migrate?: boolean;
 };
 
 /**
- * Opens the database and applies migrations.
- * - DATABASE_URL set (production, CI, or a local server): regular Postgres driver.
- * - Otherwise: embedded Postgres (PGlite) in a local directory, no server to install.
+ * Opens the database.
+ * - DATABASE_URL set (production, CI, or a local server): regular Postgres driver; migrations
+ *   only when asked (`migrate: true`).
+ * - Otherwise: embedded Postgres (PGlite) in a local directory, migrated automatically.
  */
 export async function openDb(opts: OpenDbOptions | string = {}): Promise<Db> {
   const options = typeof opts === "string" ? { dataDir: opts } : opts;
@@ -42,13 +48,13 @@ export async function openDb(opts: OpenDbOptions | string = {}): Promise<Db> {
   if (url) {
     const client = postgres(url, { max: 10, onnotice: () => {} });
     const db = drizzlePostgres({ client, schema });
-    await migratePostgres(db, { migrationsFolder });
+    if (options.migrate ?? false) await migratePostgres(db, { migrationsFolder });
     return Object.assign(db, { close: () => client.end() }) as unknown as Db;
   }
   const dataDir = options.dataDir ?? (process.env.KWAZAT_DB_DIR || path.join(repoRoot, ".data/pglite"));
   if (!dataDir.startsWith("memory://")) fs.mkdirSync(dataDir, { recursive: true });
   const client = new PGlite(dataDir, { extensions: { pg_trgm } });
   const db = drizzlePglite({ client, schema });
-  await migratePglite(db, { migrationsFolder });
+  if (options.migrate ?? true) await migratePglite(db, { migrationsFolder });
   return Object.assign(db, { close: () => client.close() }) as unknown as Db;
 }

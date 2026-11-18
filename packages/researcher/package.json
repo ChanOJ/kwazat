@@ -6,6 +6,7 @@
     "research": "tsx src/cli.ts research",
     "sheet": "tsx src/cli.ts sheet",
     "lookup": "tsx src/cli.ts lookup",
+    "migrate": "tsx src/cli.ts migrate",
     "sources": "tsx src/cli.ts sources",
     "indices": "tsx src/cli.ts indices",
     "trust": "tsx src/cli.ts trust",

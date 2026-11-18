@@ -41,3 +41,36 @@ output "project_ids" {
 output "registry_endpoint" {
   value = scaleway_registry_namespace.kwazat.endpoint
 }
+
+# CI identity that pushes images to the registry, and nothing else. Its secret key goes to the
+# GitHub Actions secret SCW_REGISTRY_SECRET_KEY (see infra/bootstrap/README.md).
+resource "scaleway_iam_application" "ci_registry" {
+  name        = "kwazat-ci-registry"
+  description = "Kwazat CI: pushes images to the kwazat registry."
+}
+
+resource "scaleway_iam_policy" "ci_registry" {
+  name           = "kwazat-ci-registry"
+  description    = "Kwazat CI: write access to the registry of the kwazat-shared project only."
+  application_id = scaleway_iam_application.ci_registry.id
+  rule {
+    project_ids          = [data.scaleway_account_project.shared.id]
+    permission_set_names = ["ContainerRegistryFullAccess"]
+  }
+}
+
+resource "scaleway_iam_api_key" "ci_registry" {
+  application_id     = scaleway_iam_application.ci_registry.id
+  default_project_id = data.scaleway_account_project.shared.id
+  description        = "Kwazat CI: registry push (GitHub Actions)."
+
+  # Scaleway sets a one-year expiry on its own (see infra/README.md, "Key expiry").
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
+}
+
+output "ci_registry_secret_key" {
+  value     = scaleway_iam_api_key.ci_registry.secret_key
+  sensitive = true
+}
