@@ -1,15 +1,17 @@
 import { parseArgs } from "node:util";
 import { openDb } from "@waza/db";
-import { DEFAULT_MODEL, addUsage, emptyUsage } from "./claude.ts";
+import { addUsage, describeConfig, emptyUsage, formatCost, resolveConfig } from "./claude.ts";
 import { runEval } from "./eval.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { findEntityByWikidataId, loadSheet, resolve, runSection, upsertPerson } from "./pipeline.ts";
 import { renderSheet } from "./sheet.ts";
 
+const RUN_OPTIONS =
+  "[--research-model M] [--extract-model M] [--effort low|medium|high] [--max-searches N] [--max-fetches N]";
 const USAGE = `Usage:
-  research <name|Q-id> [--type person] [--pick N] [--sections a,b] [--force] [--model M] [--identity-only]
+  research <name|Q-id> [--type person] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
   sheet <name|Q-id> [--type person] [--pick N] [--all]
-  eval [person] [--only "Name"] [--sections a,b] [--model M]`;
+  eval [person] [--only "Name"] [--sections a,b] ${RUN_OPTIONS}`;
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -18,7 +20,11 @@ const { positionals, values } = parseArgs({
     pick: { type: "string" },
     sections: { type: "string" },
     force: { type: "boolean", default: false },
-    model: { type: "string" },
+    "research-model": { type: "string" },
+    "extract-model": { type: "string" },
+    effort: { type: "string" },
+    "max-searches": { type: "string" },
+    "max-fetches": { type: "string" },
     "identity-only": { type: "boolean", default: false },
     all: { type: "boolean", default: false },
     only: { type: "string" },
@@ -27,7 +33,13 @@ const { positionals, values } = parseArgs({
 
 const [command, ...rest] = positionals;
 const query = rest.join(" ").trim();
-const model = values.model ?? process.env.WAZA_MODEL ?? DEFAULT_MODEL;
+const config = resolveConfig({
+  researchModel: values["research-model"],
+  extractModel: values["extract-model"],
+  researchEffort: values.effort,
+  maxSearches: values["max-searches"],
+  maxFetches: values["max-fetches"],
+});
 const sectionFilter = values.sections?.split(",").map((s) => s.trim());
 
 function selectSections(playbookSections: ReturnType<typeof loadPlaybook>["sections"]): ResearchSection[] {
@@ -55,9 +67,19 @@ async function resolveOrExit(playbook: ReturnType<typeof loadPlaybook>) {
   return result.wikidataId;
 }
 
+/** Fails early with a hint instead of letting every section fail on authentication. */
+function assertApiKey() {
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) return;
+  throw new Error(
+    "ANTHROPIC_API_KEY is not set. Run through the root scripts (pnpm research / pnpm eval), which inject it " +
+      "from Proton Pass via secrets.env, or export it in CI from the repository secrets.",
+  );
+}
+
 async function main() {
   if (command === "eval") {
-    await runEval(rest[0] ?? "person", { model, only: values.only, sections: sectionFilter });
+    assertApiKey();
+    await runEval(rest[0] ?? "person", { config, only: values.only, sections: sectionFilter });
     return;
   }
   if (command !== "research" && command !== "sheet") throw new Error(USAGE);
@@ -81,20 +103,22 @@ async function main() {
     const entity = await upsertPerson(db, wikidataId);
     console.error(`→ ${entity.label}: ${entity.description ?? ""}`);
     if (!values["identity-only"]) {
+      assertApiKey();
+      console.error(`Config: ${describeConfig(config)}`);
       let total = emptyUsage();
       for (const section of selectSections(playbook.sections)) {
         process.stderr.write(`  ${section.id}... `);
-        const outcome = await runSection(db, entity, playbook, section, model, { force: values.force });
+        const outcome = await runSection(db, entity, playbook, section, config, { force: values.force });
         if (outcome.status === "skipped") console.error(`skipped (${outcome.reason})`);
         else if (outcome.status === "failed") console.error(`FAILED: ${outcome.error}`);
         else
           console.error(
             `${outcome.facts} facts, ${outcome.relations} relations (${outcome.needsReview} to review) · ` +
-              `${outcome.usage.webSearches} searches · $${outcome.usage.costUsd.toFixed(3)} · ${(outcome.durationMs / 1000).toFixed(0)}s`,
+              `${formatCost(outcome.usage)} · ${(outcome.durationMs / 1000).toFixed(0)}s`,
           );
         if (outcome.status !== "skipped") total = addUsage(total, outcome.usage);
       }
-      console.error(`Total estimated cost: $${total.costUsd.toFixed(3)}`);
+      console.error(`Total estimated cost: ${formatCost(total)}`);
     }
     console.log(renderSheet(await loadSheet(db, entity.id), playbook, { includeUnreviewed: true }));
   } finally {
