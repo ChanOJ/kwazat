@@ -28,8 +28,14 @@ Unverified organisations may get lower quotas.
 3. Name: `kwazat-tofu-state` · Region: **Paris** · Visibility: **Private**.
    If the name is taken, pick another one and tell Claude: it is set in
    `infra/shared/versions.tf`.
-4. Open the bucket > **Bucket settings** > **Versioning**: **Enable**. Old versions of the state
-   are then kept, so a bad write can be rolled back.
+4. **Bucket encryption**: enabled, keys managed by Scaleway (SSE-ONE). The state is already
+   encrypted by OpenTofu: this is an extra layer with no key to manage.
+5. **Bucket versioning**: enabled, so a bad write of the state can be rolled back.
+   **Object lock**: off (it would get in the way of OpenTofu's lock file).
+6. Free trial: as offered · Use case: **Other** (informative only).
+
+There is no storage class to choose: it is set per object, and objects default to Standard
+(Multi-AZ in Paris).
 
 ## 4. Create the operator API key
 
@@ -84,7 +90,8 @@ pnpm infra shared apply shared.tfplan
 ## 8. Check the state lock
 
 Run two plans at the same time in two terminals: the second one must stop with a lock error.
-This confirms that Scaleway honours the conditional writes OpenTofu uses for locking.
+This confirms that Scaleway honours the conditional writes OpenTofu uses for locking
+(checked on 2026-11-18, with SSE-ONE encryption on the bucket).
 
 ```bash
 pnpm infra shared plan
