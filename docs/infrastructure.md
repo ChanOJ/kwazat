@@ -1,7 +1,9 @@
 # Infrastructure plan — Scaleway
 
-Status (2026-11-18): phases 1 to 3 done — `infra/shared` and staging are applied, and every
-merge to `main` deploys staging automatically (first run: 2026-11-18). Phases 4 to 6 are still to do.
+Status (2026-11-18): phases 1 to 4 done — `infra/shared`, staging and prod are applied; every
+merge to `main` deploys staging, and a `v*` tag promotes the same image to prod after approval
+(first release still to come).
+Phases 5 (DNS) and 6 (mail) are still to do.
 
 ## Goals
 

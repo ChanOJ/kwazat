@@ -1,0 +1,65 @@
+# A version tag (v*) promotes to prod the image already deployed to staging for that commit:
+#   1. checks, without any secret, that the tagged commit is on main and that its staging
+#      deploy succeeded;
+#   2. waits for the owner's approval (GitHub environment `production`);
+#   3. points the prod jobs at the same image digest, runs kwazat-migrate, then the smoke run.
+# Release: git tag -a v0.1.0 -m "..." <commit on main> && git push origin v0.1.0
+name: Deploy prod
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      image_tag: ${{ steps.check.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Tagged commit is on main and was deployed to staging
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse "$GITHUB_SHA^{commit}")
+          git merge-base --is-ancestor "$sha" origin/main ||
+            { echo "::error::$GITHUB_REF_NAME points to $sha, which is not on main"; exit 1; }
+          ok=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy-staging.yml --commit "$sha" \
+            --status success --json databaseId --jq 'length')
+          [[ "$ok" -gt 0 ]] ||
+            { echo "::error::No successful staging deploy for $sha: tag a commit that staging runs"; exit 1; }
+          echo "image_tag=sha-${sha::12}" >> "$GITHUB_OUTPUT"
+          echo "Promoting $sha (image sha-${sha::12}), deployed to staging"
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # Required approval by the owner; secrets of this environment only.
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v5
+      - name: Promote the staging image to the prod jobs and run them
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
+          IMAGE_TAG: ${{ needs.verify.outputs.image_tag }}
+        run: |
+          IMAGE=$(infra/scripts/image-digest.sh "$IMAGE_TAG")
+          export IMAGE
+          echo "Image: $IMAGE"
+          infra/scripts/deploy-jobs.sh
+          echo "Prod runs \`$IMAGE\` ($GITHUB_REF_NAME; kwazat-migrate and smoke run succeeded)." >> "$GITHUB_STEP_SUMMARY"

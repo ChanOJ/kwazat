@@ -175,7 +175,10 @@ resource "scaleway_iam_api_key" "ci_deploy" {
 # --- Jobs ------------------------------------------------------------------------------------
 
 resource "scaleway_job_definition" "migrate" {
-  count                  = var.image == "" ? 0 : 1
+  count = var.image == "" ? 0 : 1
+  # Scaleway refuses a job whose secret has no version yet.
+  depends_on = [scaleway_secret_version.database_url]
+
   name                   = "kwazat-migrate"
   description            = "Applies pending database migrations. Run once per deploy, before the other jobs."
   project_id             = var.project_id
@@ -204,7 +207,10 @@ resource "scaleway_job_definition" "migrate" {
 }
 
 resource "scaleway_job_definition" "researcher" {
-  count                  = var.image == "" ? 0 : 1
+  count = var.image == "" ? 0 : 1
+  # Scaleway refuses a job whose secret has no version yet.
+  depends_on = [scaleway_secret_version.database_url]
+
   name                   = "kwazat-researcher"
   description            = "Researcher CLI. Default arguments: free identity-only smoke run; override them per run."
   project_id             = var.project_id

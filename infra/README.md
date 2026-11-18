@@ -7,6 +7,7 @@ One-off manual steps: [bootstrap/README.md](bootstrap/README.md).
 |---|---|---|
 | `shared` | Staging and prod projects, image registry, CI registry identity | `shared/terraform.tfstate` |
 | `envs/staging` | Staging database, identities, secrets, jobs (module `modules/environment`) | `staging/terraform.tfstate` |
+| `envs/prod` | Same module for prod | `prod/terraform.tfstate` |
 
 Every command goes through `infra/tofu.sh`, which injects the secrets of `infra/secrets.env` from
 Proton Pass:
@@ -98,7 +99,23 @@ image build, then `infra/scripts/deploy-jobs.sh`, which points both jobs at the 
 digest, runs `kwazat-migrate`, then a free identity-only `kwazat-researcher` run. A failed job
 fails the workflow at once; network hiccups and platform interruptions are retried.
 
-To redeploy by hand: GitHub > **Actions** > **Deploy staging** > **Run workflow**. To run a job
+**Prod** is deployed by a version tag on a commit of `main` that staging already runs:
+
+```bash
+git tag -a v0.1.0 -m "First prod release" origin/main
+```
+
+```bash
+git push origin v0.1.0
+```
+
+**Deploy prod** checks, without any secret, that the commit is on `main` and that its staging
+deploy succeeded, then waits for your approval (GitHub > **Actions** > run > **Review
+deployments** > **production** > **Approve and deploy**). It then points the prod jobs at the
+digest built for that commit (the same image as staging), runs `kwazat-migrate` and the smoke run.
+The `production` environment only accepts `v*` tags and holds its own deploy key.
+
+To redeploy staging by hand: GitHub > **Actions** > **Deploy staging** > **Run workflow**. To run a job
 by hand: Scaleway console > project `kwazat-staging` > **Serverless Jobs** > job > **Run job**.
 
 ## Key expiry
