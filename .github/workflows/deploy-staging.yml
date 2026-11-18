@@ -1,0 +1,48 @@
+# Every merge to main: checks, image build, then deployment to staging (jobs point at the new
+# image, kwazat-migrate runs, then a free identity-only smoke run). See infra/README.md.
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, never cancelled half-way.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    needs: checks
+    uses: ./.github/workflows/image.yml
+    secrets: inherit
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # Environment secrets: only jobs of the staging environment can read the staging key.
+    environment:
+      name: staging
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy to the staging jobs and run them
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
+          SCW_PROJECT_ID: ${{ vars.SCW_PROJECT_ID }}
+          IMAGE: ${{ needs.image.outputs.image }}
+        run: infra/scripts/deploy-jobs.sh
+      - name: Summary
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+        run: echo "Staging runs \`$IMAGE\` (kwazat-migrate and smoke run succeeded)." >> "$GITHUB_STEP_SUMMARY"

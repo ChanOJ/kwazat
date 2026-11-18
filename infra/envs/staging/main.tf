@@ -27,17 +27,32 @@ data "scaleway_account_project" "staging" {
   name = "kwazat-staging"
 }
 
+data "scaleway_account_project" "shared" {
+  name = "kwazat-shared"
+}
+
 module "environment" {
-  source           = "../../modules/environment"
-  env              = "staging"
-  project_id       = data.scaleway_account_project.staging.id
-  image            = var.image
-  api_keys_ready   = var.api_keys_ready
-  database_max_cpu = 2
+  source              = "../../modules/environment"
+  env                 = "staging"
+  project_id          = data.scaleway_account_project.staging.id
+  registry_project_id = data.scaleway_account_project.shared.id
+  image               = var.image
+  api_keys_ready      = var.api_keys_ready
+  database_max_cpu    = 2
 
   database_url_version = var.database_url_version
 }
 
 output "environment" {
-  value = module.environment
+  value     = module.environment
+  sensitive = true
+}
+
+output "ci_deploy_secret_key" {
+  value     = module.environment.ci_deploy_secret_key
+  sensitive = true
+}
+
+output "project_id" {
+  value = data.scaleway_account_project.staging.id
 }

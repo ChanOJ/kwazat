@@ -1,10 +1,14 @@
 # Builds the researcher image (linux/amd64) and pushes it to the Scaleway registry, tagged with
-# the commit. The job summary gives the digest to deploy (infra/README.md, "Deploy an image").
-# Manual for now; phase 3 runs it on every merge to main.
+# the commit. Called by the staging deploy on every merge to main; can also be run by hand.
 name: Image
 
 on:
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      image:
+        description: Image reference by digest (rg.fr-par.scw.cloud/kwazat/researcher@sha256:...)
+        value: ${{ jobs.build.outputs.image }}
 
 permissions:
   contents: read
@@ -17,6 +21,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      image: ${{ steps.push.outputs.image }}
     env:
       REGISTRY: rg.fr-par.scw.cloud
       IMAGE: rg.fr-par.scw.cloud/kwazat/researcher
@@ -36,11 +42,15 @@ jobs:
           exit 1
 
       - name: Build and push
+        id: push
         run: |
           tag="$IMAGE:sha-${GITHUB_SHA::12}"
           docker buildx build --platform linux/amd64 --provenance=false \
             --tag "$tag" --metadata-file metadata.json --push .
-          digest=$(jq -r '."containerimage.digest"' metadata.json)
+          digest=$(jq -r '."containerimage.digest" // empty' metadata.json)
+          [[ "$digest" == sha256:* ]] || { echo "No digest in the build metadata" >&2; exit 1; }
+          echo "Pushed $IMAGE@$digest"
+          echo "image=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
           {
             echo "### Researcher image"
             echo "- Tag: \`$tag\`"
