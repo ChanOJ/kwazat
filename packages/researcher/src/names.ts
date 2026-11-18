@@ -93,7 +93,8 @@ export async function searchKnownEntities(db: Db, query: string, limit = 10): Pr
     .innerJoin(entities, eq(entities.id, entityNames.entityId))
     .where(and(isNull(entities.mergedInto), sql`${entityNames.normalized} % ${normalized}`))
     .groupBy(entities.id)
-    .orderBy(sql`${score} desc`)
+    // Ties (same normalized name) in creation order: ids are UUIDv7, so results stay stable.
+    .orderBy(sql`${score} desc`, entities.id)
     .limit(limit);
   return rows.map((r) => ({ ...r, score: Number(r.score) }));
 }

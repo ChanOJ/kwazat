@@ -17,6 +17,12 @@ test("uuidv7 has version 7, the RFC variant, and sorts by time", () => {
   assert.ok(a < b);
 });
 
+test("uuidv7 stays in creation order within the same millisecond", () => {
+  const ids = Array.from({ length: 10_000 }, () => uuidv7());
+  for (let i = 1; i < ids.length; i++) assert.ok(ids[i - 1]! < ids[i]!, `${ids[i - 1]} then ${ids[i]}`);
+  assert.ok(ids.every((id) => id[14] === "7" && "89ab".includes(id[19]!)), "version and variant bits");
+});
+
 test("normalizeName strips accents, case and punctuation", () => {
   assert.equal(normalizeName("  Jérôme   CAHUZAC "), "jerome cahuzac");
   assert.equal(normalizeName("Jean-Marie Le Pen"), "jean marie le pen");
