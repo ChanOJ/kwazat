@@ -1,7 +1,7 @@
 # Infrastructure plan — Scaleway
 
-Status (2026-11-18): phases 1 and 2 done — `infra/shared` and staging are applied; the staging
-`kwazat-migrate` and `kwazat-researcher` jobs run the first image. Phases 3 to 6 are still to do.
+Status (2026-11-18): phases 1 to 3 done — `infra/shared` and staging are applied, and every
+merge to `main` deploys staging automatically (first run: 2026-11-18). Phases 4 to 6 are still to do.
 
 ## Goals
 
