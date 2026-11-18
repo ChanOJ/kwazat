@@ -146,8 +146,10 @@ Setting it up, in order:
 
 1. Register both domains as external domains in `kwazat-shared` (done on 2026-11-18 through the
    API) and add their `_scaleway-challenge` TXT records at Infomaniak (done on 2026-11-18).
-2. Once Scaleway shows them validated: `dns_ready = true` in `infra/shared` and in both
-   environments, plus `web_image` from the Image workflow, then plan and apply.
+2. As each domain is validated in Scaleway: add it to `dns_ready_zones` in
+   `infra/shared/terraform.tfvars` and in both environments' `terraform.tfvars` (with
+   `web_image` from the Image workflow), then plan and apply. Do it **before** switching its
+   name servers: the new zone is otherwise empty and the domain loses its records.
 3. At Infomaniak: replace the name servers of both domains with `ns0.dom.scw.cloud` and
    `ns1.dom.scw.cloud`.
 4. GitHub environment variable `WEB_URL` (`https://test.kwazat.fyi` for `staging`,
