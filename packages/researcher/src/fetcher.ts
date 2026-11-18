@@ -5,14 +5,16 @@
  * - identifies itself honestly (never a browser user agent);
  * - obeys robots.txt rules addressed to KwazatBot or to every robot;
  * - treats a robots.txt that blocks known AI agents (GPTBot, ClaudeBot, CCBot...) as an
- *   opt-out from AI processing, and so does the TDM reservation protocol (TDMRep) and a refusal
- *   written in plain text recorded in the registry (`ai_opt_out`);
+ *   opt-out from AI processing, and so do the TDM reservation protocol (TDMRep), a trust.txt
+ *   declaring `datatrainingallowed=no` and a refusal written in plain text recorded in the
+ *   registry (`ai_opt_out`);
  * - never bypasses a paywall or a login: only what the page serves publicly is read;
  * - keeps nothing of the page beyond the run (only extracted facts, short quotes and the URL).
  * When a page may not be processed, the search engine's title and snippet are used instead.
  */
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { fetchTrustTxt, type TrustRecord } from "./trusttxt.ts";
 
 export const BOT_NAME = "KwazatBot";
 export const BOT_UA = "KwazatBot/0.1 (+https://github.com/ChanOJ/kwazat; fact extraction with links back to sources)";
@@ -136,7 +138,8 @@ function tdmReservedByWellKnown(entries: TdmRepEntry[], path: string): boolean {
 
 // --- Fetching --------------------------------------------------------------------------------
 
-async function get(url: string, accept: string): Promise<Response> {
+/** GET as KwazatBot (honest user agent, timeout, redirects followed). */
+export async function botGet(url: string, accept: string): Promise<Response> {
   return fetch(url, {
     headers: { "User-Agent": BOT_UA, Accept: accept, "Accept-Language": "en, fr;q=0.9, *;q=0.5" },
     redirect: "follow",
@@ -167,10 +170,11 @@ export type FetcherOptions = {
   aiOptOutDomains?: Set<string>;
 };
 
-/** Per-run fetcher: caches robots.txt and TDMRep per host. */
+/** Per-run fetcher: caches robots.txt, TDMRep and trust.txt per host. */
 export class Fetcher {
   private robots = new Map<string, Promise<Group[] | "unreachable">>();
   private tdmrep = new Map<string, Promise<TdmRepEntry[]>>();
+  private trust = new Map<string, Promise<TrustRecord | null>>();
 
   constructor(private readonly opts: FetcherOptions = {}) {}
 
@@ -180,7 +184,7 @@ export class Fetcher {
         origin,
         (async () => {
           try {
-            const res = await get(`${origin}/robots.txt`, "text/plain");
+            const res = await botGet(`${origin}/robots.txt`, "text/plain");
             // RFC 9309: a missing file allows everything; a server error means "assume disallowed".
             if (res.status >= 500) return "unreachable" as const;
             return res.ok ? parseRobots(await res.text()) : [];
@@ -199,7 +203,7 @@ export class Fetcher {
         origin,
         (async () => {
           try {
-            const res = await get(`${origin}/.well-known/tdmrep.json`, "application/json");
+            const res = await botGet(`${origin}/.well-known/tdmrep.json`, "application/json");
             if (!res.ok) return [];
             const json = (await res.json()) as unknown;
             return Array.isArray(json) ? (json as TdmRepEntry[]) : [];
@@ -210,6 +214,11 @@ export class Fetcher {
       );
     }
     return this.tdmrep.get(origin)!;
+  }
+
+  private trustFor(origin: string) {
+    if (!this.trust.has(origin)) this.trust.set(origin, fetchTrustTxt(origin));
+    return this.trust.get(origin)!;
   }
 
   /** Why this URL must not be processed by AI, or null if it may be fetched. */
@@ -224,6 +233,7 @@ export class Fetcher {
     if (!verdict.allowed) return "robots.txt disallows KwazatBot";
     if (verdict.aiOptOut.length) return `robots.txt blocks AI agents (${verdict.aiOptOut.slice(0, 3).join(", ")})`;
     if (tdmReservedByWellKnown(await this.tdmrepFor(u.origin), u.pathname)) return "TDM reservation (tdmrep.json)";
+    if ((await this.trustFor(u.origin))?.datatrainingallowed === false) return "trust.txt: datatrainingallowed=no";
     return null;
   }
 
@@ -233,7 +243,7 @@ export class Fetcher {
       const refused = await this.policy(url);
       if (refused) return { ...base, status: "snippet_only", reason: refused };
 
-      const res = await get(url, "text/html,application/xhtml+xml");
+      const res = await botGet(url, "text/html,application/xhtml+xml");
       if (!res.ok) return { ...base, status: "failed", reason: `HTTP ${res.status}` };
       if (res.headers.get("tdm-reservation") === "1") {
         await res.body?.cancel();

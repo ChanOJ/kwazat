@@ -8,6 +8,7 @@ import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { countryCodesOf, findEntityByWikidataId, loadSheet, resolve, runSection, upsertPerson } from "./pipeline.ts";
 import { loadRegistry, selectSources } from "./sources.ts";
 import { renderSheet } from "./sheet.ts";
+import { summarizeTrust, updateTrust } from "./trusttxt.ts";
 
 const RUN_OPTIONS =
   "[--research-model M] [--extract-model M] [--effort low|medium|high] [--max-searches N] [--max-fetches N] [--source-mode auto|restricted|preferred] [--search-provider brave|brave-context|anthropic]";
@@ -17,6 +18,7 @@ const USAGE = `Usage:
   sources <name|Q-id> [--type person] [--pick N] [--sections a,b]
   indices                      (downloads country indices into sources/countries.json)
   reach                        (lists registry domains the web tools cannot reach)
+  trust                        (reads the trust.txt of registry domains into sources/trust.json)
   eval [person] [--only "Name"] [--sections a,b] ${RUN_OPTIONS}`;
 
 const { positionals, values } = parseArgs({
@@ -104,6 +106,24 @@ async function main() {
     const file = await checkAccess(domains);
     console.log(`${file.blocked.length} of ${domains.length} registry domains are not reachable by the web tools:`);
     console.log(file.blocked.map((d) => `  ${d}`).join("\n"));
+    return;
+  }
+  if (command === "trust") {
+    // Free: plain HTTP requests as KwazatBot, no API key.
+    const sources = [...loadRegistry().files.values()].flatMap((f) => f.sources);
+    const snapshot = await updateTrust(sources.map((s) => s.domain));
+    const found = sources.filter((s) => snapshot.files[s.domain]);
+    console.log(`${found.length} of ${sources.length} registry domains publish a trust.txt (sources/trust.json):`);
+    const mark = (l: { domain: string; confirmed: boolean }) => `${l.domain} ${l.confirmed ? "(confirmed)" : "(not confirmed)"}`;
+    for (const s of found) {
+      const t = summarizeTrust(snapshot, s.domain)!;
+      console.log(`\n${s.domain} · ${t.url}`);
+      if (t.owners.length) console.log(`  controlled by: ${t.owners.map(mark).join(", ")} · registry owner: ${s.owner ?? s.owner_id ?? "none"}`);
+      if (t.affiliations.length) console.log(`  belongs to: ${t.affiliations.map(mark).join(", ")}`);
+      if (t.datatrainingallowed === false) {
+        console.log("  datatrainingallowed=no: snippets only (KwazatBot checks it live)");
+      }
+    }
     return;
   }
   if (command === "indices") {
