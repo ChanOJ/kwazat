@@ -39,7 +39,7 @@ jobs:
       - run: tofu fmt -check -recursive infra
       - name: Validate each stack
         run: |
-          for stack in infra/shared infra/envs/staging; do
+          for stack in infra/shared infra/envs/staging infra/envs/prod; do
             echo "== $stack"
             tofu -chdir="$stack" init -backend=false -input=false
             tofu -chdir="$stack" validate
