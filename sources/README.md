@@ -107,11 +107,9 @@ publishers' stated wishes:
 - it identifies itself as `KwazatBot` (never as a browser) and obeys robots.txt rules addressed to
   it or to every robot;
 - a robots.txt that blocks known AI agents (GPTBot, ClaudeBot, CCBot, Google-Extended...), a TDM
-  reservation (W3C TDMRep: `tdmrep.json`, HTTP header or meta tag), a trust.txt declaring
-  `datatrainingallowed=no` or a refusal written in plain text recorded in the registry
-  (`ai_opt_out`) means "no AI processing": only the search engine's title and snippets are
-  used, with the link. Kwazat trains no model, but a refusal of training is read as a refusal
-  of AI processing, the cautious reading of the publisher's wishes;
+  reservation (W3C TDMRep: `tdmrep.json`, HTTP header or meta tag) or a refusal written in plain
+  text recorded in the registry (`ai_opt_out`) means "no AI processing": only the search
+  engine's title and snippets are used, with the link;
 - paywalls and logins are never bypassed: only what the page serves publicly is read;
 - page texts are not stored: only extracted facts, quotes of 25 words at most, and URLs.
 
@@ -128,6 +126,8 @@ result in `trust.json`.
   (`controlledby=` ↔ `control=`, `belongto=` ↔ `member=`).
 - Declarations **do not change any tier**: they help fill in `owner`, `owner_id` and signal
   evidence, which a person then records with their own evidence URL.
+- `datatrainingallowed` is recorded for information only: it concerns model training, which
+  Kwazat does not do, so it does not restrict reading (unlike the signals in "Fetching policy").
 - The parser is strict: HTML error pages served with status 200 and files without any known
   variable are ignored.
 - Adoption is low outside US local news: on 2026-11-18, 1 of 106 registry domains published one.

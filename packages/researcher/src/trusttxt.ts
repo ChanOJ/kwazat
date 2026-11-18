@@ -6,12 +6,13 @@
  * A declaration is a claim, not a proof: a link counts as confirmed only when the other side
  * declares it too (`belongto=` ↔ `member=`, `controlledby=` ↔ `control=`).
  *
- * Used in two places:
- * - KwazatBot reads it live with robots.txt and TDMRep: `datatrainingallowed=no` means no AI
- *   processing (snippets only), like the other opt-outs (see fetcher.ts);
- * - `pnpm trust` stores the declarations of every registry domain, plus the associations and
- *   owners they point to, in sources/trust.json, and reports ownership and affiliations to check
- *   against the registry. They do not change any tier (see sources/README.md).
+ * `pnpm trust` stores the declarations of every registry domain, plus the associations and
+ * owners they point to, in sources/trust.json, and reports ownership and affiliations to check
+ * against the registry. They do not change any tier (see sources/README.md).
+ *
+ * `datatrainingallowed` is recorded for information only: it is about training models, which
+ * Kwazat does not do, so it neither allows nor forbids reading a page (see fetcher.ts for the
+ * signals that do).
  */
 import fs from "node:fs";
 import path from "node:path";

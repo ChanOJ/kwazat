@@ -5,16 +5,14 @@
  * - identifies itself honestly (never a browser user agent);
  * - obeys robots.txt rules addressed to KwazatBot or to every robot;
  * - treats a robots.txt that blocks known AI agents (GPTBot, ClaudeBot, CCBot...) as an
- *   opt-out from AI processing, and so do the TDM reservation protocol (TDMRep), a trust.txt
- *   declaring `datatrainingallowed=no` and a refusal written in plain text recorded in the
- *   registry (`ai_opt_out`);
+ *   opt-out from AI processing, and so does the TDM reservation protocol (TDMRep) and a refusal
+ *   written in plain text recorded in the registry (`ai_opt_out`);
  * - never bypasses a paywall or a login: only what the page serves publicly is read;
  * - keeps nothing of the page beyond the run (only extracted facts, short quotes and the URL).
  * When a page may not be processed, the search engine's title and snippet are used instead.
  */
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
-import { fetchTrustTxt, type TrustRecord } from "./trusttxt.ts";
 
 export const BOT_NAME = "KwazatBot";
 export const BOT_UA = "KwazatBot/0.1 (+https://github.com/ChanOJ/kwazat; fact extraction with links back to sources)";
@@ -170,11 +168,10 @@ export type FetcherOptions = {
   aiOptOutDomains?: Set<string>;
 };
 
-/** Per-run fetcher: caches robots.txt, TDMRep and trust.txt per host. */
+/** Per-run fetcher: caches robots.txt and TDMRep per host. */
 export class Fetcher {
   private robots = new Map<string, Promise<Group[] | "unreachable">>();
   private tdmrep = new Map<string, Promise<TdmRepEntry[]>>();
-  private trust = new Map<string, Promise<TrustRecord | null>>();
 
   constructor(private readonly opts: FetcherOptions = {}) {}
 
@@ -216,11 +213,6 @@ export class Fetcher {
     return this.tdmrep.get(origin)!;
   }
 
-  private trustFor(origin: string) {
-    if (!this.trust.has(origin)) this.trust.set(origin, fetchTrustTxt(origin));
-    return this.trust.get(origin)!;
-  }
-
   /** Why this URL must not be processed by AI, or null if it may be fetched. */
   async policy(url: string): Promise<string | null> {
     const u = new URL(url);
@@ -233,7 +225,6 @@ export class Fetcher {
     if (!verdict.allowed) return "robots.txt disallows KwazatBot";
     if (verdict.aiOptOut.length) return `robots.txt blocks AI agents (${verdict.aiOptOut.slice(0, 3).join(", ")})`;
     if (tdmReservedByWellKnown(await this.tdmrepFor(u.origin), u.pathname)) return "TDM reservation (tdmrep.json)";
-    if ((await this.trustFor(u.origin))?.datatrainingallowed === false) return "trust.txt: datatrainingallowed=no";
     return null;
   }
 

@@ -121,7 +121,7 @@ async function main() {
       if (t.owners.length) console.log(`  controlled by: ${t.owners.map(mark).join(", ")} · registry owner: ${s.owner ?? s.owner_id ?? "none"}`);
       if (t.affiliations.length) console.log(`  belongs to: ${t.affiliations.map(mark).join(", ")}`);
       if (t.datatrainingallowed === false) {
-        console.log("  datatrainingallowed=no: snippets only (KwazatBot checks it live)");
+        console.log("  datatrainingallowed=no (training only: does not restrict reading)");
       }
     }
     return;
