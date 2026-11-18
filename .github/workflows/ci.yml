@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 26
+          # Its pnpm cache needs pnpm before it is installed below.
+          package-manager-cache: false
       - name: Install pnpm (same version as packageManager)
         run: npm install --global pnpm@12.18.0
       - run: pnpm install --frozen-lockfile
