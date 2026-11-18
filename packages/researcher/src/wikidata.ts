@@ -135,10 +135,26 @@ export async function searchCandidates(query: string, opts: { humansOnly: boolea
     type: "item",
     limit: "10",
   });
-  let ids: string[] = found.search.map((s: { id: string }) => s.id);
-  if (opts.humansOnly) {
-    // Label search ranks places and other items first ("Cahuzac" is also a commune): add a
-    // full-text search restricted to humans, and keep label matches first.
+  const toCandidates = async (ids: string[]) => {
+    const entities = await getEntities(ids, "labels|descriptions|claims");
+    return ids
+      .map((id) => entities[id])
+      .filter((e): e is WdEntity => !!e)
+      .map((e) => ({
+        wikidataId: e.id,
+        label: pick(e.labels) ?? e.id,
+        description: pick(e.descriptions),
+        birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
+        isHuman: itemIds(e, "P31").includes(HUMAN),
+      }));
+  };
+  const candidates = await toCandidates(found.search.map((s: { id: string }) => s.id));
+  if (!opts.humansOnly) return candidates;
+  const humansFound = candidates.filter((c) => c.isHuman);
+  if (humansFound.length) return humansFound;
+  {
+    // Label search ranks places and other items first and may return no person at all
+    // ("Cahuzac" is also a commune): fall back to a full-text search restricted to humans.
     const humans = await call({
       action: "query",
       list: "search",
@@ -147,20 +163,8 @@ export async function searchCandidates(query: string, opts: { humansOnly: boolea
       srlimit: "10",
     });
     const humanIds: string[] = (humans.query?.search ?? []).map((r: { title: string }) => r.title);
-    ids = [...new Set([...ids, ...humanIds])];
+    return (await toCandidates(humanIds)).filter((c) => c.isHuman);
   }
-  const entities = await getEntities(ids, "labels|descriptions|claims");
-  const candidates = ids
-    .map((id) => entities[id])
-    .filter((e): e is WdEntity => !!e)
-    .map((e) => ({
-      wikidataId: e.id,
-      label: pick(e.labels) ?? e.id,
-      description: pick(e.descriptions),
-      birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
-      isHuman: itemIds(e, "P31").includes(HUMAN),
-    }));
-  return opts.humansOnly ? candidates.filter((c) => c.isHuman) : candidates;
 }
 
 export type WikidataRelation = {

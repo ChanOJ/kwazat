@@ -25,7 +25,7 @@ import { searchCandidates, type Candidate } from "./wikidata.ts";
 
 const CACHE_TTL_HOURS = 24;
 /** Part of the cache key: bump it when the candidate search changes, to ignore older lists. */
-const SEARCH_VERSION = 2;
+const SEARCH_VERSION = 3;
 const SEARCH_LANG = `en:v${SEARCH_VERSION}`;
 
 const inFlight = new Map<string, Promise<Candidate[]>>();
