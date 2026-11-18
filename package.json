@@ -10,6 +10,7 @@
     "trust": "pnpm --filter @kwazat/researcher trust",
     "reach": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher reach",
     "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher eval",
+    "infra": "infra/tofu.sh",
     "db:generate": "pnpm --filter @kwazat/db generate",
     "typecheck": "pnpm -r typecheck"
   },

@@ -10,3 +10,8 @@ eval/reports/*
 # Third-party index data (RSF, V-Dem, World Bank): regenerated with `pnpm indices`, not
 # redistributed until each licence has been checked.
 sources/countries.json
+# OpenTofu: provider cache, plans and any local state (state lives encrypted in Object Storage).
+.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
