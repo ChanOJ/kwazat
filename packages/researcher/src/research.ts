@@ -39,6 +39,8 @@ import { hostOf, isExcluded, lookupSource, type Registry, type SourceSelection }
 const RESULTS_PER_QUERY = 10;
 /** Extra candidates to try when some pages turn out to be snippet-only. */
 const TRIAGE_EXTRA = 3;
+/** What is kept from provider passages of a publisher refusing AI processing ("very short extract"). */
+const OPT_OUT_SNIPPET_CHARS = 300;
 
 type Doc = SearchResult & {
   index: number;
@@ -174,11 +176,12 @@ Method:
 - If the documents contain nothing relevant, say so explicitly. An empty result is a valid result.`;
 
 function docBlock(d: Doc): string {
-  const content = d.fetch?.status === "fetched" ? "full text" : "snippets only";
+  const content = d.fetch?.status === "fetched" ? "full text" : d.passages?.length ? "passages" : "snippets only";
   const body = [
     d.title,
     d.snippet,
     ...d.extraSnippets,
+    ...(d.passages ?? []),
     d.fetch?.status === "fetched" ? `\n${d.fetch.text}` : null,
   ]
     .filter(Boolean)
@@ -226,7 +229,7 @@ export async function researchWithSearch(
   config: RunConfig,
   sources: SourceSelection,
   registry: Registry,
-  provider: SearchProvider = createSearchProvider(config.searchProvider as "brave"),
+  provider: SearchProvider = createSearchProvider(config.searchProvider as Exclude<RunConfig["searchProvider"], "anthropic">),
 ): Promise<ResearchResult> {
   const budget = toolBudget(section, config);
   const log = (line: string) => process.stderr.write(`\n    ${line}`);
@@ -254,15 +257,22 @@ export async function researchWithSearch(
   usage = addUsage(usage, { ...emptyUsage(), webSearches: queries.length, searchCostUsd: searchCost, costUsd: searchCost });
 
   // 4-5. Access policy, triage among readable pages, fetch.
+  // Free: robots.txt and TDMRep are fetched once per host and cached.
   const fetcher = new Fetcher({ aiOptOutDomains: registry.aiOptOut });
-  if (budget.fetches > 0) {
-    // Free: robots.txt and TDMRep are fetched once per host and cached.
-    await Promise.all(docs.map(async (d) => (d.refusal = await fetcher.policy(d.url))));
+  await Promise.all(docs.map(async (d) => (d.refusal = await fetcher.policy(d.url))));
+  for (const d of docs) {
+    // Provider passages of publishers refusing AI processing are cut down to a short snippet.
+    if (d.refusal && d.passages?.length) {
+      d.snippet = (d.snippet || d.passages.join(" ")).slice(0, OPT_OUT_SNIPPET_CHARS);
+      d.passages = [];
+    }
   }
   const readable = docs.filter((d) => !d.refusal);
   log(`${readable.length} of ${docs.length} results may be read in full; the others are used through their snippets`);
-  if (readable.length && budget.fetches > 0) {
-    const picked = await triage(section, subject, readable, budget.fetches + TRIAGE_EXTRA, config);
+  // Pages already covered by provider passages need no download.
+  const toRead = readable.filter((d) => !d.passages?.length);
+  if (toRead.length && budget.fetches > 0) {
+    const picked = await triage(section, subject, toRead, budget.fetches + TRIAGE_EXTRA, config);
     usage = addUsage(usage, picked.usage);
     let fetched = 0;
     for (const index of picked.data.read) {
@@ -301,6 +311,7 @@ export const SEARCH_PIPELINE_FINGERPRINT = createHash("sha256")
       researchWithSearch.toString(),
       String(RESULTS_PER_QUERY),
       String(TRIAGE_EXTRA),
+      String(OPT_OUT_SNIPPET_CHARS),
     ].join("\n"),
   )
   .digest("hex")

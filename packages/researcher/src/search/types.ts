@@ -24,6 +24,11 @@ export type SearchResult = {
   publishedAt: string | null;
   /** Site name as given by the provider. */
   siteName: string | null;
+  /**
+   * Longer passages of the page from the provider's own index (LLM-oriented APIs). Used only
+   * for publishers that accept AI processing; trimmed to a snippet for the others.
+   */
+  passages?: string[];
 };
 
 export interface SearchProvider {

@@ -10,7 +10,7 @@ import { loadRegistry, selectSources } from "./sources.ts";
 import { renderSheet } from "./sheet.ts";
 
 const RUN_OPTIONS =
-  "[--research-model M] [--extract-model M] [--effort low|medium|high] [--max-searches N] [--max-fetches N] [--source-mode auto|restricted|preferred] [--search-provider brave|anthropic]";
+  "[--research-model M] [--extract-model M] [--effort low|medium|high] [--max-searches N] [--max-fetches N] [--source-mode auto|restricted|preferred] [--search-provider brave|brave-context|anthropic]";
 const USAGE = `Usage:
   research <name|Q-id> [--type person] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
   sheet <name|Q-id> [--type person] [--pick N] [--all]
@@ -79,7 +79,7 @@ async function resolveOrExit(playbook: ReturnType<typeof loadPlaybook>) {
 
 /** Fails early with a hint instead of letting every section fail on authentication. */
 function assertApiKey() {
-  if (config.searchProvider === "brave" && !process.env.BRAVE_SEARCH_API_KEY) {
+  if (config.searchProvider.startsWith("brave") && !process.env.BRAVE_SEARCH_API_KEY) {
     throw new Error(
       "BRAVE_SEARCH_API_KEY is not set. Create a key at https://api-dashboard.search.brave.com, store it in Proton " +
         "Pass (vault Waza, item brave-search-api-key) and uncomment its line in secrets.env, or use --search-provider anthropic.",

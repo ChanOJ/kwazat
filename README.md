@@ -71,7 +71,7 @@ Defaults are tuned for cost during the design phase. Override with CLI flags or 
 | `--effort` | `WAZA_RESEARCH_EFFORT` | `medium` | `low` / `medium` / `high` / `xhigh` / `max` |
 | `--max-searches` | `WAZA_MAX_SEARCHES` | `4` | Cap per section (each search is billed ~$0.01) |
 | `--max-fetches` | `WAZA_MAX_FETCHES` | `2` | Cap per section (pages read in full) |
-| `--search-provider` | `WAZA_SEARCH_PROVIDER` | `brave` | `brave` (search API + WazaBot) or `anthropic` (Claude web tools) |
+| `--search-provider` | `WAZA_SEARCH_PROVIDER` | `brave` | `brave` (Web Search + WazaBot), `brave-context` (LLM Context passages, trimmed to snippets for publishers refusing AI), or `anthropic` (Claude web tools) |
 | `--source-mode` | `WAZA_SOURCE_MODE` | `auto` | `auto`, `restricted` or `preferred` (see sources/README.md) |
 
 These settings are part of each section's hash: changing them marks cached sections as stale.
