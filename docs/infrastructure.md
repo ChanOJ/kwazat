@@ -23,7 +23,7 @@ Phases 5 (DNS) and 6 (mail) are still to do.
 | Database | PGlite (embedded, `.data/pglite`) | Serverless SQL Database | Serverless SQL Database |
 | Secrets | Proton Pass via `secrets.env` | Secret Manager (staging) | Secret Manager (prod) |
 | Anthropic key | `dev` key, own workspace + spend limit | `staging` key, own workspace + spend limit | `prod` key, own workspace + spend limit |
-| Hostname | — | `staging.kwazat.fyi` | `kwazat.fyi` |
+| Hostname | — | `test.kwazat.fyi` | `www.kwazat.fyi` |
 | Deployed by | — | GitHub Actions on merge to `main` | GitHub Actions on a `v*` tag, after manual approval |
 
 **Database engine.** Both Scaleway environments use Serverless SQL Database during phase 0:
@@ -74,9 +74,10 @@ OpenTofu (`infra/shared`), so records live next to the resources they point to.
 
 | Record | Target |
 |---|---|
-| `kwazat.fyi`, `www.kwazat.fyi` | Prod web app (later); placeholder page until then |
-| `staging.kwazat.fyi` | Staging web app (later) |
-| `kwazat.com`, `www.kwazat.com` | Permanent redirect to `https://kwazat.fyi` |
+| `www.kwazat.fyi` | Prod web app (later); placeholder page until then. Canonical host |
+| `kwazat.fyi` | Permanent redirect to `https://www.kwazat.fyi` |
+| `test.kwazat.fyi` | Staging web app (later), not indexed |
+| `kwazat.com`, `www.kwazat.com` | Permanent redirect to `https://www.kwazat.fyi` |
 
 - `.fyi` is not on the HSTS preload list by default: the web layer sends
   `Strict-Transport-Security` and redirects HTTP to HTTPS; preload submission once stable.

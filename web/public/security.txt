@@ -1,0 +1,5 @@
+Contact: mailto:abuse@kwazat.fyi
+Expires: 2027-11-18T00:00:00.000Z
+Preferred-Languages: en, fr
+Canonical: https://www.kwazat.fyi/.well-known/security.txt
+Canonical: https://www.kwazat.fyi/security.txt

@@ -20,8 +20,26 @@ variable "project_id" {
 }
 
 variable "registry_project_id" {
-  description = "Project holding the image registry (kwazat-shared): CI must read it to deploy an image."
+  description = "Project kwazat-shared: holds the image registry (CI must read it to deploy an image) and the DNS zones."
   type        = string
+}
+
+variable "web_image" {
+  description = "Image the web container is created with (rg.fr-par.scw.cloud/kwazat/web@sha256:...). Empty: no web container yet. Later images are deployed by CI."
+  type        = string
+  default     = ""
+}
+
+variable "web_domains" {
+  description = "Hostnames served by the web container, keyed by hostname: DNS zone and record name (empty name = zone apex)."
+  type        = map(object({ zone = string, name = string }))
+  default     = {}
+}
+
+variable "dns_ready" {
+  description = "True once the zones of web_domains are validated in Scaleway: records and custom domains are then created."
+  type        = bool
+  default     = false
 }
 
 variable "image" {
@@ -148,11 +166,11 @@ resource "scaleway_iam_application" "ci_deploy" {
 
 resource "scaleway_iam_policy" "ci_deploy" {
   name           = "kwazat-ci-deploy-${var.env}"
-  description    = "Kwazat CI: Serverless Jobs on the ${var.env} project, registry read on kwazat-shared."
+  description    = "Kwazat CI: Serverless Jobs and Containers on the ${var.env} project, registry read on kwazat-shared."
   application_id = scaleway_iam_application.ci_deploy.id
   rule {
     project_ids          = [var.project_id]
-    permission_set_names = ["ServerlessJobsFullAccess"]
+    permission_set_names = ["ServerlessJobsFullAccess", "ContainersFullAccess"]
   }
   # Scaleway checks that the image exists when a job definition changes image.
   rule {
@@ -244,6 +262,67 @@ resource "scaleway_job_definition" "researcher" {
       environment = secret_reference.key
     }
   }
+}
+
+# --- Web front -------------------------------------------------------------------------------
+
+resource "scaleway_container_namespace" "web" {
+  name        = "kwazat-web"
+  description = "Kwazat ${var.env}: web front."
+  project_id  = var.project_id
+  region      = local.region
+}
+
+resource "scaleway_container" "web" {
+  count                  = var.web_image == "" ? 0 : 1
+  name                   = "web"
+  description            = "Kwazat ${var.env}: waiting page, robots.txt and security.txt (web/), later the web app."
+  namespace_id           = scaleway_container_namespace.web.id
+  image                  = var.web_image
+  port                   = 8080
+  cpu_limit              = 140
+  memory_limit_bytes     = 268435456
+  min_scale              = 0
+  max_scale              = 2
+  privacy                = "public"
+  https_connections_only = true
+  environment_variables = {
+    KWAZAT_ENV = var.env == "prod" ? "prod" : "test"
+  }
+
+  # The image is deployed by CI after each merge (infra/scripts/deploy-web.sh).
+  lifecycle {
+    ignore_changes = [image]
+  }
+}
+
+locals {
+  web_host = length(scaleway_container.web) == 0 ? "" : trimsuffix(trimprefix(scaleway_container.web[0].public_endpoint, "https://"), "/")
+  # Records and custom domains need both the container and validated zones.
+  web_domains = var.dns_ready && local.web_host != "" ? var.web_domains : {}
+}
+
+# Apex names use ALIAS (a CNAME is not allowed there), other names CNAME.
+resource "scaleway_domain_record" "web" {
+  for_each   = local.web_domains
+  project_id = var.registry_project_id
+  dns_zone   = each.value.zone
+  name       = each.value.name
+  type       = each.value.name == "" ? "ALIAS" : "CNAME"
+  data       = "${local.web_host}."
+  ttl        = 300
+}
+
+resource "scaleway_container_domain" "web" {
+  for_each     = local.web_domains
+  container_id = scaleway_container.web[0].id
+  hostname     = each.key
+  region       = local.region
+  depends_on   = [scaleway_domain_record.web]
+}
+
+output "web_endpoint" {
+  value = local.web_host
 }
 
 output "database_endpoint" {
