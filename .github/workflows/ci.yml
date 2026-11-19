@@ -66,7 +66,7 @@ jobs:
           fail() { echo "::error::$1"; exit 1; }
           curl -sf http://localhost:8082/ | grep -q "<title>Kwazat</title>" || fail "page"
           for path in /.well-known/security.txt /security.txt; do
-            curl -sf "http://localhost:8082$path" | grep -q "^Contact: mailto:abuse@kwazat.fyi" || fail "security.txt at $path"
+            curl -sf "http://localhost:8082$path" | grep -q "^Contact: mailto:abuse-kwazat\\..*@passmail\\.net" || fail "security.txt at $path"
           done
           curl -sfI http://localhost:8082/ | grep -qi "^strict-transport-security: max-age=" || fail "HSTS"
           curl -sfI http://localhost:8082/ | grep -qi "^content-security-policy: default-src 'none'" || fail "CSP"

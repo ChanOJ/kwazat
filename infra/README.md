@@ -140,7 +140,8 @@ Caddy serving the waiting page, `robots.txt` and `security.txt`) behind these na
 | prod | `www.kwazat.fyi` (canonical), `kwazat.fyi`, `kwazat.com`, `www.kwazat.com` (the last three redirect to `https://www.kwazat.fyi`) | ALIAS at the apex, CNAME for `www` |
 
 Scaleway issues the certificates. `infra/shared` also publishes `v=spf1 -all` and a `p=reject`
-DMARC record on both domains, and a null MX on `kwazat.com`, until mail is set up (phase 6).
+DMARC record and a null MX on both domains, until mail is set up on `kwazat.fyi` (phase 6,
+postponed: the public contacts are Proton Pass aliases meanwhile, see docs/infrastructure.md).
 
 Setting it up, in order:
 
