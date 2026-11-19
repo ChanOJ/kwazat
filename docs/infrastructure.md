@@ -96,9 +96,9 @@ OpenTofu (`infra/shared`), so records live next to the resources they point to.
 | Abuse and security (RFC 2142) | `abuse@kwazat.fyi` | `security.txt`, `SECURITY.md` |
 | Syndication (publishers, e.g. those refusing bots) | `syndication@kwazat.fyi` | the KwazatBot page, when it exists |
 
-Its records (verification TXT, MX, SPF, DKIM, DMARC `p=quarantine`) come from Proton's domain
-settings and live in `infra/shared` (they are not secrets). Move DMARC to `p=reject` once mail
-from the domain is seen passing DKIM and SPF.
+Its records (verification TXT, MX, SPF, DKIM, DMARC `p=reject`) come from Proton's domain
+settings and live in `infra/shared` (they are not secrets). DMARC moved from `p=quarantine` to
+`p=reject` on 2026-11-19, once mail from the domain was seen passing DKIM and SPF.
 
 `kwazat.com` sends and receives no mail: null MX (`0 .`), SPF `v=spf1 -all` and DMARC
 `p=reject`, so nobody can send convincing mail "from Kwazat" through it.
