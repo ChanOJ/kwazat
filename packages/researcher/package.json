@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./names": "./src/names.ts"
+    "./names": "./src/names.ts",
+    "./worker": "./src/worker.ts",
+    "./playbook": "./src/playbook.ts",
+    "./pipeline": "./src/pipeline.ts"
   },
   "scripts": {
     "research": "tsx src/cli.ts research",

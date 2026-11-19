@@ -1,28 +1,49 @@
 /**
- * Who may see what: the only place that decides which paths need a session. The proxy
- * (src/proxy.ts) enforces it on every request.
+ * Who may see what: the only place that decides it. The proxy (src/proxy.ts) enforces it on every
+ * request.
  *
  * Phase 1 (now): everything is behind login while the owner works on the UX; there is no
  * signup, accounts are created with `pnpm users`.
  * Phase 2: set LOGIN_REQUIRED_EVERYWHERE to false. Browsing and search then open to anonymous
- * visitors, and only PRIVATE_PREFIXES (settings, personalization) still need a session.
+ * visitors, and only PRIVATE_PREFIXES (account, red lines) still need a session.
+ *
+ * A second factor is mandatory: a session whose user has none set up can only reach the
+ * enrollment page until it is done.
  */
 export const LOGIN_REQUIRED_EVERYWHERE = true;
 
-/** Reachable without a session in every phase: the login page and the auth API itself. */
+/** Reachable without a session in every phase: login (with its code step) and the auth API. */
 const PUBLIC_PREFIXES = ["/login", "/api/auth"];
 
+/** Local development mailbox: emailed codes must be readable before the login is complete. */
+const DEV_PUBLIC_PREFIXES = ["/dev/mail"];
+
 /** Need a session in every phase. */
-const PRIVATE_PREFIXES = ["/settings", "/account"];
+const PRIVATE_PREFIXES = ["/account", "/red-lines"];
+
+/** Where a session without a second factor is sent. */
+export const ENROLL_PATH = "/account/two-factor";
+
+export type Viewer = { twoFactorEnabled?: boolean | null } | null;
+export type Decision = "allow" | "login" | "enroll";
 
 function under(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-export function needsLogin(pathname: string, loginEverywhere = LOGIN_REQUIRED_EVERYWHERE): boolean {
-  if (PUBLIC_PREFIXES.some((p) => under(pathname, p))) return false;
-  if (loginEverywhere) return true;
-  return PRIVATE_PREFIXES.some((p) => under(pathname, p));
+export function access(
+  pathname: string,
+  viewer: Viewer,
+  opts: { loginEverywhere?: boolean; development?: boolean } = {},
+): Decision {
+  const loginEverywhere = opts.loginEverywhere ?? LOGIN_REQUIRED_EVERYWHERE;
+  const development = opts.development ?? process.env.NODE_ENV !== "production";
+  if (PUBLIC_PREFIXES.some((p) => under(pathname, p))) return "allow";
+  if (development && DEV_PUBLIC_PREFIXES.some((p) => under(pathname, p))) return "allow";
+  if (viewer && !viewer.twoFactorEnabled) return under(pathname, ENROLL_PATH) ? "allow" : "enroll";
+  if (viewer) return "allow";
+  const needsLogin = loginEverywhere || PRIVATE_PREFIXES.some((p) => under(pathname, p));
+  return needsLogin ? "login" : "allow";
 }
 
 /**
@@ -30,6 +51,6 @@ export function needsLogin(pathname: string, loginEverywhere = LOGIN_REQUIRED_EV
  */
 export function safeNextPath(next: unknown): string {
   if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return "/";
-  if (under(next, "/login") || under(next, "/api")) return "/";
+  if (under(next, "/login") || under(next, "/api") || under(next, "/dev")) return "/";
   return next;
 }

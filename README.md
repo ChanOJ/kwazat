@@ -137,42 +137,81 @@ Requests to models that support it use the API's server-side refusal fallback (n
 
 ## Web app
 
-Next.js (App Router) with [Better Auth](https://www.better-auth.com) for email and password
-login. Accounts and sessions live in the same database as the sheets (`users`, `sessions`,
-`accounts`, `verifications`, see `packages/db/src/auth-schema.ts`).
+Next.js (App Router) with [Better Auth](https://www.better-auth.com), on the same database as
+the sheets (`users`, `sessions`, `accounts`, `verifications`, `two_factors`, see
+`packages/db/src/auth-schema.ts`). Runs locally only for now.
 
-**Access, phase 1 (now): everything is behind login.** Anonymous visitors are sent to `/login`,
-and come back to the page they asked for afterwards. There is **no signup**: no page, and
-Better Auth's signup endpoint is both disabled and removed. Accounts are created with
-`pnpm users` only. One file decides access, `packages/app/src/lib/access.ts`, enforced on
-every request by `packages/app/src/proxy.ts` (session checked against the database, so removing
-an account or changing its password logs it out at once).
+**Pages.** Search (known entities, then Wikidata candidates) → a known subject opens its sheet
+(`/entity/<id>`: identity, each research section with numbered sources, Wikidata relations). A
+subject Kwazat does not know yet is a button, never a link (research is paid and must not start
+from a prefetch): it queues a research job and shows a waiting page until the identity is known,
+then the sheet, whose sections fill in as they are researched. The profile icon (top right)
+opens Account and Red lines (placeholder until red lines are designed).
+
+**Research jobs.** The `research` job (`packages/researcher/src/worker.ts`) runs the identity
+step (free) then every research section (paid, one attempt). In development the worker runs
+inside the web server (one process, as PGlite requires); `KWAZAT_WORKER=off` disables it, and in
+production it only starts with `KWAZAT_WORKER=on` (a separate worker job is the plan).
+
+**Access, phase 1 (now): everything is behind login.** Anonymous visitors are sent to `/login`
+and come back to the page they asked for. There is **no signup**: no page, and Better Auth's
+signup endpoint is both disabled and removed. Accounts are created with `pnpm users` only. One
+file decides access, `packages/app/src/lib/access.ts`, enforced on every request by
+`packages/app/src/proxy.ts` (session checked against the database, so removing an account or
+changing its password logs it out at once).
 
 **Phase 2** (browsing and search open to everyone, login for settings and personalization):
 set `LOGIN_REQUIRED_EVERYWHERE = false` in `access.ts`; paths under `PRIVATE_PREFIXES`
-(`/settings`, `/account`) keep needing a session. Then remove the `X-Robots-Tag` header of
+(`/account`, `/red-lines`) keep needing a session. Then remove the `X-Robots-Tag` header of
 `next.config.ts` and the `robots` metadata of the root layout for the public pages.
 
+**Account (minimal data, GDPR).** An email address, a password and a **mandatory second factor**,
+nothing else (`name` is required by Better Auth and left empty). At the first login, the
+account must set one up before reaching any page:
+
+- *code by email*: each login emails a 6-digit code (valid 10 minutes) and a link that opens the
+  code page with it filled in (in the browser where the login started);
+- *authenticator app* (TOTP), with 10 single-use backup codes.
+
+"Trust this device for 30 days" skips the second step on that browser. The Account page
+changes the email address (confirmed from the current address, then verified at the new one),
+the password (logs out the other devices), the second factor and the backup codes. An
+authenticator being replaced and not confirmed yet falls back to emailed codes, so nobody is
+locked out halfway. A user who chose the authenticator can still request an emailed code
+through the API: both are second factors tied to the account.
+
+**Email.** Locally, nothing is sent: messages land in `packages/app/.data/mail` and are shown at
+<http://localhost:3000/dev/mail> (development only, readable before login so codes can be
+used). Staging and prod have no mail transport yet: sending fails until one is set up.
+
 ```bash
-pnpm app                       # http://localhost:3000, local PGlite database
+pnpm app        # http://localhost:3000, local PGlite database, API keys from Proton Pass (research)
 ```
 
-Accounts (stop `pnpm app` first when using the local database: PGlite allows one process):
+Without Proton Pass, `pnpm --filter @kwazat/app dev` runs the same app without API keys:
+everything works except research beyond the identity step.
+
+Accounts (stop the app first when using the local database: PGlite allows one process):
 
 ```bash
-pnpm users add you@example.com --name "Your name"   # asks for the password, hidden (12+ characters)
-pnpm users password you@example.com                 # new password, logs out every session
+pnpm users add you@example.com          # asks for the password, hidden (12+ characters)
+pnpm users password you@example.com     # new password, logs out every session
+pnpm users reset-2fa you@example.com    # lost second factor: set up again at next login
 pnpm users list
 pnpm users remove you@example.com
-pnpm users test-account                             # local test account (refused with DATABASE_URL)
+pnpm users test-account                 # local test account, codes by email (refused with DATABASE_URL)
 ```
 
 The local test account (`packages/app/test/test-account.ts`) is for automated checks and local
 browser testing; it only exists in the local PGlite database. Login attempts are rate limited
-(5 per minute per client, in memory). Next.js and Better Auth telemetry are off.
+(5 per minute per client, in memory), and second-factor failures lock the account for 15
+minutes after 10 attempts. Next.js and Better Auth telemetry are off; the dev server listens on
+127.0.0.1 only.
 
 | Setting | Local development | Staging and prod (not deployed yet) |
 |---|---|---|
 | `BETTER_AUTH_SECRET` | built-in development value | required; Secret Manager |
 | `BETTER_AUTH_URL` | `http://localhost:3000` | `https://test.kwazat.fyi`, `https://www.kwazat.fyi` |
 | `DATABASE_URL` | unset (PGlite) | Secret Manager (runtime identity) |
+| Mail transport | local mailbox | to choose (e.g. Scaleway Transactional Email) |
+

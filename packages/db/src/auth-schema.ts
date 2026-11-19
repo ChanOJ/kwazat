@@ -2,8 +2,10 @@
  * Accounts and sessions of the web app, in the shape Better Auth expects (core schema, plural
  * table names, `usePlural: true` in packages/app/src/lib/auth.ts). Ids are UUIDv7 strings set by
  * the app. Users are only created from the command line (`pnpm users`): there is no signup.
+ * Minimal data (GDPR): an email address, a password hash and a second factor; `name` is required
+ * by Better Auth and left empty.
  */
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () => timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
@@ -14,6 +16,10 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  /** Set once a second factor has been verified; logging in then needs it. Mandatory for all. */
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  /** The second factor this user chose: "email" (code and link by mail) or "totp" (app). */
+  twoFactorMethod: text("two_factor_method").$type<"email" | "totp">(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -71,4 +77,22 @@ export const verifications = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("verifications_identifier_idx").on(t.identifier)],
+);
+
+/** Authenticator app (TOTP) secret and backup codes, both encrypted with the auth secret. */
+export const twoFactors = pgTable(
+  "two_factors",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    /** False until the first code from the app has been checked. */
+    verified: boolean("verified").notNull().default(true),
+    failedVerificationCount: integer("failed_verification_count").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  },
+  (t) => [index("two_factors_user_id_idx").on(t.userId), index("two_factors_secret_idx").on(t.secret)],
 );

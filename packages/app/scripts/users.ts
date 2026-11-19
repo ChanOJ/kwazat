@@ -4,20 +4,21 @@
  * `pnpm dev` first when using PGlite (one process at a time).
  *
  *   pnpm users list
- *   pnpm users add <email> [--name "Display name"]   (asks for the password, hidden)
+ *   pnpm users add <email>                           (asks for the password, hidden)
  *   pnpm users password <email>                      (new password; logs out every session)
+ *   pnpm users reset-2fa <email>                     (lost second factor: set up again at next login)
  *   pnpm users remove <email>
  *   pnpm users test-account                          (local test account, PGlite only)
  */
 import { parseArgs } from "node:util";
 import { asc, eq, openDb, users } from "@kwazat/db";
 import { createAuth } from "../src/lib/auth.ts";
-import { CliError, setUser } from "../src/lib/users.ts";
+import { CliError, resetTwoFactor, setUser, useEmailCodes } from "../src/lib/users.ts";
 import { TEST_ACCOUNT } from "../test/test-account.ts";
 
-const USAGE = `Usage: pnpm users list | add <email> [--name N] | password <email> | remove <email> | test-account`;
+const USAGE = `Usage: pnpm users list | add <email> | password <email> | reset-2fa <email> | remove <email> | test-account`;
 
-const { positionals, values } = parseArgs({ allowPositionals: true, options: { name: { type: "string" } } });
+const { positionals } = parseArgs({ allowPositionals: true });
 const [command, emailArg] = positionals;
 
 /** Reads a line without echoing it on a terminal; reads stdin as is when piped. */
@@ -85,8 +86,13 @@ async function main() {
     const email = emailArg?.trim().toLowerCase();
     switch (command) {
       case "list": {
-        const rows = await db.select({ email: users.email, name: users.name, createdAt: users.createdAt }).from(users).orderBy(asc(users.createdAt));
-        for (const u of rows) console.log(`${u.email}  ${u.name}  (created ${u.createdAt.toISOString().slice(0, 10)})`);
+        const rows = await db
+          .select({ email: users.email, method: users.twoFactorMethod, createdAt: users.createdAt })
+          .from(users)
+          .orderBy(asc(users.createdAt));
+        for (const u of rows) {
+          console.log(`${u.email}  second factor: ${u.method ?? "not set up"}  (created ${u.createdAt.toISOString().slice(0, 10)})`);
+        }
         if (rows.length === 0) console.log("No account yet.");
         return;
       }
@@ -94,8 +100,14 @@ async function main() {
       case "password": {
         if (!email) throw new CliError(USAGE);
         const password = await askPassword(min, max);
-        const result = await setUser(db, email, values.name ?? email.split("@")[0]!, password, command === "add" ? "create" : "reset");
+        const result = await setUser(db, email, password, command === "add" ? "create" : "reset");
         console.log(`${email}: ${result}.`);
+        return;
+      }
+      case "reset-2fa": {
+        if (!email) throw new CliError(USAGE);
+        await resetTwoFactor(db, email);
+        console.log(`${email}: second factor removed, logged out everywhere; it is set up again at the next login.`);
         return;
       }
       case "remove": {
@@ -105,8 +117,9 @@ async function main() {
         return;
       }
       case "test-account": {
-        const result = await setUser(db, TEST_ACCOUNT.email, TEST_ACCOUNT.name, TEST_ACCOUNT.password, "upsert");
-        console.log(`${TEST_ACCOUNT.email}: ${result} (password in packages/app/test/test-account.ts).`);
+        const result = await setUser(db, TEST_ACCOUNT.email, TEST_ACCOUNT.password, "upsert");
+        await useEmailCodes(db, TEST_ACCOUNT.email);
+        console.log(`${TEST_ACCOUNT.email}: ${result}, codes by email in the local mailbox (password in packages/app/test/test-account.ts).`);
         return;
       }
       default:

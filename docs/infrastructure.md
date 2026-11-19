@@ -24,8 +24,10 @@ waiting page. Deploying it is a separate change: a Node image for `packages/app`
 behind) the Caddy container, keeping its security headers, redirects, `robots.txt` and
 `security.txt`; a `BETTER_AUTH_SECRET` secret per environment and `DATABASE_URL` (runtime
 identity) for the container; `BETTER_AUTH_URL` per environment; the client IP forwarded by
-Scaleway trusted for login rate limiting; and the owner's account created with
-`DATABASE_URL=... pnpm users add` against each database.
+Scaleway trusted for login rate limiting; a mail transport for sign-in codes and email changes
+(Scaleway Transactional Email is a candidate, with SPF and DKIM for kwazat.fyi next to Proton's);
+a research worker job running the `research` queue with the Anthropic and Brave keys; and the
+owner's account created with `DATABASE_URL=... pnpm users add` against each database.
 
 ## Environments
 

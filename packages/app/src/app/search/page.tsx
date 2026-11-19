@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { entityIdentifiers, and, eq, inArray } from "@kwazat/db";
 import { searchKnownEntities, wikidataCandidates } from "@kwazat/researcher/names";
 import { getDb } from "@/lib/db.ts";
+import { startResearch } from "../research/actions.ts";
 import { SearchForm } from "../search-form.tsx";
 
 export const metadata: Metadata = { title: "Search" };
@@ -19,6 +22,20 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     searchKnownEntities(db, query),
     wikidataCandidates(db, query, { humansOnly: true }).catch(() => null),
   ]);
+  // Wikidata candidates Kwazat already has a sheet for link to it instead of starting research.
+  const ids = candidates?.map((c) => c.wikidataId) ?? [];
+  const knownByWikidata = new Map(
+    ids.length
+      ? (
+          await db
+            .select({ value: entityIdentifiers.value, entityId: entityIdentifiers.entityId })
+            .from(entityIdentifiers)
+            .where(and(eq(entityIdentifiers.scheme, "wikidata"), inArray(entityIdentifiers.value, ids)))
+        ).map((r) => [r.value, r.entityId])
+      : [],
+  );
+  const shownAbove = new Set(known.map((k) => k.entityId));
+  const others = candidates?.filter((c) => !shownAbove.has(knownByWikidata.get(c.wikidataId) ?? "")) ?? null;
 
   return (
     <section>
@@ -30,24 +47,39 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <ul className="results">
           {known.map((k) => (
             <li key={k.entityId}>
-              <span className="label">{k.label}</span>
-              {k.description && <span className="description">{k.description}</span>}
+              <Link href={`/entity/${k.entityId}`} className="result-link">
+                <span className="label">{k.label}</span>
+                {k.description && <span className="description">{k.description}</span>}
+              </Link>
             </li>
           ))}
         </ul>
       )}
-      <h2>On Wikidata</h2>
-      {candidates === null ? (
+      <h2>Other matches on Wikidata</h2>
+      {others === null ? (
         <p className="empty">Wikidata could not be reached. Try again in a moment.</p>
-      ) : candidates.length === 0 ? (
-        <p className="empty">No match.</p>
+      ) : others.length === 0 ? (
+        <p className="empty">No other match.</p>
       ) : (
         <ul className="results">
-          {candidates.map((c) => (
+          {others.map((c) => (
             <li key={c.wikidataId}>
-              <span className="label">{c.label}</span>
-              {c.description && <span className="description">{c.description}</span>}
-              <span className="id">{c.wikidataId}</span>
+              {knownByWikidata.has(c.wikidataId) ? (
+                <Link href={`/entity/${knownByWikidata.get(c.wikidataId)}`} className="result-link">
+                  <span className="label">{c.label}</span>
+                  {c.description && <span className="description">{c.description}</span>}
+                </Link>
+              ) : (
+                // A button, not a link: research is paid and must never start from a prefetch.
+                <form action={startResearch} className="result-research">
+                  <input type="hidden" name="wikidataId" value={c.wikidataId} />
+                  <button type="submit" className="result-button">
+                    <span className="label">{c.label}</span>
+                    {c.description && <span className="description">{c.description}</span>}
+                    <span className="id">Not in Kwazat yet · research this person</span>
+                  </button>
+                </form>
+              )}
             </li>
           ))}
         </ul>

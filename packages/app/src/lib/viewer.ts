@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { getAuth } from "./auth.ts";
 
-export type Viewer = { id: string; name: string; email: string };
+export type Viewer = { id: string; email: string; twoFactorEnabled: boolean; twoFactorMethod: "email" | "totp" | null };
 
 /** The logged-in user, or null. Display only: access is decided by the proxy. */
 export async function getViewer(): Promise<Viewer | null> {
@@ -10,6 +10,11 @@ export async function getViewer(): Promise<Viewer | null> {
   const auth = await getAuth();
   const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) return null;
-  const { id, name, email } = session.user;
-  return { id, name, email };
+  const { id, email, twoFactorEnabled, twoFactorMethod } = session.user;
+  return {
+    id,
+    email,
+    twoFactorEnabled: !!twoFactorEnabled,
+    twoFactorMethod: twoFactorMethod === "email" || twoFactorMethod === "totp" ? twoFactorMethod : null,
+  };
 }
