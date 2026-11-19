@@ -3,8 +3,8 @@
 Status (2026-11-19): phases 1 to 5 done — `infra/shared`, staging and prod are applied; every
 merge to `main` deploys staging, and a `v*` tag promotes the same image to prod after approval
 (first release, v0.1.0: 2026-11-18). `www.kwazat.fyi` (canonical), `kwazat.fyi`, `kwazat.com`,
-`www.kwazat.com` and `test.kwazat.fyi` are served over HTTPS since 2026-11-19. Phase 6 (mail on
-kwazat.fyi) is postponed: contacts use Proton Pass aliases meanwhile (see "Mail").
+`www.kwazat.com` and `test.kwazat.fyi` are served over HTTPS since 2026-11-19, and kwazat.fyi
+receives mail on Proton Mail (phase 6, see "Mail"). All six phases are done.
 
 ## Goals
 
@@ -89,21 +89,22 @@ OpenTofu (`infra/shared`), so records live next to the resources they point to.
 
 ## Mail
 
-**Now** (since 2026-11-19): no mailbox on Kwazat's domains. The owner's Proton plan has no free
-custom-domain slot, so the public contacts are Proton Pass aliases that forward to the owner:
+`kwazat.fyi` is on Proton Mail (owner's Proton plan) since 2026-11-19:
 
 | Contact | Address | Shown in |
 |---|---|---|
-| Abuse and security | `abuse-kwazat.qwhpq@passmail.net` | `security.txt` |
-| Syndication (publishers, e.g. those refusing bots) | `syndication-kwazat.hkxne@passmail.net` | the KwazatBot page, when it exists |
+| Abuse and security (RFC 2142) | `abuse@kwazat.fyi` | `security.txt`, `SECURITY.md` |
+| Syndication (publishers, e.g. those refusing bots) | `syndication@kwazat.fyi` | the KwazatBot page, when it exists |
 
-Both domains send and receive no mail: null MX (`0 .`), SPF `v=spf1 -all` and DMARC `p=reject`,
-so nobody can send convincing mail "from Kwazat".
+Its records (verification TXT, MX, SPF, DKIM, DMARC `p=quarantine`) come from Proton's domain
+settings and live in `infra/shared` (they are not secrets). Move DMARC to `p=reject` once mail
+from the domain is seen passing DKIM and SPF.
 
-**Later** (phase 6, once a Proton custom-domain slot is free): `kwazat.fyi` on Proton Mail with
-`abuse@` (RFC 2142) and `syndication@`. Proton's MX, SPF, DKIM and DMARC records replace the
-lockdown of `kwazat.fyi` in OpenTofu (they are not secrets), and the contacts above move to
-the new addresses.
+`kwazat.com` sends and receives no mail: null MX (`0 .`), SPF `v=spf1 -all` and DMARC
+`p=reject`, so nobody can send convincing mail "from Kwazat" through it.
+
+From 2026-11-19 until Proton was set up, the contacts were Proton Pass aliases; they may stay
+active as forwarding addresses but are no longer published.
 
 ## Repository security (GitHub settings, set on 2026-11-19)
 
@@ -189,7 +190,7 @@ after retries, wrong content, failed migration).
 | 3 | CI/CD | CI keys, one per project, exist; merge to `main` deploys staging without a laptop |
 | 4 | Prod | A `v*` tag deploys prod after approval |
 | 5 | DNS | Zones delegated to Scaleway; `kwazat.com` redirects; placeholder page and `security.txt` (both paths) on HTTPS |
-| 6 | Mail (postponed) | `abuse@` and `syndication@kwazat.fyi` receive mail; contacts moved from the aliases |
+| 6 | Mail | `abuse@` and `syndication@kwazat.fyi` receive mail; contacts moved from the aliases |
 
 ## Manual steps (owner)
 
