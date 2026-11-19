@@ -1,2 +1,2 @@
 # Shared settings (not secret).
-dns_ready_zones = ["kwazat.com"]
+dns_ready_zones = ["kwazat.com", "kwazat.fyi"]

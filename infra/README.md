@@ -145,7 +145,8 @@ DMARC record on both domains, and a null MX on `kwazat.com`, until mail is set u
 Setting it up, in order:
 
 1. Register both domains as external domains in `kwazat-shared` (done on 2026-11-18 through the
-   API) and add their `_scaleway-challenge` TXT records at Infomaniak (done on 2026-11-18).
+   API) and add their `_scaleway-challenge` TXT records at Infomaniak (done on 2026-11-18;
+   validated on 2026-11-18 for kwazat.com, 2026-11-19 for kwazat.fyi).
 2. As each domain is validated in Scaleway: add it to `dns_ready_zones` in
    `infra/shared/terraform.tfvars` and in both environments' `terraform.tfvars` (with
    `web_image` from the Image workflow), then plan and apply. Do it **before** switching its
@@ -154,5 +155,8 @@ Setting it up, in order:
    `ns1.dom.scw.cloud`.
 4. GitHub environment variable `WEB_URL` (`https://test.kwazat.fyi` for `staging`,
    `https://www.kwazat.fyi` for `production`), so that deploys check the public names too.
+
+All four steps were done by 2026-11-19 (name servers: kwazat.com on 2026-11-18, kwazat.fyi on
+2026-11-19).
 
 Later web images are deployed by CI (`infra/scripts/deploy-web.sh`), like the jobs.
