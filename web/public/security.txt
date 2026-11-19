@@ -1,5 +1,6 @@
 Contact: mailto:abuse-kwazat.qwhpq@passmail.net
 Expires: 2027-11-18T00:00:00.000Z
 Preferred-Languages: en, fr
+Policy: https://github.com/ChanOJ/kwazat/security/policy
 Canonical: https://www.kwazat.fyi/.well-known/security.txt
 Canonical: https://www.kwazat.fyi/security.txt

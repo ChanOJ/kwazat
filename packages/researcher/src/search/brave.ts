@@ -4,6 +4,7 @@
  * Key: BRAVE_SEARCH_API_KEY (Proton Pass, see secrets.env).
  */
 import type { SearchProvider, SearchQuery, SearchResult } from "./types.ts";
+import { parseHTML } from "linkedom";
 
 const ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
 
@@ -17,14 +18,16 @@ type BraveResult = {
   profile?: { name?: string };
 };
 
-/** Brave returns light HTML (<strong>) and entities in titles and snippets. */
-const clean = (s: string | undefined) =>
-  (s ?? "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;|&#39;/g, "'")
-    .replace(/&amp;/g, "&")
-    .trim();
+/**
+ * Brave returns light HTML (<strong>) and entities in titles and snippets: parsed as HTML and
+ * reduced to its text, so no tag survives (regex stripping can leave nested tags behind).
+ */
+const clean = (s: string | undefined) => {
+  if (!s) return "";
+  const { document } = parseHTML("<!doctype html><html><body></body></html>");
+  document.body.innerHTML = s;
+  return (document.body.textContent ?? "").replace(/\s+/g, " ").trim();
+};
 
 function braveKey(key = process.env.BRAVE_SEARCH_API_KEY): string {
   if (!key) {
