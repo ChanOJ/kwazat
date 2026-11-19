@@ -25,7 +25,7 @@ jobs:
     outputs:
       image_tag: ${{ steps.check.outputs.image_tag }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Tagged commit is on main and was deployed to staging
@@ -51,7 +51,7 @@ jobs:
     environment:
       name: production
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Promote the staging image to the prod jobs and run them
         env:
           SCW_SECRET_KEY: ${{ secrets.SCW_DEPLOY_SECRET_KEY }}
