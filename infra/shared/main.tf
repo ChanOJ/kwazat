@@ -92,7 +92,7 @@ variable "proton_mail" {
 }
 
 variable "proton_dkim" {
-  description = "Account part of the DKIM targets in Proton's DKIM tab for kwazat.fyi (protonmail.domainkey.<this>). Set: the three DKIM CNAMEs and DMARC p=quarantine are published."
+  description = "Account part of the DKIM targets in Proton's DKIM tab for kwazat.fyi (protonmail.domainkey.<this>). Set: the three DKIM CNAMEs are published."
   type        = string
   default     = ""
 }
@@ -100,7 +100,8 @@ variable "proton_dkim" {
 locals {
   # kwazat.com never sends or receives mail: refuse anything claiming to come from it.
   # kwazat.fyi moves to Proton Mail (abuse@, syndication@) in two passes: MX and SPF
-  # (proton_mail), then DKIM and DMARC (proton_dkim). Records come from Proton's domain
+  # (proton_mail), then DKIM (proton_dkim). DMARC stays p=reject throughout: Proton signs
+  # with DKIM and passes SPF (checked on 2026-11-19). Records come from Proton's domain
   # settings and are not secrets.
   fyi_mail = merge(
     var.proton_mail ? {
@@ -115,9 +116,8 @@ locals {
       "kwazat.fyi dkim 1" = { zone = "kwazat.fyi", name = "protonmail._domainkey", type = "CNAME", data = "protonmail.domainkey.${var.proton_dkim}.", priority = null }
       "kwazat.fyi dkim 2" = { zone = "kwazat.fyi", name = "protonmail2._domainkey", type = "CNAME", data = "protonmail2.domainkey.${var.proton_dkim}.", priority = null }
       "kwazat.fyi dkim 3" = { zone = "kwazat.fyi", name = "protonmail3._domainkey", type = "CNAME", data = "protonmail3.domainkey.${var.proton_dkim}.", priority = null }
-      # Proton recommends quarantine; reject once DKIM and SPF are seen passing.
-      "kwazat.fyi dmarc" = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=quarantine", priority = null }
-      } : {
+    } : {},
+    {
       "kwazat.fyi dmarc" = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
     },
   )

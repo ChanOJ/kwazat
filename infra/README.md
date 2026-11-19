@@ -143,8 +143,8 @@ Scaleway issues the certificates. `infra/shared` also publishes the mail records
 refuses all mail (`v=spf1 -all`, DMARC `p=reject`, null MX). `kwazat.fyi` moves to Proton Mail
 in two passes set in `infra/shared/terraform.tfvars`: `proton_mail = true` publishes Proton's
 MX and SPF in place of the null MX and `-all` (the verification TXT is always there); then
-`proton_dkim` (from Proton's DKIM tab for kwazat.fyi) adds the three DKIM CNAMEs and moves DMARC
-from `p=reject` to `p=quarantine`.
+`proton_dkim` (from Proton's DKIM tab for kwazat.fyi) adds the three DKIM CNAMEs. DMARC stays
+`p=reject` (DKIM and SPF seen passing on 2026-11-19).
 
 Setting it up, in order:
 
