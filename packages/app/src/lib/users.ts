@@ -1,6 +1,9 @@
 import { eq, sessions, type Db } from "@kwazat/db";
 import { createAuth } from "./auth.ts";
 
+/** An error whose message is safe to show: written by us, never containing input values. */
+export class CliError extends Error {}
+
 /**
  * Creates an account with a password, or sets the password of an existing one (which logs out
  * all its sessions). The only way accounts are made: there is no signup.
@@ -8,8 +11,8 @@ import { createAuth } from "./auth.ts";
 export async function setUser(db: Db, email: string, name: string, password: string, mode: "create" | "reset" | "upsert"): Promise<"created" | "updated"> {
   const ctx = await createAuth(db).$context;
   const existing = await ctx.internalAdapter.findUserByEmail(email, { includeAccounts: true });
-  if (existing && mode === "create") throw new Error(`${email} already exists (use: pnpm users password ${email})`);
-  if (!existing && mode === "reset") throw new Error(`No account for ${email}`);
+  if (existing && mode === "create") throw new CliError(`${email} already exists (use: pnpm users password ${email})`);
+  if (!existing && mode === "reset") throw new CliError(`No account for ${email}`);
   const hash = await ctx.password.hash(password);
   if (existing) {
     const userId = existing.user.id;

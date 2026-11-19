@@ -12,7 +12,7 @@
 import { parseArgs } from "node:util";
 import { asc, eq, openDb, users } from "@kwazat/db";
 import { createAuth } from "../src/lib/auth.ts";
-import { setUser } from "../src/lib/users.ts";
+import { CliError, setUser } from "../src/lib/users.ts";
 import { TEST_ACCOUNT } from "../test/test-account.ts";
 
 const USAGE = `Usage: pnpm users list | add <email> [--name N] | password <email> | remove <email> | test-account`;
@@ -46,7 +46,7 @@ async function readSecret(prompt: string): Promise<string> {
         if (ch === "\u0003") {
           stdin.setRawMode(false);
           process.stdout.write("\n");
-          return reject(new Error("Cancelled"));
+          return reject(new CliError("Cancelled"));
         }
         if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1);
         else value += ch;
@@ -58,8 +58,8 @@ async function readSecret(prompt: string): Promise<string> {
 
 async function askPassword(min: number, max: number): Promise<string> {
   const password = await readSecret(`Password (${min} to ${max} characters): `);
-  if (password.length < min || password.length > max) throw new Error(`The password must have ${min} to ${max} characters`);
-  if (process.stdin.isTTY && (await readSecret("Same password again: ")) !== password) throw new Error("The passwords differ");
+  if (password.length < min || password.length > max) throw new CliError(`The password must have ${min} to ${max} characters`);
+  if (process.stdin.isTTY && (await readSecret("Same password again: ")) !== password) throw new CliError("The passwords differ");
   return password;
 }
 
@@ -75,9 +75,9 @@ async function devServerRunning(): Promise<boolean> {
 
 async function main() {
   if (process.env.DATABASE_URL) {
-    if (command === "test-account") throw new Error("test-account only runs against the local PGlite database (unset DATABASE_URL)");
+    if (command === "test-account") throw new CliError("test-account only runs against the local PGlite database (unset DATABASE_URL)");
   } else if (await devServerRunning()) {
-    throw new Error("Stop `pnpm app` first: the local database can only be opened by one process at a time");
+    throw new CliError("Stop `pnpm app` first: the local database can only be opened by one process at a time");
   }
   const db = await openDb();
   try {
@@ -92,14 +92,14 @@ async function main() {
       }
       case "add":
       case "password": {
-        if (!email) throw new Error(USAGE);
+        if (!email) throw new CliError(USAGE);
         const password = await askPassword(min, max);
         const result = await setUser(db, email, values.name ?? email.split("@")[0]!, password, command === "add" ? "create" : "reset");
         console.log(`${email}: ${result}.`);
         return;
       }
       case "remove": {
-        if (!email) throw new Error(USAGE);
+        if (!email) throw new CliError(USAGE);
         const removed = await db.delete(users).where(eq(users.email, email)).returning({ id: users.id });
         console.log(removed.length ? `${email}: removed, with its sessions.` : `No account for ${email}.`);
         return;
@@ -110,7 +110,7 @@ async function main() {
         return;
       }
       default:
-        throw new Error(USAGE);
+        throw new CliError(USAGE);
     }
   } finally {
     await db.close();
@@ -118,6 +118,8 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+  // Only our own messages are shown: an error from a library could carry the password it was
+  // given, so it is never printed.
+  console.error(error instanceof CliError ? error.message : "Unexpected error (details hidden, they may contain the password).");
   process.exit(1);
 });
