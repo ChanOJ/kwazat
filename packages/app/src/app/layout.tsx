@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getViewer } from "@/lib/viewer.ts";
-import { ProfileMenu } from "./profile-menu.tsx";
+import { AnonymousProfile, ProfileMenu } from "./profile-menu.tsx";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <Link href="/" className="brand">
             Kwazat
           </Link>
-          {viewer && <ProfileMenu email={viewer.email} />}
+          {viewer ? <ProfileMenu email={viewer.email} /> : <AnonymousProfile />}
         </header>
         <main>{children}</main>
       </body>

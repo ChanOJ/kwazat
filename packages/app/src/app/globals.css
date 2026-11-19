@@ -100,7 +100,7 @@ a { color: var(--accent); }
 @media (max-width: 30rem) { .sheet-header { flex-direction: column; } }
 
 .profile { position: relative; }
-.profile summary {
+.profile summary, .profile-anonymous {
   list-style: none; cursor: pointer; display: grid; place-items: center;
   width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 1px solid var(--line); color: var(--fg);
 }
@@ -135,3 +135,10 @@ a { color: var(--accent); }
 .mail-body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .notice p { margin: 0; }
 .notice { flex-wrap: wrap; }
+.profile-anonymous { position: relative; border-style: dashed; border-color: var(--muted); color: var(--muted); text-decoration: none; }
+.profile-badge {
+  position: absolute; right: -.3rem; bottom: -.3rem; width: 1.05rem; height: 1.05rem; border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent); color: var(--bg);
+  font-size: .72rem; font-weight: 700; line-height: 1;
+}
+.profile-anonymous:hover { color: var(--fg); border-color: var(--accent); }

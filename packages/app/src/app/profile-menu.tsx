@@ -30,3 +30,18 @@ export function ProfileMenu({ email }: { email: string }) {
     </details>
   );
 }
+
+/** Logged out: the same silhouette, dimmed and dashed, with a "?" badge; it leads to login. */
+export function AnonymousProfile() {
+  return (
+    <Link href="/login" className="profile-anonymous" aria-label="Not logged in: log in" title="Not logged in">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
+      </svg>
+      <span className="profile-badge" aria-hidden="true">
+        ?
+      </span>
+    </Link>
+  );
+}
