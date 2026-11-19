@@ -1,0 +1,25 @@
+{
+  "name": "@kwazat/app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NEXT_TELEMETRY_DISABLED=1 next dev --port 3000",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
+    "start": "next start",
+    "users": "tsx scripts/users.ts",
+    "typecheck": "NEXT_TELEMETRY_DISABLED=1 next typegen && tsc -p .",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@kwazat/db": "workspace:*",
+    "@kwazat/researcher": "workspace:*",
+    "better-auth": "1.7.25",
+    "next": "16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

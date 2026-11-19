@@ -247,3 +247,5 @@ export const relations = pgTable(
     index("relations_to_wikidata_idx").on(t.toWikidataId),
   ],
 );
+
+export * from "./auth-schema.ts";

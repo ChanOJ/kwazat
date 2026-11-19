@@ -2,6 +2,9 @@
   "name": "@kwazat/researcher",
   "private": true,
   "type": "module",
+  "exports": {
+    "./names": "./src/names.ts"
+  },
   "scripts": {
     "research": "tsx src/cli.ts research",
     "sheet": "tsx src/cli.ts sheet",

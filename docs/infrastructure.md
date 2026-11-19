@@ -16,6 +16,17 @@ receives mail on Proton Mail (phase 6, see "Mail"). All six phases are done.
 - Phase 0 only deploys what exists: the database and the researcher CLI as a batch job. The web
   app will be added to the same layout later.
 
+## Web app (not deployed yet)
+
+The web app (`packages/app`, Next.js + Better Auth, login-gated, see README "Web app") runs
+locally only since 2026-11-19; `test.kwazat.fyi` and `www.kwazat.fyi` still serve the Caddy
+waiting page. Deploying it is a separate change: a Node image for `packages/app` in place of (or
+behind) the Caddy container, keeping its security headers, redirects, `robots.txt` and
+`security.txt`; a `BETTER_AUTH_SECRET` secret per environment and `DATABASE_URL` (runtime
+identity) for the container; `BETTER_AUTH_URL` per environment; the client IP forwarded by
+Scaleway trusted for login rate limiting; and the owner's account created with
+`DATABASE_URL=... pnpm users add` against each database.
+
 ## Environments
 
 | | Dev | Staging | Prod |
