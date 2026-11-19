@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 26
           # Its pnpm cache needs pnpm before it is installed below.
@@ -32,7 +32,7 @@ jobs:
       # validate needs a value for the encryption passphrase; no state is read or written.
       TF_VAR_state_passphrase: validate-only-not-a-secret
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.13.9
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build the web image
         run: docker build --tag kwazat-web web
       - name: Check the Caddyfile
