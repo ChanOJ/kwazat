@@ -139,9 +139,12 @@ Caddy serving the waiting page, `robots.txt` and `security.txt`) behind these na
 | staging | `test.kwazat.fyi` (not indexed) | CNAME |
 | prod | `www.kwazat.fyi` (canonical), `kwazat.fyi`, `kwazat.com`, `www.kwazat.com` (the last three redirect to `https://www.kwazat.fyi`) | ALIAS at the apex, CNAME for `www` |
 
-Scaleway issues the certificates. `infra/shared` also publishes `v=spf1 -all` and a `p=reject`
-DMARC record and a null MX on both domains, until mail is set up on `kwazat.fyi` (phase 6,
-postponed: the public contacts are Proton Pass aliases meanwhile, see docs/infrastructure.md).
+Scaleway issues the certificates. `infra/shared` also publishes the mail records. `kwazat.com`
+refuses all mail (`v=spf1 -all`, DMARC `p=reject`, null MX). `kwazat.fyi` moves to Proton Mail
+in two passes set in `infra/shared/terraform.tfvars`: `proton_mail = true` publishes Proton's
+MX and SPF in place of the null MX and `-all` (the verification TXT is always there); then
+`proton_dkim` (from Proton's DKIM tab for kwazat.fyi) adds the three DKIM CNAMEs and moves DMARC
+from `p=reject` to `p=quarantine`.
 
 Setting it up, in order:
 
