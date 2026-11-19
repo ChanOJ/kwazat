@@ -1,9 +1,10 @@
 # Infrastructure plan — Scaleway
 
-Status (2026-11-18): phases 1 to 4 done — `infra/shared`, staging and prod are applied; every
+Status (2026-11-19): phases 1 to 5 done — `infra/shared`, staging and prod are applied; every
 merge to `main` deploys staging, and a `v*` tag promotes the same image to prod after approval
-(first release, v0.1.0: 2026-11-18).
-Phases 5 (DNS) and 6 (mail) are still to do.
+(first release, v0.1.0: 2026-11-18). `www.kwazat.fyi` (canonical), `kwazat.fyi`, `kwazat.com`,
+`www.kwazat.com` and `test.kwazat.fyi` are served over HTTPS since 2026-11-19. Phase 6 (mail) is
+still to do.
 
 ## Goals
 
