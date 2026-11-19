@@ -180,6 +180,17 @@ authenticator being replaced and not confirmed yet falls back to emailed codes, 
 locked out halfway. A user who chose the authenticator can still request an emailed code
 through the API: both are second factors tied to the account.
 
+**Languages.** The interface is in English (the reference) and French, with
+[next-intl](https://next-intl.dev) and no language prefix in URLs. The language is, in order:
+the one chosen in Account (stored in `users.locale`), else the one chosen from the anonymous
+profile menu (cookie `kwazat_locale`, also set by the Account choice so it holds after logging
+out), else the browser's (`Accept-Language`), else English. Emails follow the same order.
+Messages live in `packages/app/messages/<locale>.json`; a test checks that every language has
+exactly the English keys and placeholders. Sheet content (statements, Wikidata descriptions and
+identity fields) stays in English for now, marked `lang="en"` and announced on French pages;
+section titles and relation types are translated. Plan for content: Wikidata labels per language
+first, then machine translation of published facts on first view, cached per fact and language.
+
 **Email.** Locally, nothing is sent: messages land in `packages/app/.data/mail` and are shown at
 <http://localhost:3000/dev/mail> (development only, readable before login so codes can be
 used). Staging and prod have no mail transport yet: sending fails until one is set up.

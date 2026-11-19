@@ -5,20 +5,13 @@ import { redirect } from "next/navigation";
 import { eq, twoFactors, users } from "@kwazat/db";
 import { ENROLL_PATH, safeNextPath } from "@/lib/access.ts";
 import { getAuth } from "@/lib/auth.ts";
+import { mergedCookies } from "@/lib/cookies.ts";
 import { getDb } from "@/lib/db.ts";
 
 /** Which second factor the code page asks for (not a secret: it only picks the form). */
 const METHOD_COOKIE = "kwazat_2fa_method";
 
 const withNext = (path: string, next: string) => (next === "/" ? path : `${path}${path.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`);
-
-/** Cookies a Better Auth response sets, as a Cookie header for a follow-up call. */
-function cookieHeader(responseHeaders: Headers): string {
-  return responseHeaders
-    .getSetCookie()
-    .map((c) => c.split(";")[0])
-    .join("; ");
-}
 
 export async function logIn(formData: FormData): Promise<void> {
   const next = safeNextPath(formData.get("next"));
@@ -43,7 +36,12 @@ export async function logIn(formData: FormData): Promise<void> {
       // An authenticator being replaced (not confirmed yet) falls back to an emailed code.
       const method = user?.method === "totp" && user.appVerified ? "totp" : "email";
       (await cookies()).set(METHOD_COOKIE, method, { httpOnly: true, sameSite: "lax", path: "/login", maxAge: 600 });
-      if (method === "email") await auth.api.sendTwoFactorOTP({ headers: new Headers({ cookie: cookieHeader(set) }) });
+      if (method === "email") {
+        // This request's headers (language) plus the login-step cookie Better Auth just set.
+        const followUp = new Headers(await headers());
+        followUp.set("cookie", mergedCookies(followUp.get("cookie"), set));
+        await auth.api.sendTwoFactorOTP({ headers: followUp });
+      }
       target = withNext("/login/code", next);
     } else {
       // No second factor yet: straight to enrollment (the gate would send every page there).

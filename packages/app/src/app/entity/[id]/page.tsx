@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 import type { Source } from "@kwazat/db";
 import { findEntity } from "@kwazat/researcher/names";
@@ -29,6 +30,9 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const entity = await entityOr404(id);
   if (entity.id !== id) redirect(`/entity/${entity.id}`); // merged duplicate
+  const [t, ts, tr, locale] = await Promise.all([getTranslations("sheet"), getTranslations("sections"), getTranslations("relations"), getLocale()]);
+  const sectionTitle = (id: string, fallback: string) => (ts.has(id as never) ? ts(id as never) : fallback);
+  const relationLabel = (type: string) => (tr.has(type as never) ? tr(type as never) : type.replaceAll("_", " "));
   const db = await getDb();
   const sheet = await loadSheet(db, entity.id);
   const playbook = loadPlaybook(entity.type);
@@ -39,10 +43,10 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const researchSections = playbook.sections.filter((s) => s.method === "research");
   const identity = entity.identity as Record<string, unknown>;
   const facts: [string, string | null][] = [
-    ["Nationality", list(identity.nationalities)],
-    ["Occupation", list(identity.occupations)],
-    ["Born", (identity.birthDate as string) ?? null],
-    ["Died", (identity.deathDate as string) ?? null],
+    [t("nationality"), list(identity.nationalities)],
+    [t("occupation"), list(identity.occupations)],
+    [t("born"), (identity.birthDate as string) ?? null],
+    [t("died"), (identity.deathDate as string) ?? null],
   ];
 
   return (
@@ -55,14 +59,18 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
         )}
         <div>
           <h1>{entity.label}</h1>
-          {entity.description && <p className="lead">{entity.description}</p>}
+          {entity.description && (
+            <p className="lead" lang="en">
+              {entity.description}
+            </p>
+          )}
           <dl className="identity">
             {facts
               .filter(([, value]) => value)
               .map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
-                  <dd>{value}</dd>
+                  <dd lang="en">{value}</dd>
                 </div>
               ))}
           </dl>
@@ -73,23 +81,28 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
         </div>
       </header>
 
+      {locale !== "en" && t("contentLanguage") && (
+        <p className="notice" lang={locale}>
+          {t("contentLanguage")}
+        </p>
+      )}
       {inProgress && (
         <p className="notice" aria-live="polite">
-          Research in progress: sections appear as they are done.
+          {t("inProgress")}
         </p>
       )}
       {!inProgress && job?.status !== "failed" && wikidataId && researchSections.some((s) => !sheet.runs.some((r) => r.sectionId === s.id)) && (
         <form action={startResearch} className="notice">
-          <span>Some sections have not been researched yet.</span>
+          <span>{t("missing")}</span>
           <input type="hidden" name="wikidataId" value={wikidataId} />
-          <button type="submit">Research them</button>
+          <button type="submit">{t("researchThem")}</button>
         </form>
       )}
       {job?.status === "failed" && wikidataId && (
         <form action={startResearch} className="notice error">
-          <span>Research failed: {job.lastError}</span>
+          <span>{t("failed", { error: job.lastError ?? "" })}</span>
           <input type="hidden" name="wikidataId" value={wikidataId} />
-          <button type="submit">Try again</button>
+          <button type="submit">{(await getTranslations("research"))("tryAgain")}</button>
         </form>
       )}
 
@@ -112,24 +125,24 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
             });
           return (
             <section key={section.id} className="sheet-section" id={section.id}>
-              <h2>{section.title}</h2>
+              <h2>{sectionTitle(section.id, section.title)}</h2>
               {!run ? (
-                <p className="empty">{running.has(section.id) || inProgress ? "Researching…" : "Not researched yet."}</p>
+                <p className="empty">{running.has(section.id) || inProgress ? t("researching") : t("notResearched")}</p>
               ) : sectionFacts.length + sectionRelations.length === 0 ? (
-                <p className="empty">Nothing found.</p>
+                <p className="empty">{t("nothing")}</p>
               ) : (
-                <ul className="facts">
+                <ul className="facts" lang="en">
                   {sectionFacts.map((f) => (
                     <li key={f.id}>
                       {f.factDate && <span className="date">{f.factDate}</span>} {f.statement} {cite(f.sources)}
-                      {f.reviewStatus === "needs_review" && <span className="badge">needs review</span>}
+                      {f.reviewStatus === "needs_review" && <span className="badge" lang={locale}>{t("needsReview")}</span>}
                     </li>
                   ))}
                   {sectionRelations.map((r) => (
                     <li key={r.id}>
-                      <span className="relation">{r.relationType.replaceAll("_", " ")}</span> {r.toLabel}
+                      <span className="relation" lang={locale}>{relationLabel(r.relationType)}</span> {r.toLabel}
                       {r.description && `: ${r.description}`} {cite(r.sources)}
-                      {r.reviewStatus === "needs_review" && <span className="badge">needs review</span>}
+                      {r.reviewStatus === "needs_review" && <span className="badge" lang={locale}>{t("needsReview")}</span>}
                     </li>
                   ))}
                 </ul>
@@ -142,7 +155,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
                         {s.outlet}
                       </a>
                       {s.publishedAt && `, ${s.publishedAt}`}
-                      {!s.verified && " (unverified)"}
+                      {!s.verified && ` ${t("unverified")}`}
                     </li>
                   ))}
                 </ol>
@@ -153,13 +166,13 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
 
       {sheet.relations.some((r) => r.origin === "wikidata") && (
         <section className="sheet-section">
-          <h2>Relations (Wikidata)</h2>
-          <ul className="facts">
+          <h2>{t("wikidataRelations")}</h2>
+          <ul className="facts" lang="en">
             {sheet.relations
               .filter((r) => r.origin === "wikidata")
               .map((r) => (
                 <li key={r.id}>
-                  <span className="relation">{r.relationType.replaceAll("_", " ")}</span> {r.toLabel}
+                  <span className="relation" lang={locale}>{relationLabel(r.relationType)}</span> {r.toLabel}
                   {r.description && ` · ${r.description}`}
                 </li>
               ))}

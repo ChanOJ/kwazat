@@ -20,6 +20,8 @@ export const users = pgTable("users", {
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   /** The second factor this user chose: "email" (code and link by mail) or "totp" (app). */
   twoFactorMethod: text("two_factor_method").$type<"email" | "totp">(),
+  /** Interface language chosen in Account ("en", "fr"); null: the browser's language. */
+  locale: text("locale"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

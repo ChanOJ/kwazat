@@ -1,19 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { changeEmail, changePassword, regenerateBackupCodes, type FormState } from "./actions.ts";
 
 function Result({ state }: { state: FormState }) {
+  const t = useTranslations("account");
   if (state.error)
     return (
       <p className="error" role="alert">
-        {state.error}
+        {t(state.error as never, state.values as never)}
       </p>
     );
   if (!state.ok) return null;
   return (
     <div className="notice" role="status">
-      <p>{state.ok}</p>
+      <p>{t(state.ok as never)}</p>
       {state.codes && (
         <ul className="codes">
           {state.codes.map((c) => (
@@ -28,56 +30,59 @@ function Result({ state }: { state: FormState }) {
 }
 
 export function EmailForm({ current }: { current: string }) {
+  const t = useTranslations("account");
   const [state, action, pending] = useActionState(changeEmail, {});
   return (
     <form action={action} className="stack">
       <Result state={state} />
       <label>
-        New email address
+        {t("newEmail")}
         <input name="newEmail" type="email" autoComplete="email" required placeholder={current} />
       </label>
       <button type="submit" disabled={pending}>
-        Change email
+        {t("changeEmail")}
       </button>
     </form>
   );
 }
 
 export function PasswordForm() {
+  const t = useTranslations("account");
   const [state, action, pending] = useActionState(changePassword, {});
   return (
     <form action={action} className="stack">
       <Result state={state} />
       <label>
-        Current password
+        {t("currentPassword")}
         <input name="currentPassword" type="password" autoComplete="current-password" required />
       </label>
       <label>
-        New password (12 characters or more)
+        {t("newPassword")}
         <input name="newPassword" type="password" autoComplete="new-password" minLength={12} required />
       </label>
       <label>
-        New password again
+        {t("newPasswordAgain")}
         <input name="confirmPassword" type="password" autoComplete="new-password" minLength={12} required />
       </label>
       <button type="submit" disabled={pending}>
-        Change password
+        {t("changePassword")}
       </button>
     </form>
   );
 }
 
 export function BackupCodesForm() {
+  const t = useTranslations("account");
   const [state, action, pending] = useActionState(regenerateBackupCodes, {});
   return (
     <form action={action} className="stack">
       <Result state={state} />
       <label>
-        Current password
+        {t("currentPassword")}
         <input name="password" type="password" autoComplete="current-password" required />
       </label>
       <button type="submit" disabled={pending}>
-        New backup codes
+        {t("newBackup")}
       </button>
     </form>
   );

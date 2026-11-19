@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { entityIdentifiers, and, eq, inArray } from "@kwazat/db";
 import { searchKnownEntities, wikidataCandidates } from "@kwazat/researcher/names";
@@ -6,7 +7,9 @@ import { getDb } from "@/lib/db.ts";
 import { startResearch } from "../research/actions.ts";
 import { SearchForm } from "../search-form.tsx";
 
-export const metadata: Metadata = { title: "Search" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("meta"))("search") };
+}
 
 /**
  * Name search, as `pnpm lookup` does it: entities Kwazat already knows, then Wikidata
@@ -17,6 +20,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const query = (Array.isArray(raw) ? raw[0] : raw)?.trim().slice(0, 200) ?? "";
   if (!query) return <SearchForm />;
 
+  const t = await getTranslations("search");
   const db = await getDb();
   const [known, candidates] = await Promise.all([
     searchKnownEntities(db, query),
@@ -40,9 +44,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   return (
     <section>
       <SearchForm query={query} />
-      <h2>Known to Kwazat</h2>
+      <h2>{t("known")}</h2>
       {known.length === 0 ? (
-        <p className="empty">No sheet yet for “{query}”.</p>
+        <p className="empty">{t("noSheet", { query })}</p>
       ) : (
         <ul className="results">
           {known.map((k) => (
@@ -55,11 +59,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           ))}
         </ul>
       )}
-      <h2>Other matches on Wikidata</h2>
+      <h2>{t("others")}</h2>
       {others === null ? (
-        <p className="empty">Wikidata could not be reached. Try again in a moment.</p>
+        <p className="empty">{t("wikidataDown")}</p>
       ) : others.length === 0 ? (
-        <p className="empty">No other match.</p>
+        <p className="empty">{t("noOther")}</p>
       ) : (
         <ul className="results">
           {others.map((c) => (
@@ -76,7 +80,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                   <button type="submit" className="result-button">
                     <span className="label">{c.label}</span>
                     {c.description && <span className="description">{c.description}</span>}
-                    <span className="id">Not in Kwazat yet · research this person</span>
+                    <span className="id">{t("notYet")}</span>
                   </button>
                 </form>
               )}

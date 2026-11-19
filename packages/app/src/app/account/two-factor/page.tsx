@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { getViewer } from "@/lib/viewer.ts";
 import { Enroll } from "./enroll.tsx";
 
-export const metadata: Metadata = { title: "Second factor" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("meta"))("twoFactor") };
+}
 
 export default async function TwoFactorPage() {
   const viewer = await getViewer();
   const enabled = !!viewer?.twoFactorEnabled;
+  const t = await getTranslations("twoFactor");
   return (
     <section>
-      <h1>{enabled ? "Change your second factor" : "Set up your second factor"}</h1>
-      <p className="lead">
-        {enabled
-          ? "Choose how you confirm it is you when you log in. The method you choose replaces the current one."
-          : "Every Kwazat account needs a second factor. Choose one to continue."}
-      </p>
+      <h1>{enabled ? t("titleChange") : t("titleSetUp")}</h1>
+      <p className="lead">{enabled ? t("leadChange") : t("leadSetUp")}</p>
       <Enroll current={viewer?.twoFactorMethod ?? null} />
     </section>
   );

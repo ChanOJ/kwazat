@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
-import { openDb, type Db } from "@kwazat/db";
+import { openDb, sql, type Db } from "@kwazat/db";
 
 // Emails of these tests go to a temporary mailbox.
 process.env.KWAZAT_MAIL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kwazat-mail-"));
@@ -108,6 +108,14 @@ describe("auth", () => {
     const session = await auth.api.getSession({ headers: new Headers({ cookie: cookiesOf(step2) }) });
     assert.equal(session?.user.twoFactorEnabled, true);
     assert.equal(access("/", session!.user), "allow");
+  });
+
+  test("emailed codes follow the account's language", async () => {
+    await db.execute(sql`update users set locale = 'fr' where email = ${TEST_ACCOUNT.email}`);
+    const step1 = await post("/sign-in/email", { email: TEST_ACCOUNT.email, password: TEST_ACCOUNT.password });
+    await post("/two-factor/send-otp", {}, cookiesOf(step1));
+    assert.match(readDevMailbox(1)[0]!.subject, /^\d{6} est votre code Kwazat$/);
+    await db.execute(sql`update users set locale = null where email = ${TEST_ACCOUNT.email}`);
   });
 
   test("a new password or a second factor reset logs out every session", async () => {

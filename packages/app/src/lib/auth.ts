@@ -3,6 +3,8 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins/two-factor";
+import { LOCALE_COOKIE, resolveLocale, type Locale } from "../i18n/locales.ts";
+import { translator } from "../i18n/messages.ts";
 import { getDb } from "./db.ts";
 import { sendMail } from "./mail.ts";
 
@@ -14,6 +16,21 @@ function secret(): string {
   if (value) return value;
   if (process.env.NODE_ENV === "production") throw new Error("BETTER_AUTH_SECRET is required in production");
   return DEV_SECRET;
+}
+
+/** Language of an email: the account's choice, else the requesting browser's. */
+function mailLocale(user: object, requestHeaders?: Headers | null): Locale {
+  const account = (user as { locale?: unknown }).locale;
+  const cookie = requestHeaders
+    ?.get("cookie")
+    ?.split(";")
+    .map((c) => c.trim().split("="))
+    .find(([name]) => name === LOCALE_COOKIE)?.[1];
+  return resolveLocale({
+    account: typeof account === "string" ? account : null,
+    cookie,
+    acceptLanguage: requestHeaders?.get("accept-language"),
+  });
 }
 
 /** Minutes an emailed sign-in code stays valid. */
@@ -38,25 +55,22 @@ export function createAuth(db: Db, opts: { baseURL?: string } = {}) {
     user: {
       additionalFields: {
         twoFactorMethod: { type: "string", required: false, input: false },
+        locale: { type: "string", required: false, input: false },
       },
       // New address: confirmed from the current address first, then verified at the new one.
       changeEmail: {
         enabled: true,
-        sendChangeEmailConfirmation: async ({ user, newEmail, url }) =>
-          sendMail({
-            to: user.email,
-            subject: "Confirm your new Kwazat email address",
-            text: `Someone (hopefully you) asked to change the email address of your Kwazat account to ${newEmail}.\n\nTo confirm, open:\n${url}\n\nIf it was not you, ignore this message and change your password.`,
-          }),
+        sendChangeEmailConfirmation: async ({ user, newEmail, url }, request) => {
+          const t = translator(mailLocale(user, request?.headers), "mail");
+          await sendMail({ to: user.email, subject: t("changeSubject"), text: t("changeBody", { newEmail, url }) });
+        },
       },
     },
     emailVerification: {
-      sendVerificationEmail: async ({ user, url }) =>
-        sendMail({
-          to: user.email,
-          subject: "Verify your Kwazat email address",
-          text: `Open this link to verify this address for your Kwazat account:\n${url}`,
-        }),
+      sendVerificationEmail: async ({ user, url }, request) => {
+        const t = translator(mailLocale(user, request?.headers), "mail");
+        await sendMail({ to: user.email, subject: t("verifySubject"), text: t("verifyBody", { url }) });
+      },
     },
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12 },
     disabledPaths: ["/sign-up/email"],
@@ -80,12 +94,14 @@ export function createAuth(db: Db, opts: { baseURL?: string } = {}) {
         otpOptions: {
           period: EMAIL_CODE_MINUTES,
           // The code, plus a link that opens the code page with it filled in (same browser).
-          sendOTP: async ({ user, otp }) =>
-            sendMail({
+          sendOTP: async ({ user, otp }, ctx) => {
+            const t = translator(mailLocale(user, ctx?.headers), "mail");
+            await sendMail({
               to: user.email,
-              subject: `${otp} is your Kwazat code`,
-              text: `Your Kwazat code: ${otp}\n\nOr open this link in the browser where you are logging in:\n${baseURL}/login/code?code=${otp}\n\nIt expires in ${EMAIL_CODE_MINUTES} minutes. If you did not try to log in, change your password.`,
-            }),
+              subject: t("codeSubject", { code: otp }),
+              text: t("codeBody", { code: otp, url: `${baseURL}/login/code?code=${otp}`, minutes: EMAIL_CODE_MINUTES }),
+            });
+          },
         },
       }),
       nextCookies(),

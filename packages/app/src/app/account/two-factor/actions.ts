@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db.ts";
 
 export type Method = "email" | "totp";
 
+/** `error` is a message key of the "twoFactor" namespace. */
 export type EnrollState =
   | { step: "choose"; error?: string }
   | { step: "verify"; method: Method; qrSvg?: string; totpURI?: string; backupCodes?: string[]; error?: string }
@@ -34,7 +35,7 @@ async function startEnrollment(_: EnrollState, formData: FormData): Promise<Enro
   const method: Method = formData.get("method") === "totp" ? "totp" : "email";
   const password = String(formData.get("password") ?? "");
   const { auth, user } = await currentUser();
-  if (!(await passwordIsRight(user.id, password))) return { step: "choose", error: "Wrong password." };
+  if (!(await passwordIsRight(user.id, password))) return { step: "choose", error: "wrongPassword" };
   const requestHeaders = await headers();
   if (method === "email") {
     await auth.api.sendTwoFactorOTP({ headers: requestHeaders });
@@ -60,7 +61,7 @@ async function confirmEnrollment(state: EnrollState, formData: FormData): Promis
     if (state.method === "totp") await auth.api.verifyTOTP({ body: { code }, headers: requestHeaders });
     else await auth.api.verifyTwoFactorOTP({ body: { code }, headers: requestHeaders });
   } catch {
-    return { ...state, error: "This code is wrong or has expired." };
+    return { ...state, error: "wrongCode" };
   }
   const db = await getDb();
   await db.update(users).set({ twoFactorEnabled: true, twoFactorMethod: state.method, updatedAt: new Date() }).where(eq(users.id, user.id));

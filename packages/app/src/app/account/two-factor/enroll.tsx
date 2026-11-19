@@ -1,22 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { enroll, type EnrollState, type Method } from "./actions.ts";
 
 export function Enroll({ current }: { current: Method | null }) {
+  const t = useTranslations("twoFactor");
   const [state, action, pending] = useActionState(enroll, { step: "choose" } as EnrollState);
 
   if (state.step === "done") {
     return (
       <div className="stack-wide">
         <p className="notice">
-          {state.method === "totp" ? "Your authenticator app is now your second factor." : "Codes sent by email are now your second factor."}
+          {state.method === "totp" ? t("doneTotp") : t("doneEmail")}
         </p>
         {state.backupCodes && (
           <>
-            <h2>Backup codes</h2>
-            <p>Keep them somewhere safe (a password manager). Each one lets you log in once if you lose your phone. They are not shown again.</p>
+            <h2>{t("backupTitle")}</h2>
+            <p>{t("backupLead")}</p>
             <ul className="codes">
               {state.backupCodes.map((c) => (
                 <li key={c}>
@@ -27,7 +29,7 @@ export function Enroll({ current }: { current: Method | null }) {
           </>
         )}
         <p>
-          <Link href="/">Continue</Link>
+          <Link href="/">{t("continue")}</Link>
         </p>
       </div>
     );
@@ -38,39 +40,39 @@ export function Enroll({ current }: { current: Method | null }) {
       <div className="stack-wide">
         {state.method === "totp" ? (
           <>
-            <p>Scan this QR code with your authenticator app (for example Proton Pass, Aegis, 2FAS or your password manager), then enter the 6-digit code it shows.</p>
+            <p>{t("scan")}</p>
             {state.qrSvg && <div className="qr" dangerouslySetInnerHTML={{ __html: state.qrSvg }} />}
             <details>
-              <summary>Can’t scan it?</summary>
+              <summary>{t("cantScan")}</summary>
               <p className="mono">{state.totpURI}</p>
             </details>
           </>
         ) : (
-          <p>We emailed you a 6-digit code. Enter it here to confirm this address can receive your codes.</p>
+          <p>{t("emailSent")}</p>
         )}
         {state.error && (
           <p className="error" role="alert">
-            {state.error}
+            {t(state.error as never)}
           </p>
         )}
         <form action={action} className="stack">
           <input type="hidden" name="op" value="confirm" />
           <label>
-            Code
+            {t("code")}
             <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" required autoFocus />
           </label>
           <button type="submit" disabled={pending}>
-            Confirm
+            {t("confirm")}
           </button>
         </form>
         <form action={action} className="alt-actions">
           {state.method === "email" && (
             <button type="submit" name="op" value="resend" className="link-button" disabled={pending}>
-              Send a new code
+              {t("resend")}
             </button>
           )}
           <button type="submit" name="op" value="restart" className="link-button" disabled={pending}>
-            Choose another method
+            {t("another")}
           </button>
         </form>
       </div>
@@ -82,32 +84,32 @@ export function Enroll({ current }: { current: Method | null }) {
       <input type="hidden" name="op" value="start" />
       {state.error && (
         <p className="error" role="alert">
-          {state.error}
+          {t(state.error as never)}
         </p>
       )}
       <fieldset className="choices">
-        <legend>Second factor</legend>
+        <legend>{t("legend")}</legend>
         <label className="choice">
           <input type="radio" name="method" value="email" defaultChecked={current !== "totp"} />
           <span>
-            <strong>Code by email</strong>
-            <span className="description">Each login, we email you a 6-digit code and a link that fills it in.</span>
+            <strong>{t("emailTitle")}</strong>
+            <span className="description">{t("emailDescription")}</span>
           </span>
         </label>
         <label className="choice">
           <input type="radio" name="method" value="totp" defaultChecked={current === "totp"} />
           <span>
-            <strong>Authenticator app</strong>
-            <span className="description">A code from an app on your phone or in your password manager. Works offline; comes with backup codes.</span>
+            <strong>{t("totpTitle")}</strong>
+            <span className="description">{t("totpDescription")}</span>
           </span>
         </label>
       </fieldset>
       <label>
-        Current password
+        {t("currentPassword")}
         <input name="password" type="password" autoComplete="current-password" required />
       </label>
       <button type="submit" disabled={pending}>
-        Continue
+        {t("start")}
       </button>
     </form>
   );

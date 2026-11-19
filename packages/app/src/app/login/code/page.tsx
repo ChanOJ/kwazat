@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { safeNextPath } from "@/lib/access.ts";
 import { EMAIL_CODE_MINUTES } from "@/lib/auth.ts";
 import { getMethod, resendCode, verifyCode } from "../actions.ts";
 
-export const metadata: Metadata = { title: "Verification code" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("meta"))("code") };
+}
 
 type Params = { next?: string; code?: string; error?: string; sent?: string; backup?: string };
 
@@ -12,32 +15,33 @@ export default async function CodePage({ searchParams }: { searchParams: Promise
   const { next: rawNext, code, error, sent, backup } = await searchParams;
   const next = safeNextPath(rawNext);
   const method = await getMethod();
+  const t = await getTranslations("code");
   const useBackup = backup === "1" && method === "totp";
   const prefill = /^\d{6}$/.test(code ?? "") ? code : undefined;
 
   return (
     <section className="login">
-      <h1>{useBackup ? "Backup code" : "Verification code"}</h1>
+      <h1>{useBackup ? t("titleBackup") : t("titleCode")}</h1>
       <p className="lead">
         {useBackup
-          ? "Enter one of the backup codes you saved when you set up your authenticator app. Each works once."
+          ? t("leadBackup")
           : method === "totp"
-            ? "Enter the 6-digit code shown by your authenticator app."
+            ? t("leadTotp")
             : prefill
-              ? "Your code is filled in: confirm to log in."
-              : `We emailed you a 6-digit code and a link. They expire in ${EMAIL_CODE_MINUTES} minutes.`}
+              ? t("leadPrefilled")
+              : t("leadEmail", { minutes: EMAIL_CODE_MINUTES })}
       </p>
       {error && (
         <p className="error" role="alert">
-          This code is wrong or has expired.
+          {t("error")}
         </p>
       )}
-      {sent && <p className="notice">A new code is on its way.</p>}
+      {sent && <p className="notice">{t("sent")}</p>}
       <form action={verifyCode} className="stack">
         <input type="hidden" name="next" value={next} />
         <input type="hidden" name="kind" value={useBackup ? "backup" : "code"} />
         <label>
-          {useBackup ? "Backup code" : "Code"}
+          {useBackup ? t("labelBackup") : t("labelCode")}
           <input
             name="code"
             defaultValue={prefill}
@@ -48,25 +52,25 @@ export default async function CodePage({ searchParams }: { searchParams: Promise
           />
         </label>
         <label className="check">
-          <input type="checkbox" name="trustDevice" /> Trust this device for 30 days
+          <input type="checkbox" name="trustDevice" /> {t("trust")}
         </label>
-        <button type="submit">Log in</button>
+        <button type="submit">{t("submit")}</button>
       </form>
       <div className="alt-actions">
         {method === "email" && (
           <form action={resendCode}>
             <input type="hidden" name="next" value={next} />
             <button type="submit" className="link-button">
-              Send a new code
+              {t("resend")}
             </button>
           </form>
         )}
         {method === "totp" && (
           <a href={`/login/code?${useBackup ? "" : "backup=1&"}next=${encodeURIComponent(next)}`}>
-            {useBackup ? "Use the authenticator app" : "Use a backup code"}
+            {useBackup ? t("useApp") : t("useBackup")}
           </a>
         )}
-        <a href="/login">Start again</a>
+        <a href="/login">{t("restart")}</a>
       </div>
     </section>
   );

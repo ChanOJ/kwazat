@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Red lines" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("meta"))("redLines") };
+}
 
-export default function RedLinesPage() {
+export default async function RedLinesPage() {
+  const t = await getTranslations("redLines");
   return (
     <section>
-      <h1>Red lines</h1>
-      <p className="lead">
-        Choose what you do not want to support, and Kwazat will tell you how each person, brand or product measures up, with
-        its sources.
-      </p>
-      <p className="notice">Coming soon: how red lines work is being designed.</p>
+      <h1>{t("title")}</h1>
+      <p className="lead">{t("lead")}</p>
+      <p className="notice">{t("soon")}</p>
     </section>
   );
 }
