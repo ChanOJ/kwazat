@@ -87,10 +87,11 @@ variable "dns_ready_zones" {
 
 locals {
   # No mail is sent from either domain yet: refuse anything claiming to come from them.
-  # kwazat.fyi gets its real mail records in phase 6 (Proton); kwazat.com never sends mail.
+  # kwazat.fyi gets real mail records in phase 6 (Proton, postponed); kwazat.com never sends mail.
   mail_lockdown = { for key, record in {
     "kwazat.fyi spf"    = { zone = "kwazat.fyi", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
     "kwazat.fyi dmarc"  = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
+    "kwazat.fyi nullmx" = { zone = "kwazat.fyi", name = "", type = "MX", data = ".", priority = 0 } # RFC 7505
     "kwazat.com spf"    = { zone = "kwazat.com", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
     "kwazat.com dmarc"  = { zone = "kwazat.com", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
     "kwazat.com nullmx" = { zone = "kwazat.com", name = "", type = "MX", data = ".", priority = 0 } # RFC 7505

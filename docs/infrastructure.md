@@ -3,8 +3,8 @@
 Status (2026-11-19): phases 1 to 5 done — `infra/shared`, staging and prod are applied; every
 merge to `main` deploys staging, and a `v*` tag promotes the same image to prod after approval
 (first release, v0.1.0: 2026-11-18). `www.kwazat.fyi` (canonical), `kwazat.fyi`, `kwazat.com`,
-`www.kwazat.com` and `test.kwazat.fyi` are served over HTTPS since 2026-11-19. Phase 6 (mail) is
-still to do.
+`www.kwazat.com` and `test.kwazat.fyi` are served over HTTPS since 2026-11-19. Phase 6 (mail on
+kwazat.fyi) is postponed: contacts use Proton Pass aliases meanwhile (see "Mail").
 
 ## Goals
 
@@ -82,20 +82,28 @@ OpenTofu (`infra/shared`), so records live next to the resources they point to.
 
 - `.fyi` is not on the HSTS preload list by default: the web layer sends
   `Strict-Transport-Security` and redirects HTTP to HTTPS; preload submission once stable.
-- `security.txt` points to `abuse@kwazat.fyi`. One source file kept next to `robots.txt`, served
+- `security.txt` points to the abuse contact (see "Mail"). One source file kept next to `robots.txt`, served
   at `/security.txt` and at `/.well-known/security.txt` (the location RFC 9116 requires).
 - How the apex redirect of `kwazat.com` is served (Edge Services or a tiny redirect container)
   is decided in phase 5.
 
-## Mail (later phase)
+## Mail
 
-Hosted on Proton Mail (custom domain on the existing Proton Family plan).
+**Now** (since 2026-11-19): no mailbox on Kwazat's domains. The owner's Proton plan has no free
+custom-domain slot, so the public contacts are Proton Pass aliases that forward to the owner:
 
-- `kwazat.fyi`: addresses `abuse@` (RFC 2142) and `syndication@` (contact for publishers, shown
-  on the KwazatBot page). MX, SPF, DKIM and DMARC records come from Proton's domain settings and
-  go into OpenTofu (they are not secrets).
-- `kwazat.com` never sends mail: null MX (`0 .`), SPF `v=spf1 -all`, DMARC `p=reject`, so
-  nobody can send convincing mail "from Kwazat" through it.
+| Contact | Address | Shown in |
+|---|---|---|
+| Abuse and security | `abuse-kwazat.qwhpq@passmail.net` | `security.txt` |
+| Syndication (publishers, e.g. those refusing bots) | `syndication-kwazat.hkxne@passmail.net` | the KwazatBot page, when it exists |
+
+Both domains send and receive no mail: null MX (`0 .`), SPF `v=spf1 -all` and DMARC `p=reject`,
+so nobody can send convincing mail "from Kwazat".
+
+**Later** (phase 6, once a Proton custom-domain slot is free): `kwazat.fyi` on Proton Mail with
+`abuse@` (RFC 2142) and `syndication@`. Proton's MX, SPF, DKIM and DMARC records replace the
+lockdown of `kwazat.fyi` in OpenTofu (they are not secrets), and the contacts above move to
+the new addresses.
 
 ## Repository layout
 
@@ -166,7 +174,7 @@ after retries, wrong content, failed migration).
 | 3 | CI/CD | CI keys, one per project, exist; merge to `main` deploys staging without a laptop |
 | 4 | Prod | A `v*` tag deploys prod after approval |
 | 5 | DNS | Zones delegated to Scaleway; `kwazat.com` redirects; placeholder page and `security.txt` (both paths) on HTTPS |
-| 6 | Mail | `abuse@` and `syndication@` receive mail; `kwazat.com` anti-spoofing records published |
+| 6 | Mail (postponed) | `abuse@` and `syndication@kwazat.fyi` receive mail; contacts moved from the aliases |
 
 ## Manual steps (owner)
 
@@ -180,7 +188,8 @@ Detailed click paths will be written in `infra/bootstrap/README.md` when each ph
 - Create the GitHub environments and the `production` approval rule (phase 3).
 - At Infomaniak: add the Scaleway validation TXT record, then switch name servers to
   `ns0.dom.scw.cloud` / `ns1.dom.scw.cloud` (phase 5).
-- In Proton: add `kwazat.fyi` as a custom domain and create the addresses (phase 6).
+- In Proton: add `kwazat.fyi` as a custom domain and create the addresses (phase 6, once a
+  custom-domain slot is free).
 
 ## Open questions
 
