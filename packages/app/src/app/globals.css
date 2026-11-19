@@ -137,8 +137,7 @@ a { color: var(--accent); }
 .notice { flex-wrap: wrap; }
 .profile-anonymous { position: relative; border-style: dashed; border-color: var(--muted); color: var(--muted); text-decoration: none; }
 .profile-badge {
-  position: absolute; right: -.3rem; bottom: -.3rem; width: 1.05rem; height: 1.05rem; border-radius: 50%;
-  display: grid; place-items: center; background: var(--accent); color: var(--bg);
-  font-size: .72rem; font-weight: 700; line-height: 1;
+  position: absolute; right: -.45rem; bottom: -.45rem; width: 1.45rem; height: 1.45rem; border-radius: 50%;
+  display: grid; place-items: center; background: var(--fg); color: var(--bg); border: 2px solid var(--bg);
 }
 .profile-anonymous:hover { color: var(--fg); border-color: var(--accent); }
