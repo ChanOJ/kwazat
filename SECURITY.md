@@ -6,7 +6,7 @@ Please report vulnerabilities privately, never in a public issue:
 
 - **Preferred**: GitHub > this repository > **Security** > **Report a vulnerability**
   (private vulnerability reporting);
-- or by email: `abuse-kwazat.qwhpq@passmail.net` (also listed in
+- or by email: `abuse@kwazat.fyi` (also listed in
   [security.txt](https://www.kwazat.fyi/.well-known/security.txt)).
 
 Include what is affected (site, API, researcher, infrastructure), how to reproduce it and the

@@ -85,21 +85,53 @@ variable "dns_ready_zones" {
   default     = []
 }
 
+variable "proton_mail" {
+  description = "True once kwazat.fyi receives mail on Proton: Proton's MX and SPF replace the null MX and `-all`."
+  type        = bool
+  default     = false
+}
+
+variable "proton_dkim" {
+  description = "Account part of the DKIM targets in Proton's DKIM tab for kwazat.fyi (protonmail.domainkey.<this>). Set: the three DKIM CNAMEs and DMARC p=quarantine are published."
+  type        = string
+  default     = ""
+}
+
 locals {
-  # No mail is sent from either domain yet: refuse anything claiming to come from them.
-  # kwazat.fyi gets real mail records in phase 6 (Proton, postponed); kwazat.com never sends mail.
-  mail_lockdown = { for key, record in {
-    "kwazat.fyi spf"    = { zone = "kwazat.fyi", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
-    "kwazat.fyi dmarc"  = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
-    "kwazat.fyi nullmx" = { zone = "kwazat.fyi", name = "", type = "MX", data = ".", priority = 0 } # RFC 7505
+  # kwazat.com never sends or receives mail: refuse anything claiming to come from it.
+  # kwazat.fyi moves to Proton Mail (abuse@, syndication@) in two passes: MX and SPF
+  # (proton_mail), then DKIM and DMARC (proton_dkim). Records come from Proton's domain
+  # settings and are not secrets.
+  fyi_mail = merge(
+    var.proton_mail ? {
+      "kwazat.fyi mx 10" = { zone = "kwazat.fyi", name = "", type = "MX", data = "mail.protonmail.ch.", priority = 10 }
+      "kwazat.fyi mx 20" = { zone = "kwazat.fyi", name = "", type = "MX", data = "mailsec.protonmail.ch.", priority = 20 }
+      "kwazat.fyi spf"   = { zone = "kwazat.fyi", name = "", type = "TXT", data = "v=spf1 include:_spf.protonmail.ch ~all", priority = null }
+      } : {
+      "kwazat.fyi spf"    = { zone = "kwazat.fyi", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
+      "kwazat.fyi nullmx" = { zone = "kwazat.fyi", name = "", type = "MX", data = ".", priority = 0 } # RFC 7505
+    },
+    var.proton_dkim != "" ? {
+      "kwazat.fyi dkim 1" = { zone = "kwazat.fyi", name = "protonmail._domainkey", type = "CNAME", data = "protonmail.domainkey.${var.proton_dkim}.", priority = null }
+      "kwazat.fyi dkim 2" = { zone = "kwazat.fyi", name = "protonmail2._domainkey", type = "CNAME", data = "protonmail2.domainkey.${var.proton_dkim}.", priority = null }
+      "kwazat.fyi dkim 3" = { zone = "kwazat.fyi", name = "protonmail3._domainkey", type = "CNAME", data = "protonmail3.domainkey.${var.proton_dkim}.", priority = null }
+      # Proton recommends quarantine; reject once DKIM and SPF are seen passing.
+      "kwazat.fyi dmarc" = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=quarantine", priority = null }
+      } : {
+      "kwazat.fyi dmarc" = { zone = "kwazat.fyi", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
+    },
+  )
+  mail_records = { for key, record in merge({
     "kwazat.com spf"    = { zone = "kwazat.com", name = "", type = "TXT", data = "v=spf1 -all", priority = null }
     "kwazat.com dmarc"  = { zone = "kwazat.com", name = "_dmarc", type = "TXT", data = "v=DMARC1; p=reject;", priority = null }
     "kwazat.com nullmx" = { zone = "kwazat.com", name = "", type = "MX", data = ".", priority = 0 } # RFC 7505
-  } : key => record if contains(var.dns_ready_zones, record.zone) }
+
+    "kwazat.fyi proton verification" = { zone = "kwazat.fyi", name = "", type = "TXT", data = "protonmail-verification=d56a4b853ddf540cb9f1a9ddbeb69c9e30c11ce9", priority = null }
+  }, local.fyi_mail) : key => record if contains(var.dns_ready_zones, record.zone) }
 }
 
-resource "scaleway_domain_record" "mail_lockdown" {
-  for_each   = local.mail_lockdown
+resource "scaleway_domain_record" "mail" {
+  for_each   = local.mail_records
   project_id = data.scaleway_account_project.shared.id
   dns_zone   = each.value.zone
   name       = each.value.name
@@ -107,4 +139,30 @@ resource "scaleway_domain_record" "mail_lockdown" {
   data       = each.value.data
   priority   = each.value.priority
   ttl        = 3600
+}
+
+# Renamed from mail_lockdown when kwazat.fyi moved to Proton Mail (2026-11-19).
+moved {
+  from = scaleway_domain_record.mail_lockdown["kwazat.com spf"]
+  to   = scaleway_domain_record.mail["kwazat.com spf"]
+}
+moved {
+  from = scaleway_domain_record.mail_lockdown["kwazat.com dmarc"]
+  to   = scaleway_domain_record.mail["kwazat.com dmarc"]
+}
+moved {
+  from = scaleway_domain_record.mail_lockdown["kwazat.com nullmx"]
+  to   = scaleway_domain_record.mail["kwazat.com nullmx"]
+}
+moved {
+  from = scaleway_domain_record.mail_lockdown["kwazat.fyi spf"]
+  to   = scaleway_domain_record.mail["kwazat.fyi spf"]
+}
+moved {
+  from = scaleway_domain_record.mail_lockdown["kwazat.fyi dmarc"]
+  to   = scaleway_domain_record.mail["kwazat.fyi dmarc"]
+}
+moved {
+  from = scaleway_domain_record.mail_lockdown["kwazat.fyi nullmx"]
+  to   = scaleway_domain_record.mail["kwazat.fyi nullmx"]
 }
