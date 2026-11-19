@@ -22,6 +22,13 @@
       "when": 1795024264927,
       "tag": "0002_friendly_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795104303827,
+      "tag": "0003_auth",
+      "breakpoints": true
     }
   ]
 }

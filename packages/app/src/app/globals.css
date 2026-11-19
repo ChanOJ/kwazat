@@ -1,0 +1,68 @@
+:root {
+  --bg: #fbfaf7;
+  --fg: #1d1d1b;
+  --muted: #5f5e5a;
+  --line: #dcd9d1;
+  --accent: #1f4e79;
+  --error: #9b1c1c;
+  --field: #ffffff;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615;
+    --fg: #ecebe7;
+    --muted: #a3a29c;
+    --line: #3a3936;
+    --accent: #8cb8e0;
+    --error: #f08a8a;
+    --field: #1f1f1e;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; color: var(--muted); }
+.lead { color: var(--muted); margin: 0 0 1.5rem; }
+
+.site-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  max-width: 42rem; margin: 0 auto; padding: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.brand { font-weight: 700; color: var(--fg); text-decoration: none; letter-spacing: .02em; }
+.session { display: flex; align-items: center; gap: .75rem; color: var(--muted); font-size: .95rem; }
+
+input, button { font: inherit; }
+input {
+  width: 100%; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--field); color: var(--fg);
+}
+button {
+  padding: .6rem 1rem; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg);
+  font-weight: 600; cursor: pointer;
+}
+.link-button { background: none; color: var(--accent); padding: 0; font-weight: 400; text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.search-form { display: flex; gap: .5rem; }
+.stack { display: grid; gap: 1rem; max-width: 22rem; }
+.stack label { display: grid; gap: .25rem; font-weight: 600; }
+.error { color: var(--error); }
+.empty { color: var(--muted); }
+
+.results { list-style: none; padding: 0; margin: 0; }
+.results li { display: grid; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+.results .label { font-weight: 600; }
+.results .description, .results .id { color: var(--muted); font-size: .95rem; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}

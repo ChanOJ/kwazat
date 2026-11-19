@@ -7,15 +7,17 @@ personalised compatibility score computed from the entity graph.
 
 Coverage is worldwide and everything is stored in English; localisation happens in the apps.
 
-## Status: phase 0 — researcher CLI
+## Status: phase 0 — researcher CLI, first web app (local only)
 
-Tune playbooks and measure quality/cost before building the web app.
+Tune playbooks and measure quality/cost; the web app (`packages/app`) is starting, behind
+login, so that the owner can work on the UX. It runs locally only for now.
 
 ```
 playbooks/            One YAML playbook per entity type (sections, instructions, schemas, source types)
 sources/              Source registry: trusted outlets and official sites per country (see sources/README.md)
 packages/db/          Drizzle schema, migrations, job queue; PGlite locally, Postgres via DATABASE_URL
 packages/researcher/  Wikidata resolution, Claude research/extraction pipeline, CLI, eval runner
+packages/app/         Web app (Next.js, Better Auth): login, search; see "Web app" below
 eval/golden/          Golden set per playbook (expected Wikidata ids + fact checks)
 eval/reports/         Eval reports (git-ignored)
 ```
@@ -132,3 +134,45 @@ pnpm db:generate
 To compare quality and cost, run the same eval with another configuration, e.g.
 `pnpm eval person --research-model claude-opus-5-5 --max-searches 8`.
 Requests to models that support it use the API's server-side refusal fallback (not Haiku).
+
+## Web app
+
+Next.js (App Router) with [Better Auth](https://www.better-auth.com) for email and password
+login. Accounts and sessions live in the same database as the sheets (`users`, `sessions`,
+`accounts`, `verifications`, see `packages/db/src/auth-schema.ts`).
+
+**Access, phase 1 (now): everything is behind login.** Anonymous visitors are sent to `/login`,
+and come back to the page they asked for afterwards. There is **no signup**: no page, and
+Better Auth's signup endpoint is both disabled and removed. Accounts are created with
+`pnpm users` only. One file decides access, `packages/app/src/lib/access.ts`, enforced on
+every request by `packages/app/src/proxy.ts` (session checked against the database, so removing
+an account or changing its password logs it out at once).
+
+**Phase 2** (browsing and search open to everyone, login for settings and personalization):
+set `LOGIN_REQUIRED_EVERYWHERE = false` in `access.ts`; paths under `PRIVATE_PREFIXES`
+(`/settings`, `/account`) keep needing a session. Then remove the `X-Robots-Tag` header of
+`next.config.ts` and the `robots` metadata of the root layout for the public pages.
+
+```bash
+pnpm app                       # http://localhost:3000, local PGlite database
+```
+
+Accounts (stop `pnpm app` first when using the local database: PGlite allows one process):
+
+```bash
+pnpm users add you@example.com --name "Your name"   # asks for the password, hidden (12+ characters)
+pnpm users password you@example.com                 # new password, logs out every session
+pnpm users list
+pnpm users remove you@example.com
+pnpm users test-account                             # local test account (refused with DATABASE_URL)
+```
+
+The local test account (`packages/app/test/test-account.ts`) is for automated checks and local
+browser testing; it only exists in the local PGlite database. Login attempts are rate limited
+(5 per minute per client, in memory). Next.js and Better Auth telemetry are off.
+
+| Setting | Local development | Staging and prod (not deployed yet) |
+|---|---|---|
+| `BETTER_AUTH_SECRET` | built-in development value | required; Secret Manager |
+| `BETTER_AUTH_URL` | `http://localhost:3000` | `https://test.kwazat.fyi`, `https://www.kwazat.fyi` |
+| `DATABASE_URL` | unset (PGlite) | Secret Manager (runtime identity) |
