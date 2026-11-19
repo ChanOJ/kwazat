@@ -105,6 +105,21 @@ so nobody can send convincing mail "from Kwazat".
 lockdown of `kwazat.fyi` in OpenTofu (they are not secrets), and the contacts above move to
 the new addresses.
 
+## Repository security (GitHub settings, set on 2026-11-19)
+
+Not in code, so listed here. The repository is public, which makes these free:
+
+- secret scanning with **push protection** (a push containing a known key format is refused);
+  generic patterns and validity checks need the paid Secret Protection and stay off;
+- Dependabot alerts and security updates, plus grouped monthly updates of GitHub Actions and
+  Docker images (`.github/dependabot.yml`; npm gets security updates only);
+- CodeQL default setup (TypeScript and GitHub Actions workflows), not a required check yet;
+- private vulnerability reporting, referenced by `SECURITY.md` and the `Policy:` line of
+  `security.txt`;
+- ruleset on `main`: pull request required, checks `code`, `infra` and `web` required, no force
+  push or deletion; environments `staging` (from `main`) and `production` (`v*` tags, owner
+  approval).
+
 ## Repository layout
 
 ```
