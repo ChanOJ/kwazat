@@ -8,6 +8,7 @@ import { openDb, sql, type Db } from "@kwazat/db";
 // Emails of these tests go to a temporary mailbox.
 process.env.KWAZAT_MAIL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kwazat-mail-"));
 
+const { isDevKey, hasDevCookie, devKey, devGateEnabled } = await import("../src/lib/dev-gate.ts");
 const { access, safeNextPath } = await import("../src/lib/access.ts");
 const { createAuth } = await import("../src/lib/auth.ts");
 const { readDevMailbox } = await import("../src/lib/mail.ts");
@@ -16,17 +17,18 @@ const { TEST_ACCOUNT } = await import("./test-account.ts");
 
 const withTwoFactor = { twoFactorEnabled: true };
 
-test("phase 1: every path needs a session except login, the auth API and the dev mailbox", () => {
-  for (const p of ["/", "/search", "/entity/x", "/account", "/red-lines", "/anything"]) assert.equal(access(p, null), "login", p);
-  for (const p of ["/login", "/login/code", "/api/auth/sign-in/email"]) assert.equal(access(p, null), "allow", p);
-  assert.equal(access("/loginx", null), "login");
-  assert.equal(access("/dev/mail", null, { development: true }), "allow");
-  assert.equal(access("/dev/mail", null, { development: false }), "login");
-  for (const p of ["/", "/search", "/account"]) assert.equal(access(p, withTwoFactor), "allow", p);
+test("login everywhere: every path needs a session except login, the auth API and the dev mailbox", () => {
+  const all = { loginEverywhere: true };
+  for (const p of ["/", "/search", "/entity/x", "/account", "/red-lines", "/anything"]) assert.equal(access(p, null, all), "login", p);
+  for (const p of ["/login", "/login/code", "/api/auth/sign-in/email"]) assert.equal(access(p, null, all), "allow", p);
+  assert.equal(access("/loginx", null, all), "login");
+  assert.equal(access("/dev/mail", null, { ...all, development: true }), "allow");
+  assert.equal(access("/dev/mail", null, { ...all, development: false }), "login");
+  for (const p of ["/", "/search", "/account"]) assert.equal(access(p, withTwoFactor, all), "allow", p);
 });
 
-test("phase 2: browsing and search open, account and red lines still private", () => {
-  const opts = { loginEverywhere: false };
+test("default: browsing and search open, account and red lines private", () => {
+  const opts = {};
   for (const p of ["/", "/search", "/entity/x"]) assert.equal(access(p, null, opts), "allow", p);
   for (const p of ["/account", "/account/two-factor", "/red-lines"]) assert.equal(access(p, null, opts), "login", p);
 });
@@ -36,7 +38,7 @@ test("a session without a second factor can only set one up", () => {
   for (const p of ["/", "/search", "/account", "/red-lines"]) assert.equal(access(p, viewer), "enroll", p);
   assert.equal(access("/account/two-factor", viewer), "allow");
   assert.equal(access("/login", viewer), "allow");
-  assert.equal(access("/", viewer, { loginEverywhere: false }), "enroll");
+  assert.equal(access("/", viewer), "enroll");
 });
 
 test("safeNextPath only returns paths on this site", () => {
@@ -136,4 +138,15 @@ describe("auth", () => {
     const user = await (await auth.$context).internalAdapter.findUserByEmail(TEST_ACCOUNT.email);
     assert.equal((user!.user as { twoFactorEnabled?: boolean }).twoFactorEnabled, false);
   });
+});
+
+test("dev gate: key from the environment, default only outside production", () => {
+  assert.equal(devKey({ NODE_ENV: "development" } as NodeJS.ProcessEnv), "gloubi");
+  assert.equal(devKey({ NODE_ENV: "production" } as NodeJS.ProcessEnv), null);
+  assert.equal(devKey({ NODE_ENV: "production", DEV_ACCESS_KEY: "k" } as NodeJS.ProcessEnv), "k");
+  const dev = { NODE_ENV: "development" } as NodeJS.ProcessEnv;
+  assert.ok(isDevKey("gloubi", dev) && hasDevCookie("gloubi", dev));
+  for (const bad of ["", "gloub", "gloubix", null, undefined]) assert.ok(!isDevKey(bad, dev) && !hasDevCookie(bad, dev), String(bad));
+  assert.ok(!isDevKey("gloubi", { NODE_ENV: "production" } as NodeJS.ProcessEnv));
+  assert.ok(devGateEnabled({ NODE_ENV: "development" }) && !devGateEnabled({ NODE_ENV: "development", DEV_GATE: "off" }));
 });

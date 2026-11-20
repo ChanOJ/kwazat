@@ -2,15 +2,14 @@
  * Who may see what: the only place that decides it. The proxy (src/proxy.ts) enforces it on every
  * request.
  *
- * Phase 1 (now): everything is behind login while the owner works on the UX; there is no
- * signup, accounts are created with `pnpm users`.
- * Phase 2: set LOGIN_REQUIRED_EVERYWHERE to false. Browsing and search then open to anonymous
- * visitors, and only PRIVATE_PREFIXES (account, red lines) still need a session.
+ * Browsing and search are open to anyone who gets past the preview gate (src/lib/dev-gate.ts);
+ * only PRIVATE_PREFIXES (account, red lines) need a session. There is no signup, accounts are
+ * created with `pnpm users`. Set LOGIN_REQUIRED_EVERYWHERE to true to put everything behind login.
  *
  * A second factor is mandatory: a session whose user has none set up can only reach the
  * enrollment page until it is done.
  */
-export const LOGIN_REQUIRED_EVERYWHERE = true;
+export const LOGIN_REQUIRED_EVERYWHERE = false;
 
 /** Reachable without a session in every phase: login (with its code step) and the auth API. */
 const PUBLIC_PREFIXES = ["/login", "/api/auth"];

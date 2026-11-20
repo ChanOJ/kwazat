@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { LOCALES } from "@/i18n/locales.ts";
 import { signOut } from "./actions.ts";
 import { setLocale } from "./locale-actions.ts";
+import { HideInLogin } from "./hide-in-login.tsx";
 import { ProfileClose } from "./profile-close.tsx";
 
 const silhouette = (
@@ -39,7 +40,8 @@ export async function ProfileMenu({ email }: { email: string }) {
 
 /**
  * Logged out: the same silhouette, dimmed and dashed, with an incognito badge (hat and glasses).
- * Its menu leads to login and lets anyone pick the language (kept in a cookie).
+ * Its menu leads to login and lets anyone pick the language (kept in a cookie); inside the login
+ * funnel it only offers the language.
  */
 export async function AnonymousProfile() {
   const [t, tl, current] = await Promise.all([getTranslations("profile"), getTranslations("languages"), getLocale()]);
@@ -59,10 +61,12 @@ export async function AnonymousProfile() {
         </span>
       </summary>
       <div className="profile-menu" role="menu">
-        <p className="profile-email">{t("anonymous")}</p>
-        <Link href="/login" role="menuitem">
-          {t("logIn")}
-        </Link>
+        <HideInLogin>
+          <p className="profile-email">{t("anonymous")}</p>
+          <Link href="/login" role="menuitem">
+            {t("logIn")}
+          </Link>
+        </HideInLogin>
         <p className="profile-heading">{t("language")}</p>
         <form action={setLocale} className="profile-languages">
           {LOCALES.map((locale) => (
