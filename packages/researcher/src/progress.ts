@@ -39,9 +39,9 @@ export function runningShare(elapsedS: number, expectedS: number): number {
   return x <= 0.8 ? x : 0.8 + 0.17 * (1 - Math.exp(-(x - 0.8) / 0.5));
 }
 
-/** Share of the job done, in [0, 99]: never 100 while the job is running. */
-export function progressPercent(sections: SectionProgress[]): number {
-  if (!sections.length) return 0;
+/** Share of the job done, in [0, 99] (never 100 while the job is running), and time left. */
+export function progressEstimate(sections: SectionProgress[]): { percent: number; remainingS: number } {
+  if (!sections.length) return { percent: 0, remainingS: 0 };
   const measured = sections.filter((s) => s.state === "done" && s.elapsedS !== undefined);
   const estimated = measured.reduce((n, s) => n + s.estimateS, 0);
   const actual = measured.reduce((n, s) => n + (s.elapsedS ?? 0), 0);
@@ -55,5 +55,8 @@ export function progressPercent(sections: SectionProgress[]): number {
     // A running section moves towards its estimate but never completes by itself.
     else if (s.state === "running") done += expected * runningShare(s.elapsedS ?? 0, expected);
   }
-  return Math.min(99, Math.floor((100 * done) / total));
+  return { percent: Math.min(99, Math.floor((100 * done) / total)), remainingS: Math.max(0, Math.round(total - done)) };
 }
+
+/** Share of the job done, in [0, 99]. */
+export const progressPercent = (sections: SectionProgress[]): number => progressEstimate(sections).percent;

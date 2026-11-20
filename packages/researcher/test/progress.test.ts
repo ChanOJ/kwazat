@@ -67,10 +67,20 @@ test("researchProgress uses the history of the playbook, and ignores runs orphan
     const p = await researchProgress(db, id, "band", sections, at("10:00:00"), at("10:02:00"));
     assert.equal(p.done, 1, "a counts as done despite its orphan");
     // a: estimated 80 s, took 80 s (speed 1); b: 230 s, not started: 80 / 310.
-    assert.deepEqual(p, { percent: 25, done: 1, total: 2 });
+    assert.deepEqual(p, { percent: 25, remainingS: 230, done: 1, total: 2 });
     // The history alone (no run in this job) gives 0 %.
     assert.equal((await researchProgress(db, other, "band", sections, at("23:00:00"))).percent, 0);
   } finally {
     await db.close();
   }
+});
+
+test("the estimate also gives the time left", async () => {
+  const { progressEstimate } = await import("../src/progress.ts");
+  assert.equal(progressEstimate([s("pending"), s("pending")]).remainingS, 200);
+  assert.equal(progressEstimate([s("done"), s("pending")]).remainingS, 100);
+  assert.deepEqual(progressEstimate([s("running", 50), s("pending")]), { percent: 25, remainingS: 150 });
+  assert.equal(progressEstimate([]).remainingS, 0);
+  // Calibration applies to the time left too: the first section took twice its estimate.
+  assert.equal(progressEstimate([s("done", 200), s("pending")]).remainingS, 200);
 });

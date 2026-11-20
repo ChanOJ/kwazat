@@ -47,6 +47,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const running = new Set(inProgress ? await runningSections(db, entity.id) : []);
   const researchSections = playbook.sections.filter((s) => s.method === "research");
   const progress = inProgress && job ? await researchProgress(db, entity.id, playbook.id, researchSections, job.createdAt) : null;
+  const progressText = progress ? t("progress", { percent: progress.percent, minutes: Math.round(progress.remainingS / 60) }) : "";
   const identity = entity.identity as Record<string, unknown>;
   // Legend of the severity icons that appear on this sheet.
   const legend = SEVERITIES.filter((s) => sheet.facts.some((f) => f.reviewStatus !== "rejected" && severityOf(f.data) === s));
@@ -132,14 +133,14 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
               <div
                 className="progress"
                 role="progressbar"
-                aria-label={t("progress", progress)}
+                aria-label={progressText}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={progress.percent}
               >
                 <div className="progress-bar" style={{ width: `${progress.percent}%` }} />
               </div>
-              <p className="progress-text">{t("progress", progress)}</p>
+              <p className="progress-text">{progressText}</p>
             </>
           )}
         </div>
