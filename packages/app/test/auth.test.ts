@@ -103,7 +103,9 @@ describe("auth", () => {
     const code = mail.subject.match(/^(\d{6}) /)![1]!;
     assert.match(mail.text, new RegExp(`/login/code\\?code=${code}`));
     // Only a hash of the code is stored.
-    const stored = await db.execute<{ value: string }>(sql`select value from verifications where identifier like '2fa-otp-%'`);
+    const stored = (await db.execute(sql`select value from verifications where identifier like '2fa-otp-%'`)) as unknown as {
+      rows: { value: string }[];
+    };
     assert.equal(stored.rows.length, 1);
     assert.ok(!stored.rows[0]!.value.includes(code));
 
