@@ -11,6 +11,8 @@ export const LIMITS = {
   /** Password checks (login, account forms): per address and per account. */
   passwordPerIp: { window: 60, max: 5 },
   passwordPerAccount: { window: 15 * 60, max: 10 },
+  /** New accounts, per address. */
+  signupPerIp: { window: 60 * 60, max: 10 },
   /** Second-factor codes typed in, per address (each code also allows 5 tries only). */
   codePerIp: { window: 60, max: 10 },
   /** Emailed codes: one every 30 seconds, 5 per hour per account, 20 per hour per address. */

@@ -36,7 +36,10 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (access(pathname, null) === "allow") return NextResponse.next();
+  // Anonymous and allowed: no database lookup. With a session cookie the session is always
+  // checked, so a session without a second factor cannot browse the public pages either.
+  const hasSessionCookie = request.cookies.getAll().some((c) => c.name.includes("session_token"));
+  if (!hasSessionCookie && access(pathname, null) === "allow") return NextResponse.next();
 
   const auth = await getAuth();
   const session = await auth.api.getSession({ headers: request.headers });

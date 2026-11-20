@@ -51,3 +51,15 @@ export async function useEmailCodes(db: Db, email: string): Promise<void> {
     .returning({ id: users.id });
   if (user) await db.delete(twoFactors).where(eq(twoFactors.userId, user.id));
 }
+
+/**
+ * Self-service signup: a new account whose address is not verified yet (the caller emails a link).
+ * Throws CliError when the address already has an account.
+ */
+export async function createAccount(db: Db, email: string, password: string): Promise<void> {
+  const ctx = await createAuth(db).$context;
+  if (await ctx.internalAdapter.findUserByEmail(email)) throw new CliError("exists");
+  const hash = await ctx.password.hash(password);
+  const user = await ctx.internalAdapter.createUser({ email, name: "", emailVerified: false }, { method: "signup" });
+  await ctx.internalAdapter.linkAccount({ userId: user.id, providerId: "credential", accountId: user.id, password: hash });
+}

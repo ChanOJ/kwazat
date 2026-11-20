@@ -9,34 +9,36 @@ import { openDb, sql, type Db } from "@kwazat/db";
 process.env.KWAZAT_MAIL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kwazat-mail-"));
 
 const { isDevKey, hasDevCookie, devKey, devGateEnabled } = await import("../src/lib/dev-gate.ts");
+const { seal, open } = await import("../src/lib/signup-secret.ts");
+const { passwordIssues } = await import("../src/lib/password.ts");
 const { access, safeNextPath } = await import("../src/lib/access.ts");
 const { createAuth } = await import("../src/lib/auth.ts");
 const { readDevMailbox } = await import("../src/lib/mail.ts");
-const { resetTwoFactor, setUser, useEmailCodes } = await import("../src/lib/users.ts");
+const { createAccount, CliError, resetTwoFactor, setUser, useEmailCodes } = await import("../src/lib/users.ts");
 const { TEST_ACCOUNT } = await import("./test-account.ts");
 
 const withTwoFactor = { twoFactorEnabled: true };
 
 test("login everywhere: every path needs a session except login, the auth API and the dev mailbox", () => {
   const all = { loginEverywhere: true };
-  for (const p of ["/", "/search", "/entity/x", "/account", "/red-lines", "/anything"]) assert.equal(access(p, null, all), "login", p);
+  for (const p of ["/", "/search", "/entity/x", "/settings", "/red-lines", "/anything"]) assert.equal(access(p, null, all), "login", p);
   for (const p of ["/login", "/login/code", "/api/auth/sign-in/email"]) assert.equal(access(p, null, all), "allow", p);
   assert.equal(access("/loginx", null, all), "login");
   assert.equal(access("/dev/mail", null, { ...all, development: true }), "allow");
   assert.equal(access("/dev/mail", null, { ...all, development: false }), "login");
-  for (const p of ["/", "/search", "/account"]) assert.equal(access(p, withTwoFactor, all), "allow", p);
+  for (const p of ["/", "/search", "/settings"]) assert.equal(access(p, withTwoFactor, all), "allow", p);
 });
 
-test("default: browsing and search open, account and red lines private", () => {
+test("default: everything open except settings", () => {
   const opts = {};
-  for (const p of ["/", "/search", "/entity/x"]) assert.equal(access(p, null, opts), "allow", p);
-  for (const p of ["/account", "/account/two-factor", "/red-lines"]) assert.equal(access(p, null, opts), "login", p);
+  for (const p of ["/", "/search", "/entity/x", "/red-lines", "/feedback", "/help"]) assert.equal(access(p, null, opts), "allow", p);
+  for (const p of ["/settings", "/settings/two-factor"]) assert.equal(access(p, null, opts), "login", p);
 });
 
 test("a session without a second factor can only set one up", () => {
   const viewer = { twoFactorEnabled: false };
-  for (const p of ["/", "/search", "/account", "/red-lines"]) assert.equal(access(p, viewer), "enroll", p);
-  assert.equal(access("/account/two-factor", viewer), "allow");
+  for (const p of ["/", "/search", "/settings", "/red-lines"]) assert.equal(access(p, viewer), "enroll", p);
+  assert.equal(access("/settings/two-factor", viewer), "allow");
   assert.equal(access("/login", viewer), "allow");
   assert.equal(access("/", viewer), "enroll");
 });
@@ -79,6 +81,15 @@ describe("auth", () => {
     assert.ok(res.status >= 400, `status ${res.status}`);
     assert.equal(await (await auth.$context).internalAdapter.findUserByEmail("new@example.com"), null);
     await assert.rejects(auth.api.signUpEmail({ body: { email: "new@example.com", password: "a-long-enough-password", name: "New" } }));
+  });
+
+  test("self-service signup creates an unverified account that can log in, once per address", async () => {
+    await createAccount(db, "signup@example.com", "a-long-enough-password");
+    const user = await (await auth.$context).internalAdapter.findUserByEmail("signup@example.com");
+    assert.equal(user?.user.emailVerified, false);
+    const res = await post("/sign-in/email", { email: "signup@example.com", password: "a-long-enough-password" });
+    assert.equal(res.status, 200);
+    await assert.rejects(createAccount(db, "signup@example.com", "another-long-password"), CliError);
   });
 
   test("without a second factor, login opens a session the gate sends to enrollment", async () => {
@@ -149,4 +160,28 @@ test("dev gate: key from the environment, default only outside production", () =
   for (const bad of ["", "gloub", "gloubix", null, undefined]) assert.ok(!isDevKey(bad, dev) && !hasDevCookie(bad, dev), String(bad));
   assert.ok(!isDevKey("gloubi", { NODE_ENV: "production" } as NodeJS.ProcessEnv));
   assert.ok(devGateEnabled({ NODE_ENV: "development" }) && !devGateEnabled({ NODE_ENV: "development", DEV_GATE: "off" }));
+});
+
+test("password rules: length, no common or repetitive password, not the email", () => {
+  assert.deepEqual(passwordIssues("a long passphrase of words", "x@y.fr"), []);
+  assert.ok(passwordIssues("short", "").includes("short"));
+  assert.ok(passwordIssues("Password123456", "").includes("common"));
+  assert.ok(passwordIssues("abcabcabcabcabc", "").includes("repetitive"));
+  assert.ok(passwordIssues("marie.dupont-2026-x", "marie.dupont@example.org").includes("email"));
+  assert.ok(passwordIssues("x".repeat(129), "").includes("long"));
+});
+
+test("login and signup screens are public, their next page cannot loop back", () => {
+  for (const p of ["/login/password", "/signup", "/signup/password"]) assert.equal(access(p, null, { loginEverywhere: true }), "allow", p);
+  assert.equal(safeNextPath("/signup/password"), "/");
+});
+
+test("the signup password cookie is bound to the user, expires, and cannot be tampered with", () => {
+  const token = seal("user-1", "a long passphrase here");
+  assert.equal(open(token, "user-1"), "a long passphrase here");
+  assert.equal(open(token, "user-2"), null);
+  assert.equal(open(token, "user-1", Date.now() + 16 * 60 * 1000), null);
+  assert.equal(open(token.slice(0, -2) + "AA", "user-1"), null);
+  assert.equal(open(undefined, "user-1"), null);
+  assert.ok(!Buffer.from(token, "base64url").toString("utf8").includes("passphrase"));
 });

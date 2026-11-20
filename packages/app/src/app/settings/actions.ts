@@ -19,7 +19,7 @@ const tooMany = (wait: number): FormState => ({ error: "tooMany", values: { minu
 export async function changeEmail(_: FormState, formData: FormData): Promise<FormState> {
   const newEmail = String(formData.get("newEmail") ?? "").trim().toLowerCase();
   try {
-    await (await getAuth()).api.changeEmail({ body: { newEmail, callbackURL: "/account?email=step" }, headers: await headers() });
+    await (await getAuth()).api.changeEmail({ body: { newEmail, callbackURL: "/settings?email=step" }, headers: await headers() });
   } catch {
     return { error: "emailRefused" };
   }

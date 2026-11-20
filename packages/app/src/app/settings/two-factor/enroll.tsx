@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
+import { BackupCodes } from "../../backup-codes.tsx";
 import { ResendButton } from "../../resend-button.tsx";
 import { enroll, type EnrollState, type Method } from "./actions.ts";
 
-export function Enroll({ current }: { current: Method | null }) {
+export function Enroll({ current, passwordKnown }: { current: Method | null; passwordKnown: boolean }) {
   const t = useTranslations("twoFactor");
   const [state, action, pending] = useActionState(enroll, { step: "choose" } as EnrollState);
 
@@ -20,17 +21,13 @@ export function Enroll({ current }: { current: Method | null }) {
           <>
             <h2>{t("backupTitle")}</h2>
             <p>{t("backupLead")}</p>
-            <ul className="codes">
-              {state.backupCodes.map((c) => (
-                <li key={c}>
-                  <code>{c}</code>
-                </li>
-              ))}
-            </ul>
+            <BackupCodes codes={state.backupCodes} />
           </>
         )}
         <p>
-          <Link href="/">{t("continue")}</Link>
+          <Link href="/" className="button">
+            {t("continue")}
+          </Link>
         </p>
       </div>
     );
@@ -104,10 +101,12 @@ export function Enroll({ current }: { current: Method | null }) {
           </span>
         </label>
       </fieldset>
-      <label>
-        {t("currentPassword")}
-        <input name="password" type="password" autoComplete="current-password" required />
-      </label>
+      {(!passwordKnown || state.error === "wrongPassword") && (
+        <label>
+          {t("currentPassword")}
+          <input name="password" type="password" autoComplete="current-password" required />
+        </label>
+      )}
       <button type="submit" disabled={pending}>
         {t("start")}
       </button>

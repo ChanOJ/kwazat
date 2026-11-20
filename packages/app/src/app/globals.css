@@ -145,3 +145,40 @@ a { color: var(--accent); }
 .profile-languages { display: grid; }
 .profile-languages button[aria-checked="true"] { font-weight: 700; }
 .profile-languages button[aria-checked="true"]::after { content: " ✓"; }
+
+/* Profile menu rows: icon + label, like a settings menu. */
+.profile-menu a, .profile-menu button { display: flex; align-items: center; gap: .7rem; }
+.profile-menu { min-width: 15rem; }
+.profile-menu hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; width: 100%; }
+.menu-icon { flex: none; color: var(--muted); }
+
+/* Language dialog. */
+.button-link { background: none; color: var(--accent); padding: 0; font-weight: 400; text-decoration: underline; cursor: pointer; }
+.language-dialog {
+  width: min(42rem, calc(100vw - 2rem)); max-height: calc(100vh - 4rem); overflow: auto; padding: 1.25rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 12px;
+}
+.language-dialog::backdrop { background: rgb(0 0 0 / .55); }
+.language-head { display: flex; justify-content: space-between; align-items: center; }
+.language-head h2 { margin: 0; }
+.icon-button { background: none; color: var(--fg); font-size: 1.6rem; line-height: 1; padding: .1rem .5rem; cursor: pointer; }
+.language-dialog input[type="search"] { margin: 1rem 0; }
+.language-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: .5rem; }
+.language-grid button { background: none; color: var(--fg); text-align: left; font-weight: 400; padding: .75rem; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+.language-grid button:hover { background: var(--line); }
+.language-grid button[aria-pressed="true"] { border-color: var(--accent); }
+
+/* Login and signup screens. */
+.actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+button.secondary { background: none; color: var(--accent); border: 1px solid var(--line); font-weight: 400; }
+button.secondary:hover { border-color: var(--accent); }
+.rules { list-style: none; padding: 0; margin: 0; display: grid; gap: .2rem; color: var(--muted); font-size: .95rem; }
+.rules .ok { color: var(--accent); }
+.hint { color: var(--muted); font-size: .95rem; margin: 0; }
+input[readonly] { color: var(--muted); }
+
+button.icon-text { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
+
+/* A link that looks like the primary button. */
+a.button { display: inline-block; padding: .6rem 1rem; border-radius: 6px; background: var(--accent); color: var(--bg); font-weight: 600; text-decoration: none; }
+a.button:hover { filter: brightness(1.1); }

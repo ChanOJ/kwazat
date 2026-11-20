@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
+import { BackupCodes } from "../backup-codes.tsx";
 import { changeEmail, changePassword, regenerateBackupCodes, type FormState } from "./actions.ts";
 
 function Result({ state }: { state: FormState }) {
@@ -17,13 +18,7 @@ function Result({ state }: { state: FormState }) {
     <div className="notice" role="status">
       <p>{t(state.ok as never)}</p>
       {state.codes && (
-        <ul className="codes">
-          {state.codes.map((c) => (
-            <li key={c}>
-              <code>{c}</code>
-            </li>
-          ))}
-        </ul>
+        <BackupCodes codes={state.codes} />
       )}
     </div>
   );

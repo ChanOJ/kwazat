@@ -3,7 +3,7 @@
  * request.
  *
  * Browsing and search are open to anyone who gets past the preview gate (src/lib/dev-gate.ts);
- * only PRIVATE_PREFIXES (account, red lines) need a session. There is no signup, accounts are
+ * only PRIVATE_PREFIXES (settings) need a session. There is no signup, accounts are
  * created with `pnpm users`. Set LOGIN_REQUIRED_EVERYWHERE to true to put everything behind login.
  *
  * A second factor is mandatory: a session whose user has none set up can only reach the
@@ -11,17 +11,17 @@
  */
 export const LOGIN_REQUIRED_EVERYWHERE = false;
 
-/** Reachable without a session in every phase: login (with its code step) and the auth API. */
-const PUBLIC_PREFIXES = ["/login", "/api/auth"];
+/** Reachable without a session in every phase: login (with its code step), signup and the auth API. */
+const PUBLIC_PREFIXES = ["/login", "/signup", "/api/auth"];
 
 /** Local development mailbox: emailed codes must be readable before the login is complete. */
 const DEV_PUBLIC_PREFIXES = ["/dev/mail"];
 
 /** Need a session in every phase. */
-const PRIVATE_PREFIXES = ["/account", "/red-lines"];
+const PRIVATE_PREFIXES = ["/settings"];
 
 /** Where a session without a second factor is sent. */
-export const ENROLL_PATH = "/account/two-factor";
+export const ENROLL_PATH = "/settings/two-factor";
 
 export type Viewer = { twoFactorEnabled?: boolean | null } | null;
 export type Decision = "allow" | "login" | "enroll";
@@ -50,6 +50,6 @@ export function access(
  */
 export function safeNextPath(next: unknown): string {
   if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return "/";
-  if (under(next, "/login") || under(next, "/api") || under(next, "/dev")) return "/";
+  if (under(next, "/login") || under(next, "/signup") || under(next, "/api") || under(next, "/dev")) return "/";
   return next;
 }
