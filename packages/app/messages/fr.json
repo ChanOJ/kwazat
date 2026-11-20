@@ -115,6 +115,7 @@
     "createAccount": "Créer un compte",
     "badEmail": "Cette adresse e-mail ne semble pas valide.",
     "passwordTitle": "Votre mot de passe",
+    "exists": "Un compte existe déjà pour cette adresse : saisissez son mot de passe pour vous connecter.",
     "otherAddress": "Utiliser une autre adresse"
   },
   "code": {

@@ -115,6 +115,7 @@
     "createAccount": "Create account",
     "badEmail": "This does not look like an email address.",
     "passwordTitle": "Your password",
+    "exists": "An account already exists for this address: enter its password to log in.",
     "otherAddress": "Use another address"
   },
   "code": {
