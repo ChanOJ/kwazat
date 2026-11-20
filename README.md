@@ -13,7 +13,7 @@ Tune playbooks and measure quality/cost; the web app (`packages/app`) is startin
 login, so that the owner can work on the UX. It runs locally only for now.
 
 ```
-playbooks/            One YAML playbook per entity type (sections, instructions, schemas, source types)
+playbooks/            One YAML playbook per entity type (person, band): sections, instructions, schemas, source types
 sources/              Source registry: trusted outlets and official sites per country (see sources/README.md)
 packages/db/          Drizzle schema, migrations, job queue; PGlite locally, Postgres via DATABASE_URL
 packages/researcher/  Wikidata resolution, Claude research/extraction pipeline, CLI, eval runner
@@ -24,13 +24,17 @@ eval/reports/         Eval reports (git-ignored)
 
 ### How a sheet is built
 
-1. **Resolution** — the query is matched against Wikidata (humans only for persons). Several
+1. **Resolution** — the query is matched against Wikidata (people and music groups: P31 = human,
+   or a musical-group class, see `BAND_CLASSES`). People and groups are shown under the title of
+   their English Wikipedia article (the English Wikidata label can be a nickname). Several
    candidates → the user picks one (homonym protection). Candidate lists are cached 24 h and
    Wikidata calls are serialized and throttled; known entities are also searched locally
    (trigram index, typo-tolerant). Entities get Kwazat's own id (UUIDv7); Wikidata ids and other
    external identifiers (GTIN, SIREN, LEI...) live in a correspondence table, and merged
    duplicates redirect to the entity they were merged into.
-2. **Identity + family/party relations** — deterministic, from Wikidata (no LLM).
+2. **Identity + relations** — deterministic, from Wikidata (no LLM): family and party for people;
+   origin, genres, labels and members (with dates) for bands. Members link to their own sheet
+   when Kwazat has one, and a person's sheet lists its bands.
 3. **Each research section**, independently:
    - *sources*: outlets are picked from the registry for the subject's countries (Wikidata
      citizenship) plus international ones; sensitive sections can only reach those domains;
@@ -41,8 +45,20 @@ eval/reports/         Eval reports (git-ignored)
    - *verification*: each source URL is checked against the URLs actually retrieved.
      Unverified items and every item of a `sensitive` section are stored as `needs_review`.
      Confidence is capped by the registry tier of the best verified source.
-4. Each section run stores a **hash** of its definition (section + style + selected sources + model).
-   Editing a playbook section makes that section stale on every sheet; other sections are kept.
+4. Each section run stores a **hash** of its definition, split in two: a *research hash*
+   (instructions, style, selected sources, research model and code) and an *extraction hash*
+   (item schema, extraction model and code). Editing a playbook section makes that section stale
+   on every sheet; other sections are kept. When only the extraction hash changed, the research
+   notes of an earlier run (same research hash, younger than the section's `ttl_days`) are
+   reused and only the extraction is paid again.
+5. **Severity**: each matter of a band sheet carries a `severity` (high, medium, low, cleared)
+   set on a legal-status ladder defined in `playbooks/band.yaml` and overridden by structured
+   fields (`packages/researcher/src/severity.ts`); the sheet shows it as a coloured icon.
+   The band playbook scopes the group sections to the group itself; serious matters of members
+   are in `members_conduct`, with how the group reacted (`group_response`: distanced, supported,
+   no public position, unclear), which is meant to feed the group's rating later.
+6. The research progress bar and its time left are estimated from the durations of earlier runs
+   of the same playbook section (any version), calibrated on the sections already finished.
 
 ## Setup
 
