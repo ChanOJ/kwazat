@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { and, claim, complete, enqueue, eq, fail, inArray, jobs, requeueStale, sectionRuns, type Db, type Job } from "@kwazat/db";
 import { resolveConfig, type RunConfig } from "./claude.ts";
+import { estimateSeconds, progressPercent, type SectionProgress } from "./progress.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { runSection, upsertEntity } from "./pipeline.ts";
 import { loadRegistry } from "./sources.ts";
@@ -66,6 +67,31 @@ export async function runResearchJob(db: Db, payload: ResearchPayload, log: (lin
  */
 export async function queueResearch(db: Db, p: ResearchPayload) {
   return enqueue(db, { kind: RESEARCH_JOB, dedupeKey: researchJobKey(p), payload: p, maxAttempts: 1 });
+}
+
+/**
+ * Progress (percent and sections done) of a research job, from the section runs it started.
+ * Sections already up to date before the job count as done at once.
+ */
+export async function researchProgress(
+  db: Db,
+  entityId: string,
+  sections: { id: string; max_searches: number; max_fetches: number }[],
+  since: Date,
+  now = new Date(),
+): Promise<{ percent: number; done: number; total: number }> {
+  const runs = await db.select().from(sectionRuns).where(eq(sectionRuns.entityId, entityId));
+  const parts: SectionProgress[] = sections.map((s) => {
+    const estimateS = estimateSeconds(s);
+    const mine = runs.filter((r) => r.sectionId === s.id && r.startedAt >= since);
+    const running = mine.find((r) => !r.finishedAt);
+    if (running) return { estimateS, state: "running", elapsedS: (now.getTime() - running.startedAt.getTime()) / 1000 };
+    const finished = mine.find((r) => r.finishedAt);
+    if (finished) return { estimateS, state: "done", elapsedS: (finished.finishedAt!.getTime() - finished.startedAt.getTime()) / 1000 };
+    // No run in this job: done only if a current result already exists (skipped as up to date).
+    return { estimateS, state: runs.some((r) => r.sectionId === s.id && r.isCurrent) ? "done" : "pending" };
+  });
+  return { percent: progressPercent(parts), done: parts.filter((p) => p.state === "done").length, total: parts.length };
 }
 
 /** Section runs in progress for an entity (for the waiting page). */

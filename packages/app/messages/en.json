@@ -75,6 +75,7 @@
     "memberOf": "Member of",
     "researchMember": "Research",
     "inProgress": "Research in progress: sections appear as they are done.",
+    "progress": "Progress: about {percent} % ({done} of {total} sections)",
     "missing": "Some sections have not been researched yet.",
     "researchThem": "Research them",
     "failed": "Research failed: {error}",
