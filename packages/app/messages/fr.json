@@ -75,7 +75,7 @@
     "memberOf": "Membre de",
     "researchMember": "Rechercher",
     "inProgress": "Recherche en cours : les sections apparaissent au fur et à mesure.",
-    "progress": "Avancement : environ {percent} % ({done} sections sur {total})",
+    "progress": "Avancement : environ {percent} % · {minutes, plural, =0 {moins d’une minute restante} one {environ # minute restante} other {environ # minutes restantes}}",
     "missing": "Certaines sections n’ont pas encore été recherchées.",
     "researchThem": "Les rechercher",
     "failed": "La recherche a échoué : {error}",

@@ -7,7 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { and, claim, complete, desc, enqueue, eq, fail, inArray, jobs, requeueStale, sectionRuns, type Db, type Job } from "@kwazat/db";
 import { resolveConfig, type RunConfig } from "./claude.ts";
-import { estimateSeconds, medianSeconds, progressPercent, type SectionProgress } from "./progress.ts";
+import { estimateSeconds, medianSeconds, progressEstimate, type SectionProgress } from "./progress.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { runSection, upsertEntity } from "./pipeline.ts";
 import { loadRegistry } from "./sources.ts";
@@ -82,7 +82,7 @@ export async function researchProgress(
   sections: { id: string; max_searches: number; max_fetches: number }[],
   since: Date,
   now = new Date(),
-): Promise<{ percent: number; done: number; total: number }> {
+): Promise<{ percent: number; remainingS: number; done: number; total: number }> {
   const runs = await db.select().from(sectionRuns).where(eq(sectionRuns.entityId, entityId));
   // Durations of earlier successful runs of the same playbook's sections, any entity and version.
   const history = await db
@@ -107,7 +107,7 @@ export async function researchProgress(
     // No run in this job: done only if a current result already exists (skipped as up to date).
     return { estimateS, state: runs.some((r) => r.sectionId === s.id && r.isCurrent) ? "done" : "pending" };
   });
-  return { percent: progressPercent(parts), done: parts.filter((p) => p.state === "done").length, total: parts.length };
+  return { ...progressEstimate(parts), done: parts.filter((p) => p.state === "done").length, total: parts.length };
 }
 
 /** Section runs in progress for an entity (for the waiting page). */
