@@ -12,7 +12,7 @@ const LANGS = ["en", "mul", "fr", "de", "es", "it"];
 
 type Snak = { datavalue?: { value: unknown; type: string } };
 type Claim = { mainsnak: Snak; qualifiers?: Record<string, Snak[]>; rank: string };
-type WdEntity = {
+export type WdEntity = {
   id: string;
   labels?: Record<string, { value: string }>;
   descriptions?: Record<string, { value: string }>;
@@ -116,17 +116,45 @@ const itemIds = (e: WdEntity, prop: string): string[] =>
     .filter((x): x is string => !!x);
 
 const HUMAN = "Q5";
+/**
+ * Classes (P31) that make an item a music group: "musical group" and its common subclasses
+ * (checked on Wikidata). Subclass chains are not followed: the list is explicit and extended on need.
+ */
+export const BAND_CLASSES = [
+  "Q215380", // musical group
+  "Q5741069", // rock band
+  "Q56816954", // heavy metal band
+  "Q216337", // boy band
+  "Q641066", // girl group
+  "Q281643", // musical trio
+  "Q9212979", // musical duo
+] as const;
+
+export type EntityKind = "person" | "band";
+
+/** Kind of subject an item is, from its P31 classes (null: neither a person nor a music group). */
+export function kindOfClasses(classes: string[]): EntityKind | null {
+  if (classes.includes(HUMAN)) return "person";
+  if (classes.some((c) => (BAND_CLASSES as readonly string[]).includes(c))) return "band";
+  return null;
+}
 
 export type Candidate = {
   wikidataId: string;
   label: string;
   description: string | null;
   birthDate: string | null;
-  isHuman: boolean;
+  kind: EntityKind | null;
 };
 
-/** Search candidates for a free-text name. For persons, keeps only humans (P31 = Q5). */
-export async function searchCandidates(query: string, opts: { humansOnly: boolean }): Promise<Candidate[]> {
+/** Wikibase full-text filter matching the items of the wanted kinds (`|` is OR). */
+function statementFilter(kinds: EntityKind[]): string {
+  const classes = kinds.flatMap((k) => (k === "person" ? [HUMAN] : [...BAND_CLASSES]));
+  return `haswbstatement:${classes.map((c) => `P31=${c}`).join("|")}`;
+}
+
+/** Search candidates for a free-text name, keeping only items of the wanted kinds (people, bands). */
+export async function searchCandidates(query: string, opts: { kinds: EntityKind[] }): Promise<Candidate[]> {
   const found = await call({
     action: "wbsearchentities",
     search: query,
@@ -145,26 +173,23 @@ export async function searchCandidates(query: string, opts: { humansOnly: boolea
         label: pick(e.labels) ?? e.id,
         description: pick(e.descriptions),
         birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
-        isHuman: itemIds(e, "P31").includes(HUMAN),
+        kind: kindOfClasses(itemIds(e, "P31")),
       }));
   };
-  const candidates = await toCandidates(found.search.map((s: { id: string }) => s.id));
-  if (!opts.humansOnly) return candidates;
-  const humansFound = candidates.filter((c) => c.isHuman);
-  if (humansFound.length) return humansFound;
-  {
-    // Label search ranks places and other items first and may return no person at all
-    // ("Cahuzac" is also a commune): fall back to a full-text search restricted to humans.
-    const humans = await call({
-      action: "query",
-      list: "search",
-      srsearch: `${query} haswbstatement:P31=Q5`,
-      srnamespace: "0",
-      srlimit: "10",
-    });
-    const humanIds: string[] = (humans.query?.search ?? []).map((r: { title: string }) => r.title);
-    return (await toCandidates(humanIds)).filter((c) => c.isHuman);
-  }
+  const wanted = (c: Candidate) => !!c.kind && opts.kinds.includes(c.kind);
+  const candidates = (await toCandidates(found.search.map((s: { id: string }) => s.id))).filter(wanted);
+  if (candidates.length) return candidates;
+  // Label search ranks places and other items first and may return no matching item at all
+  // ("Cahuzac" is also a commune): fall back to a full-text search restricted to the wanted kinds.
+  const matches = await call({
+    action: "query",
+    list: "search",
+    srsearch: `${query} ${statementFilter(opts.kinds)}`,
+    srnamespace: "0",
+    srlimit: "10",
+  });
+  const ids: string[] = (matches.query?.search ?? []).map((r: { title: string }) => r.title);
+  return (await toCandidates(ids)).filter(wanted);
 }
 
 export type WikidataRelation = {
@@ -284,5 +309,108 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
         },
       ];
     }),
+  };
+}
+
+export type BandIdentity = {
+  wikidataId: string;
+  label: string;
+  description: string | null;
+  aliases: string[];
+  names: { name: string; lang: string }[];
+  identity: {
+    fullName: string;
+    /** Formation and dissolution dates (P571, P576). */
+    birthDate: string | null;
+    deathDate: string | null;
+    origins: string[];
+    /** ISO 3166-1 alpha-2 codes of the country of origin (P495 → P297), used to pick national sources. */
+    countryCodes: string[];
+    genres: string[];
+    labels: string[];
+    website: string | null;
+    photoUrl: string | null;
+    logoUrl: string | null;
+    wikipediaUrl: string | null;
+    wikidataUrl: string;
+  };
+  relations: WikidataRelation[];
+};
+
+const commonsUrl = (file: string | undefined, width: number) =>
+  file ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}` : null;
+
+/** Builds the deterministic identity block and member relations of a music group from Wikidata. */
+export async function getBandIdentity(wikidataId: string): Promise<BandIdentity> {
+  const e = (await getEntities([wikidataId], "labels|descriptions|aliases|claims|sitelinks"))[wikidataId];
+  if (!e) throw new Error(`Wikidata item not found: ${wikidataId}`);
+  return bandFromEntity(e, async (id) => isoCountryCode(id));
+}
+
+/** Pure part of getBandIdentity (tested with fixtures); `labelsOf` resolves item labels. */
+export async function bandFromEntity(
+  e: WdEntity,
+  countryCode: (countryId: string) => Promise<string | null>,
+  labelsOf: (ids: string[]) => Promise<Record<string, string>> = async (ids) => {
+    const labels = await getEntities(ids, "labels");
+    return Object.fromEntries(ids.map((id) => [id, pick(labels[id]?.labels) ?? id]));
+  },
+): Promise<BandIdentity> {
+  const wikidataId = e.id;
+  const members = claimsOf(e, "P527").flatMap((c) => {
+    const id = itemId(c.mainsnak);
+    return id ? [{ c, id }] : [];
+  });
+  const referenced = [
+    ...new Set([
+      ...itemIds(e, "P495"),
+      ...itemIds(e, "P740"),
+      ...itemIds(e, "P136"),
+      ...itemIds(e, "P264"),
+      ...members.map((m) => m.id),
+    ]),
+  ];
+  const names = await labelsOf(referenced);
+  const labelOf = (id: string) => names[id] ?? id;
+  const countryCodes = (await Promise.all(itemIds(e, "P495").map(countryCode))).filter((c): c is string => !!c);
+
+  const str = (prop: string) => claimsOf(e, prop)[0]?.mainsnak.datavalue?.value as string | undefined;
+  const frwiki = e.sitelinks?.frwiki?.title;
+  const enwiki = e.sitelinks?.enwiki?.title;
+  const label = pick(e.labels) ?? wikidataId;
+  const wiki = (lang: string, title: string) => `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replaceAll(" ", "_"))}`;
+
+  return {
+    wikidataId,
+    label,
+    description: pick(e.descriptions),
+    aliases: LANGS.flatMap((l) => e.aliases?.[l]?.map((a) => a.value) ?? []),
+    names: LANGS.flatMap((l) => [
+      ...(e.labels?.[l] ? [{ name: e.labels[l].value, lang: l }] : []),
+      ...(e.aliases?.[l]?.map((a) => ({ name: a.value, lang: l })) ?? []),
+    ]),
+    identity: {
+      fullName: label,
+      birthDate: timeValue(claimsOf(e, "P571")[0]?.mainsnak),
+      deathDate: timeValue(claimsOf(e, "P576")[0]?.mainsnak),
+      origins: [...new Set([...itemIds(e, "P495"), ...itemIds(e, "P740")].map(labelOf))],
+      countryCodes: [...new Set(countryCodes)],
+      genres: itemIds(e, "P136").map(labelOf),
+      labels: itemIds(e, "P264").map(labelOf),
+      website: str("P856")?.startsWith("https://") || str("P856")?.startsWith("http://") ? (str("P856") ?? null) : null,
+      photoUrl: commonsUrl(str("P18"), 400),
+      logoUrl: commonsUrl(str("P154"), 200),
+      wikipediaUrl: enwiki ? wiki("en", enwiki) : frwiki ? wiki("fr", frwiki) : null,
+      wikidataUrl: `https://www.wikidata.org/wiki/${wikidataId}`,
+    },
+    // Members (P527 "has part"), with their membership dates when Wikidata has them.
+    relations: members.map(({ c, id }) => ({
+      relationType: "has_member",
+      toWikidataId: id,
+      toLabel: labelOf(id),
+      strength: 5,
+      from: timeValue(c.qualifiers?.P580?.[0]),
+      to: timeValue(c.qualifiers?.P582?.[0]),
+    })),
   };
 }

@@ -1,0 +1,133 @@
+# Playbook for music groups (bands, duos, vocal groups...).
+#
+# Same mechanics as person.yaml: each research section is researched independently, and editing
+# a section changes its hash, which marks that section as stale on every band sheet. The
+# identity block and the member list come from Wikidata (no LLM call).
+
+id: band
+version: 1
+entity_type: band
+label: Band
+
+scope: >
+  Music groups with a Wikidata item (bands, duos, vocal groups, orchestras of popular music).
+  Findings concern the group as such, or its members when acting for or within the group.
+
+style: |
+  - Write neutral, factual, attributed statements: "According to <outlet>, ..." for anything
+    that is not an official decision. No adjectives, no opinions, no speculation, no reviews
+    of the music.
+  - Every statement must be backed by at least one source URL you actually retrieved.
+    Never invent or guess a URL. If you cannot source a claim, leave it out.
+  - Presumption of innocence: never present anyone as guilty unless a conviction is final.
+    Always state the procedural stage (investigation, indictment, first instance, appeal,
+    cassation, final) and mention pending appeals.
+  - Say whether a finding concerns the group as a whole or named members, and name them.
+    Do not attribute a member's personal conduct to the whole group.
+  - Only report facts related to the group's public activity or of clear public interest.
+    Nothing about health, sexual orientation, religion, or private life of members.
+  - When the group or the member concerned responded publicly, include their position.
+  - Prefer the most recent information; mention when a decision was overturned.
+  - Do not confuse the group with homonyms (other groups, songs, albums, places): check the
+    name, country of origin, genre and formation date.
+
+source_guidance: >
+  Prefer international wire services and newspapers of record, plus reputable national outlets
+  of the group's country of origin (in any language). For legal facts, prefer official court or
+  ministry websites. Music magazines are fine for context but not for allegations. Avoid
+  tabloids, fan sites, social media posts and content farms; Wikipedia may help find leads but
+  is never a source.
+
+sections:
+  - id: identity
+    title: Identity
+    # Deterministic: formation, origin, genres, labels and members, built from Wikidata.
+    method: wikidata
+
+  - id: legal_proceedings
+    title: Legal proceedings
+    method: research
+    sensitive: true
+    ttl_days: 14
+    source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
+    max_searches: 8
+    max_fetches: 6
+    instructions: |
+      List criminal and significant civil proceedings involving this group or its members in
+      connection with the group: investigations, charges, trials, convictions, acquittals,
+      appeals, and lawsuits about the group's work (copyright, contracts, censorship or
+      banning of songs, albums or concerts by a court). For each, say who is concerned (the
+      group or named members), the court or authority, the procedural stage, whether it is
+      final, and the outcome. Include decisions later overturned, marked as overturned.
+      Remind that people are presumed innocent until a final conviction.
+    item_schema:
+      type: object
+      properties:
+        case_name: { type: string }
+        concerned: { type: string, description: "The group as a whole, or the named members." }
+        allegations_or_subject: { type: string }
+        court: { type: [string, "null"] }
+        country: { type: [string, "null"], description: "ISO 3166-1 alpha-2 code." }
+        procedural_stage:
+          type: string
+          enum: [investigation, indicted, first_instance, appeal, cassation, final, other]
+        is_final: { type: boolean }
+        outcome: { type: [string, "null"] }
+        last_update_date: { type: [string, "null"], description: "ISO date, possibly partial." }
+        response: { type: [string, "null"], description: "The concerned party's public response." }
+      required: [case_name, concerned, allegations_or_subject, court, country, procedural_stage, is_final, outcome, last_update_date, response]
+
+  - id: investigative_revelations
+    title: Investigative revelations
+    method: research
+    sensitive: true
+    ttl_days: 14
+    source_types: [investigative, wire, newspaper, broadcaster, magazine]
+    max_searches: 8
+    max_fetches: 6
+    instructions: |
+      List significant revelations about this group or its members' conduct within the group
+      published by recognised investigative outlets (original reporting, not opinion pieces or
+      reviews). For each: the outlet that first published it, the date, a neutral summary, who
+      is concerned, any follow-up (official investigation, lawsuit, cancelled tour, label
+      decision) and the response of the group or members.
+    item_schema:
+      type: object
+      properties:
+        title: { type: string }
+        outlet: { type: string }
+        publication_date: { type: [string, "null"] }
+        concerned: { type: string }
+        summary: { type: string }
+        follow_up: { type: [string, "null"] }
+        response: { type: [string, "null"] }
+      required: [title, outlet, publication_date, concerned, summary, follow_up, response]
+
+  - id: controversies
+    title: Controversies
+    method: research
+    sensitive: false
+    ttl_days: 7
+    source_types: [wire, newspaper, broadcaster, magazine, fact_check]
+    max_searches: 6
+    max_fetches: 4
+    instructions: |
+      List the most significant public controversies involving this group (lyrics, imagery,
+      statements, performances, political or symbolic use, sponsorship, ticketing, conduct of
+      members within the group) that received broad media coverage. Limit to the 8 most
+      significant. For each, give the perspectives of the main actors, including the group.
+    item_schema:
+      type: object
+      properties:
+        title: { type: string }
+        date: { type: [string, "null"] }
+        summary: { type: string }
+        perspectives:
+          type: array
+          items:
+            type: object
+            properties:
+              actor: { type: string }
+              position: { type: string }
+            required: [actor, position]
+      required: [title, date, summary, perspectives]

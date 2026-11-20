@@ -14,7 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const entityType = pgEnum("entity_type", ["person", "brand", "product"]);
+export const entityType = pgEnum("entity_type", ["person", "band", "brand", "product"]);
 
 export const reviewStatus = pgEnum("review_status", [
   "published", // visible to users

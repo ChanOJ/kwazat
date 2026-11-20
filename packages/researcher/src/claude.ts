@@ -238,9 +238,14 @@ export type SubjectContext = {
   label: string;
   wikidataId: string | null;
   description: string | null;
+  /** "person" (default) or "band" (music group). */
+  kind?: "person" | "band";
   birthDate: string | null;
   occupations: string[];
   nationalities: string[];
+  /** Bands: genres, and current/former members with their dates. */
+  genres?: string[];
+  members?: string[];
 };
 
 export function subjectBlock(s: SubjectContext): string {
@@ -248,7 +253,10 @@ export function subjectBlock(s: SubjectContext): string {
     `Name: ${s.label}`,
     s.wikidataId ? `Wikidata: ${s.wikidataId}` : null,
     s.description ? `Description: ${s.description}` : null,
-    s.birthDate ? `Born: ${s.birthDate}` : null,
+    s.kind === "band" ? "Type: music group (band)" : null,
+    s.birthDate ? `${s.kind === "band" ? "Formed" : "Born"}: ${s.birthDate}` : null,
+    s.genres?.length ? `Genres: ${s.genres.join(", ")}` : null,
+    s.members?.length ? `Members (Wikidata): ${s.members.join(", ")}` : null,
     s.occupations.length ? `Occupations: ${s.occupations.join(", ")}` : null,
     s.nationalities.length ? `Nationality: ${s.nationalities.join(", ")}` : null,
   ]
@@ -380,7 +388,7 @@ export async function research(
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {
       role: "user",
-      content: `Subject (make sure every finding is about this exact person, not a homonym):
+      content: `Subject (make sure every finding is about this exact person or group, not a homonym):
 ${subjectBlock(subject)}
 
 Section: ${section.title}

@@ -205,7 +205,7 @@ async function writeNotes(playbook: Playbook, section: ResearchSection, subject:
       {
         role: "user",
         content:
-          `Subject (make sure every finding is about this exact person, not a homonym):\n${subjectBlock(subject)}\n\n` +
+          `Subject (make sure every finding is about this exact person or group, not a homonym):\n${subjectBlock(subject)}\n\n` +
           `Section: ${section.title}\n${section.instructions}${countryContext(sources)}\n\nToday's date: ${today}\n\n` +
           `<documents>\n${docs.map(docBlock).join("\n")}\n</documents>`,
       },

@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Name search, as `pnpm lookup` does it: entities Kwazat already knows, then Wikidata
- * candidates (cached 24 h). Only people for now, like the researcher.
+ * candidates (cached 24 h). People and music groups.
  */
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
   const raw = (await searchParams).q;
@@ -24,7 +24,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const db = await getDb();
   const [known, candidates] = await Promise.all([
     searchKnownEntities(db, query),
-    wikidataCandidates(db, query, { humansOnly: true }).catch(() => null),
+    wikidataCandidates(db, query, { kinds: ["person", "band"] }).catch(() => null),
   ]);
   // Wikidata candidates Kwazat already has a sheet for link to it instead of starting research.
   const ids = candidates?.map((c) => c.wikidataId) ?? [];
@@ -53,6 +53,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             <li key={k.entityId}>
               <Link href={`/entity/${k.entityId}`} className="result-link">
                 <span className="label">{k.label}</span>
+                {k.type === "band" && <span className="kind">{t("kind.band")}</span>}
                 {k.description && <span className="description">{k.description}</span>}
               </Link>
             </li>
@@ -71,14 +72,17 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               {knownByWikidata.has(c.wikidataId) ? (
                 <Link href={`/entity/${knownByWikidata.get(c.wikidataId)}`} className="result-link">
                   <span className="label">{c.label}</span>
+                  {c.kind === "band" && <span className="kind">{t("kind.band")}</span>}
                   {c.description && <span className="description">{c.description}</span>}
                 </Link>
               ) : (
                 // A button, not a link: research is paid and must never start from a prefetch.
                 <form action={startResearch} className="result-research">
                   <input type="hidden" name="wikidataId" value={c.wikidataId} />
+                  <input type="hidden" name="type" value={c.kind ?? "person"} />
                   <button type="submit" className="result-button">
                     <span className="label">{c.label}</span>
+                    {c.kind === "band" && <span className="kind">{t("kind.band")}</span>}
                     {c.description && <span className="description">{c.description}</span>}
                     <span className="id">{t("notYet")}</span>
                   </button>

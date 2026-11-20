@@ -41,7 +41,7 @@ const Playbook = z
   .object({
     id: z.string(),
     version: z.number().int().positive(),
-    entity_type: z.enum(["person", "brand", "product"]),
+    entity_type: z.enum(["person", "band", "brand", "product"]),
     label: z.string(),
     scope: z.string(),
     style: z.string(),

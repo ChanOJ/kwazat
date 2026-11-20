@@ -25,7 +25,7 @@ p{color:var(--muted)}
 <body>
 <main>
 <h1>Kwazat</h1>
-<p class="lead">Neutral, sourced fact sheets on public figures, brands and products.</p>
+<p class="lead">Neutral, sourced fact sheets on anything.</p>
 <p>Type a name, get the facts: convictions, ongoing cases, investigations, ownership and relations, each one linked to its sources.</p>
 <p class="soon">Coming soon.</p>
 </main>

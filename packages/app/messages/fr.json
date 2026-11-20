@@ -1,6 +1,6 @@
 {
   "meta": {
-    "description": "Des fiches neutres et sourcées sur les personnalités publiques, les marques et les produits.",
+    "description": "Des fiches neutres et sourcées sur tout.",
     "search": "Recherche",
     "researching": "Recherche en cours",
     "login": "Connexion",
@@ -40,18 +40,19 @@
   },
   "home": {
     "title": "À qui avez-vous affaire ?",
-    "lead": "Des fiches neutres et sourcées sur les personnalités publiques, les marques et les produits."
+    "lead": "Des fiches neutres et sourcées sur tout."
   },
   "search": {
-    "label": "Nom d’une personnalité publique, d’une marque ou d’un produit",
-    "placeholder": "Une personnalité, une marque, un produit",
+    "label": "Nom d’une personnalité publique, d’un groupe de musique, d’une marque ou d’un produit",
+    "placeholder": "Une personnalité, un groupe, une marque, un produit",
     "button": "Rechercher",
     "known": "Déjà dans Kwazat",
     "noSheet": "Pas encore de fiche pour « {query} ».",
     "others": "Autres résultats sur Wikidata",
     "wikidataDown": "Wikidata ne répond pas. Réessayez dans un instant.",
     "noOther": "Aucun autre résultat.",
-    "notYet": "Pas encore dans Kwazat · lancer la recherche sur cette personne"
+    "notYet": "Pas encore dans Kwazat · lancer la recherche",
+    "kind": { "person": "Personne", "band": "Groupe" }
   },
   "research": {
     "failedTitle": "La recherche a échoué",
@@ -64,6 +65,15 @@
     "occupation": "Activité",
     "born": "Naissance",
     "died": "Décès",
+    "formed": "Formation",
+    "disbanded": "Séparation",
+    "origin": "Origine",
+    "genres": "Genres",
+    "recordLabels": "Labels",
+    "website": "Site",
+    "members": "Membres",
+    "memberOf": "Membre de",
+    "researchMember": "Rechercher",
     "inProgress": "Recherche en cours : les sections apparaissent au fur et à mesure.",
     "missing": "Certaines sections n’ont pas encore été recherchées.",
     "researchThem": "Les rechercher",
@@ -81,10 +91,12 @@
     "ongoing_cases": "Procédures judiciaires en cours",
     "investigative_revelations": "Révélations d’enquêtes",
     "controversies": "Polémiques",
+    "legal_proceedings": "Procédures judiciaires",
     "political_affiliation": "Affiliation politique",
     "notable_relations": "Relations notables"
   },
   "relations": {
+    "has_member": "membre",
     "spouse_of": "conjoint ou conjointe de",
     "former_spouse_of": "ex-conjoint ou ex-conjointe de",
     "partner_of": "en couple avec",
