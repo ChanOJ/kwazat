@@ -102,6 +102,9 @@ a { color: var(--accent); }
 .facts li { margin: .4rem 0; }
 .facts .date, .facts .relation { font-weight: 600; }
 .sources { font-size: .9rem; color: var(--muted); margin: .75rem 0 0; padding-left: 1.4rem; }
+/* Columns like the reference lists at the bottom of Wikipedia articles. */
+.sources { column-width: 16rem; column-gap: 2rem; }
+.sources li { break-inside: avoid; overflow-wrap: anywhere; }
 .waiting { text-align: center; padding-top: 2rem; }
 .spinner {
   width: 2rem; height: 2rem; margin: 1.5rem auto; border-radius: 50%;
