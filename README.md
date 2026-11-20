@@ -169,17 +169,21 @@ step (free) then every research section (paid, one attempt). In development the 
 inside the web server (one process, as PGlite requires); `KWAZAT_WORKER=off` disables it, and in
 production it only starts with `KWAZAT_WORKER=on` (a separate worker job is the plan).
 
-**Access, phase 1 (now): everything is behind login.** Anonymous visitors are sent to `/login`
-and come back to the page they asked for. There is **no signup**: no page, and Better Auth's
-signup endpoint is both disabled and removed. Accounts are created with `pnpm users` only. One
-file decides access, `packages/app/src/lib/access.ts`, enforced on every request by
-`packages/app/src/proxy.ts` (session checked against the database, so removing an account or
-changing its password logs it out at once).
+**Access (now): browsing and search are open to anyone past the preview gate** (`?dev=gloubi`
+sets the `dev` cookie); only `/settings` needs a session. Login is `/login`: address and
+password on one screen, then the second factor. Signup is its own page, `/signup` (address,
+password twice with live help, then the second factor setup): it is linked from the login screen
+(the address and password typed there are carried over in a 5-minute encrypted cookie limited to
+`/signup`) and from the "Sign up" entry of the profile menu. Signup is a separate page because
+Proton Pass only offers aliases and a password generator on a form it recognises as a signup.
+Accounts can also be created with `pnpm users`. One file decides access,
+`packages/app/src/lib/access.ts`, enforced on every request by `packages/app/src/proxy.ts`
+(session checked against the database, so removing an account or changing its password logs it
+out at once).
 
-**Phase 2** (browsing and search open to everyone, login for settings and personalization):
-set `LOGIN_REQUIRED_EVERYWHERE = false` in `access.ts`; paths under `PRIVATE_PREFIXES`
-(`/account`, `/red-lines`) keep needing a session. Then remove the `X-Robots-Tag` header of
-`next.config.ts` and the `robots` metadata of the root layout for the public pages.
+To put everything behind login again, set `LOGIN_REQUIRED_EVERYWHERE = true` in `access.ts`;
+paths under `PRIVATE_PREFIXES` always need a session. Before opening the public pages for real,
+remove the `X-Robots-Tag` header of `next.config.ts` and the `robots` metadata of the root layout.
 
 **Account (minimal data, GDPR).** An email address, a password and a **mandatory second factor**,
 nothing else (`name` is required by Better Auth and left empty). At the first login, the
