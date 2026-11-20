@@ -130,6 +130,15 @@ export function subjectOf(entity: Entity): SubjectContext {
   };
 }
 
+/** A band's members from Wikidata, with their membership dates when known ("Name (from 1994 to 2000)"). */
+export async function memberLines(db: Db, entityId: string): Promise<string[]> {
+  const rows = await db
+    .select({ label: relations.toLabel, description: relations.description })
+    .from(relations)
+    .where(and(eq(relations.fromEntityId, entityId), eq(relations.relationType, "has_member"), eq(relations.origin, "wikidata")));
+  return rows.map((r) => (r.description ? `${r.label} (${r.description})` : r.label));
+}
+
 export type SectionOutcome =
   | { status: "skipped"; reason: string }
   | { status: "succeeded"; facts: number; relations: number; needsReview: number; usage: Usage; durationMs: number }
@@ -184,6 +193,7 @@ export async function runSection(
   let usage = emptyUsage();
   try {
     const subject = subjectOf(entity);
+    if (entity.type === "band") subject.members = await memberLines(db, entity.id);
     const found = config.searchProvider === "anthropic"
       ? await research(playbook, section, subject, config, sources)
       : await researchWithSearch(playbook, section, subject, config, sources, registry);

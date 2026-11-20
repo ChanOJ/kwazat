@@ -89,7 +89,7 @@ test("the band playbook loads, with the sections the sheet page and messages kno
   assert.equal(pb.entity_type, "band");
   assert.deepEqual(
     pb.sections.map((s) => s.id),
-    ["identity", "legal_proceedings", "investigative_revelations", "controversies"],
+    ["identity", "legal_proceedings", "investigative_revelations", "controversies", "members_conduct"],
   );
 });
 
@@ -120,6 +120,40 @@ test("band members link to known sheets, and a person's sheet links back to its 
     assert.deepEqual([...known], [["Q154852", personId]]);
     assert.deepEqual(await bandsOfMember(db, "Q154852"), [{ entityId: bandId, label: "Rammstein" }]);
     assert.deepEqual(await bandsOfMember(db, "Q1"), []);
+  } finally {
+    await db.close();
+  }
+});
+
+test("the members section asks for the group's reaction, and group sections stay off members", () => {
+  const pb = loadPlaybook("band");
+  const section = (id: string) => pb.sections.find((s) => s.id === id);
+  const members = section("members_conduct");
+  assert.equal(members?.method, "research");
+  if (members?.method !== "research") return;
+  assert.equal(members.sensitive, true);
+  const reaction = (members.item_schema?.properties as Record<string, { enum?: string[] }>).group_response;
+  assert.deepEqual(reaction?.enum, ["distanced", "supported", "no_public_position", "unclear"]);
+  for (const id of ["legal_proceedings", "investigative_revelations", "controversies"]) {
+    const s = section(id);
+    assert.ok(s?.method === "research" && /single member|member's personal|members?\b.*another section/i.test(s.instructions), id);
+  }
+});
+
+test("a band's members are given to the research prompt with their dates", async () => {
+  const { entities, relations, openDb, uuidv7 } = await import("@kwazat/db");
+  const { memberLines } = await import("../src/pipeline.ts");
+  const db = await openDb({ dataDir: "memory://" });
+  try {
+    const id = uuidv7();
+    await db.insert(entities).values({ id, type: "band", label: "B" });
+    const base = { fromEntityId: id, relationType: "has_member", strength: 5, sources: [], origin: "wikidata", reviewStatus: "published" as const };
+    await db.insert(relations).values([
+      { ...base, toLabel: "Ann", description: null },
+      { ...base, toLabel: "Bob", description: "from 1994 to 2000" },
+      { ...base, toLabel: "Not a member", relationType: "sibling_of" },
+    ]);
+    assert.deepEqual((await memberLines(db, id)).sort(), ["Ann", "Bob (from 1994 to 2000)"]);
   } finally {
     await db.close();
   }

@@ -138,7 +138,10 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
 
       {researchSections.map((section) => {
           const run = sheet.runs.find((r) => r.sectionId === section.id);
-          const sectionFacts = sheet.facts.filter((f) => f.sectionId === section.id && f.reviewStatus !== "rejected");
+          // Most recent first (partial dates compare as text); undated items last.
+          const sectionFacts = sheet.facts
+            .filter((f) => f.sectionId === section.id && f.reviewStatus !== "rejected")
+            .sort((x, y) => (y.factDate ?? "").localeCompare(x.factDate ?? ""));
           const sectionRelations = sheet.relations.filter(
             (r) => r.origin !== "wikidata" && run && r.sectionRunId === run.id && r.reviewStatus !== "rejected",
           );
