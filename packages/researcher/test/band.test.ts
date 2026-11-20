@@ -100,3 +100,27 @@ test("the research prompt tells a band from a person", () => {
   assert.match(block, /Formed: 1994-01-04/);
   assert.doesNotMatch(subjectBlock(base), /Formed|music group/);
 });
+
+test("band members link to known sheets, and a person's sheet links back to its bands", async () => {
+  const { entities, entityIdentifiers, relations, openDb, uuidv7 } = await import("@kwazat/db");
+  const { bandsOfMember, knownByWikidataIds } = await import("../src/names.ts");
+  const db = await openDb({ dataDir: "memory://" });
+  try {
+    const [bandId, personId] = [uuidv7(), uuidv7()];
+    await db.insert(entities).values([
+      { id: bandId, type: "band", label: "Rammstein" },
+      { id: personId, type: "person", label: "Till Lindemann" },
+    ]);
+    await db.insert(entityIdentifiers).values({ entityId: personId, scheme: "wikidata", value: "Q154852", source: "test" });
+    await db.insert(relations).values([
+      { fromEntityId: bandId, toLabel: "Till Lindemann", toWikidataId: "Q154852", relationType: "has_member", strength: 5, sources: [], origin: "wikidata", reviewStatus: "published" },
+      { fromEntityId: bandId, toLabel: "Flake Lorenz", toWikidataId: "Q155687", relationType: "has_member", strength: 5, sources: [], origin: "wikidata", reviewStatus: "published" },
+    ]);
+    const known = await knownByWikidataIds(db, ["Q154852", "Q155687"]);
+    assert.deepEqual([...known], [["Q154852", personId]]);
+    assert.deepEqual(await bandsOfMember(db, "Q154852"), [{ entityId: bandId, label: "Rammstein" }]);
+    assert.deepEqual(await bandsOfMember(db, "Q1"), []);
+  } finally {
+    await db.close();
+  }
+});

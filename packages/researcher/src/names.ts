@@ -15,7 +15,9 @@ import {
   entities,
   entityIdentifiers,
   entityNames,
+  inArray,
   isNull,
+  relations,
   normalizeName,
   sql,
   wikidataSearchCache,
@@ -135,4 +137,24 @@ export async function findEntity(db: Db, id: string) {
     current = entity.mergedInto;
   }
   throw new Error(`Too many merge redirects from entity ${id}`);
+}
+
+/** Entities Kwazat already has a sheet for, by Wikidata id (to link band members to their sheets). */
+export async function knownByWikidataIds(db: Db, wikidataIds: string[]): Promise<Map<string, string>> {
+  if (!wikidataIds.length) return new Map();
+  const rows = await db
+    .select({ value: entityIdentifiers.value, entityId: entityIdentifiers.entityId })
+    .from(entityIdentifiers)
+    .where(and(eq(entityIdentifiers.scheme, "wikidata"), inArray(entityIdentifiers.value, wikidataIds)));
+  return new Map(rows.map((r) => [r.value, r.entityId]));
+}
+
+/** Bands (sheets in Kwazat) that list this Wikidata item as a member. */
+export async function bandsOfMember(db: Db, wikidataId: string): Promise<{ entityId: string; label: string }[]> {
+  const rows = await db
+    .selectDistinct({ entityId: entities.id, label: entities.label })
+    .from(relations)
+    .innerJoin(entities, eq(entities.id, relations.fromEntityId))
+    .where(and(eq(relations.toWikidataId, wikidataId), eq(relations.relationType, "has_member"), eq(relations.origin, "wikidata")));
+  return rows.sort((a, b) => a.label.localeCompare(b.label));
 }

@@ -72,6 +72,8 @@
     "recordLabels": "Labels",
     "website": "Website",
     "members": "Members",
+    "memberOf": "Member of",
+    "researchMember": "Research",
     "inProgress": "Research in progress: sections appear as they are done.",
     "missing": "Some sections have not been researched yet.",
     "researchThem": "Research them",

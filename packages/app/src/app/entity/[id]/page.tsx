@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Source } from "@kwazat/db";
-import { findEntity } from "@kwazat/researcher/names";
+import { bandsOfMember, findEntity, knownByWikidataIds } from "@kwazat/researcher/names";
 import { loadSheet, wikidataIdOf } from "@kwazat/researcher/pipeline";
 import { loadPlaybook } from "@kwazat/researcher/playbook";
 import { latestResearch, runningSections } from "@kwazat/researcher/worker";
@@ -61,6 +62,11 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const website = typeof identity.website === "string" ? identity.website : null;
   // Wikidata relations of a band are its members, shown under their own heading.
   const wikidataRelations = sheet.relations.filter((r) => r.origin === "wikidata");
+  // Members with a sheet of their own link to it; a person's sheet links back to its bands.
+  const memberSheets = isBand
+    ? await knownByWikidataIds(db, wikidataRelations.map((r) => r.toWikidataId).filter((x): x is string => !!x))
+    : new Map<string, string>();
+  const bands = !isBand && wikidataId ? await bandsOfMember(db, wikidataId) : [];
 
   return (
     <article className="sheet">
@@ -87,6 +93,14 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
                 </div>
               ))}
           </dl>
+          {bands.length > 0 && (
+            <p className="links">
+              {t("memberOf")}{" "}
+              {bands.map((b) => (
+                <Link key={b.entityId} href={`/entity/${b.entityId}`}>{b.label}</Link>
+              ))}
+            </p>
+          )}
           <p className="links">
             {typeof identity.wikipediaUrl === "string" && <a href={identity.wikipediaUrl}>Wikipedia</a>}
             {typeof identity.wikidataUrl === "string" && <a href={identity.wikidataUrl}>Wikidata</a>}
@@ -187,8 +201,20 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
             {wikidataRelations.map((r) => (
               <li key={r.id}>
                 {!isBand && <><span className="relation" lang={locale}>{relationLabel(r.relationType)}</span>{" "}</>}
-                {r.toLabel}
+                {isBand && r.toWikidataId && memberSheets.get(r.toWikidataId) ? (
+                  <Link href={`/entity/${memberSheets.get(r.toWikidataId)}`}>{r.toLabel}</Link>
+                ) : (
+                  r.toLabel
+                )}
                 {r.description && ` · ${r.description}`}
+                {isBand && r.toWikidataId && !memberSheets.has(r.toWikidataId) && (
+                  // A button, not a link: research is paid and must never start from a prefetch.
+                  <form action={startResearch} className="inline-form">
+                    <input type="hidden" name="wikidataId" value={r.toWikidataId} />
+                    <input type="hidden" name="type" value="person" />
+                    <button type="submit" className="link-button" aria-label={`${t("researchMember")}: ${r.toLabel}`}>{t("researchMember")}</button>
+                  </form>
+                )}
               </li>
             ))}
           </ul>
