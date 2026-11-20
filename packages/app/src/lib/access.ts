@@ -3,7 +3,7 @@
  * request.
  *
  * Browsing and search are open to anyone who gets past the preview gate (src/lib/dev-gate.ts);
- * only PRIVATE_PREFIXES (account, red lines) need a session. There is no signup, accounts are
+ * only PRIVATE_PREFIXES (settings) need a session. There is no signup, accounts are
  * created with `pnpm users`. Set LOGIN_REQUIRED_EVERYWHERE to true to put everything behind login.
  *
  * A second factor is mandatory: a session whose user has none set up can only reach the
@@ -18,10 +18,10 @@ const PUBLIC_PREFIXES = ["/login", "/api/auth"];
 const DEV_PUBLIC_PREFIXES = ["/dev/mail"];
 
 /** Need a session in every phase. */
-const PRIVATE_PREFIXES = ["/account", "/red-lines"];
+const PRIVATE_PREFIXES = ["/settings"];
 
 /** Where a session without a second factor is sent. */
-export const ENROLL_PATH = "/account/two-factor";
+export const ENROLL_PATH = "/settings/two-factor";
 
 export type Viewer = { twoFactorEnabled?: boolean | null } | null;
 export type Decision = "allow" | "login" | "enroll";

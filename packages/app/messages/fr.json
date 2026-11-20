@@ -7,18 +7,28 @@
     "code": "Code de vérification",
     "account": "Compte",
     "twoFactor": "Second facteur",
-    "redLines": "Lignes rouges"
+    "redLines": "Lignes rouges",
+    "settings": "Réglages",
+    "feedback": "Retours",
+    "help": "Aide"
   },
   "profile": {
     "menu": "Menu du profil",
-    "account": "Compte",
     "redLines": "Lignes rouges",
-    "logOut": "Se déconnecter",
+    "feedback": "Retours",
+    "help": "Aide",
+    "settings": "Réglages",
+    "language": "Langue",
+    "logOut": "Déconnexion",
     "anonymous": "Navigation anonyme",
-    "logIn": "Se connecter",
-    "language": "Langue"
+    "chooseLanguage": "Choisir la langue",
+    "searchLanguages": "Rechercher une langue",
+    "close": "Fermer"
   },
-  "languages": { "en": "English", "fr": "Français" },
+  "languages": {
+    "en": "English",
+    "fr": "Français"
+  },
   "home": {
     "title": "À qui avez-vous affaire ?",
     "lead": "Des fiches neutres et sourcées sur les personnalités publiques, les marques et les produits."
@@ -115,7 +125,7 @@
     "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}."
   },
   "account": {
-    "title": "Compte",
+    "title": "Réglages",
     "lead": "Kwazat ne conserve que le nécessaire pour la connexion : votre adresse e-mail, un mot de passe et un second facteur, ainsi que votre langue.",
     "emailStep": "Changement confirmé. Si l’adresse ci-dessous n’est pas encore la nouvelle, ouvrez le lien envoyé à la nouvelle adresse pour terminer.",
     "emailTitle": "E-mail",
@@ -145,7 +155,11 @@
     "languageLead": "Langue de l’interface. Par défaut, celle de votre navigateur.",
     "languageAuto": "Langue du navigateur",
     "languageSave": "Enregistrer",
-    "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}."
+    "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+    "languageChange": "Modifier",
+    "redLinesTitle": "Lignes rouges",
+    "redLinesLead": "Ce que vous ne voulez pas soutenir. Leur configuration arrive bientôt.",
+    "redLinesLink": "Comment fonctionnent les lignes rouges"
   },
   "twoFactor": {
     "titleChange": "Changer de second facteur",
@@ -180,7 +194,7 @@
   "redLines": {
     "title": "Lignes rouges",
     "lead": "Indiquez ce que vous ne voulez pas soutenir : Kwazat vous montre comment chaque personne, marque ou produit s’y situe, sources à l’appui.",
-    "soon": "Bientôt disponible : le fonctionnement des lignes rouges est en cours de conception."
+    "soon": "Bientôt : un aperçu du fonctionnement des lignes rouges, avec des captures d’écran."
   },
   "mail": {
     "codeSubject": "{code} est votre code Kwazat",
@@ -189,5 +203,13 @@
     "changeBody": "Une demande de changement de l’adresse e-mail de votre compte Kwazat vers {newEmail} a été faite (par vous, espérons-le).\n\nPour confirmer, ouvrez :\n{url}\n\nSi cette demande ne vient pas de vous, ignorez ce message et changez votre mot de passe.",
     "verifySubject": "Vérifiez votre adresse e-mail Kwazat",
     "verifyBody": "Ouvrez ce lien pour vérifier cette adresse pour votre compte Kwazat :\n{url}"
+  },
+  "feedback": {
+    "title": "Retours",
+    "soon": "Bientôt : de quoi nous dire ce que vous en pensez."
+  },
+  "help": {
+    "title": "Aide",
+    "soon": "Bientôt : le fonctionnement de Kwazat et la méthode de ses fiches."
   }
 }

@@ -19,24 +19,24 @@ const withTwoFactor = { twoFactorEnabled: true };
 
 test("login everywhere: every path needs a session except login, the auth API and the dev mailbox", () => {
   const all = { loginEverywhere: true };
-  for (const p of ["/", "/search", "/entity/x", "/account", "/red-lines", "/anything"]) assert.equal(access(p, null, all), "login", p);
+  for (const p of ["/", "/search", "/entity/x", "/settings", "/red-lines", "/anything"]) assert.equal(access(p, null, all), "login", p);
   for (const p of ["/login", "/login/code", "/api/auth/sign-in/email"]) assert.equal(access(p, null, all), "allow", p);
   assert.equal(access("/loginx", null, all), "login");
   assert.equal(access("/dev/mail", null, { ...all, development: true }), "allow");
   assert.equal(access("/dev/mail", null, { ...all, development: false }), "login");
-  for (const p of ["/", "/search", "/account"]) assert.equal(access(p, withTwoFactor, all), "allow", p);
+  for (const p of ["/", "/search", "/settings"]) assert.equal(access(p, withTwoFactor, all), "allow", p);
 });
 
-test("default: browsing and search open, account and red lines private", () => {
+test("default: everything open except settings", () => {
   const opts = {};
-  for (const p of ["/", "/search", "/entity/x"]) assert.equal(access(p, null, opts), "allow", p);
-  for (const p of ["/account", "/account/two-factor", "/red-lines"]) assert.equal(access(p, null, opts), "login", p);
+  for (const p of ["/", "/search", "/entity/x", "/red-lines", "/feedback", "/help"]) assert.equal(access(p, null, opts), "allow", p);
+  for (const p of ["/settings", "/settings/two-factor"]) assert.equal(access(p, null, opts), "login", p);
 });
 
 test("a session without a second factor can only set one up", () => {
   const viewer = { twoFactorEnabled: false };
-  for (const p of ["/", "/search", "/account", "/red-lines"]) assert.equal(access(p, viewer), "enroll", p);
-  assert.equal(access("/account/two-factor", viewer), "allow");
+  for (const p of ["/", "/search", "/settings", "/red-lines"]) assert.equal(access(p, viewer), "enroll", p);
+  assert.equal(access("/settings/two-factor", viewer), "allow");
   assert.equal(access("/login", viewer), "allow");
   assert.equal(access("/", viewer), "enroll");
 });

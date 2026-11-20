@@ -7,18 +7,28 @@
     "code": "Verification code",
     "account": "Account",
     "twoFactor": "Second factor",
-    "redLines": "Red lines"
+    "redLines": "Red lines",
+    "settings": "Settings",
+    "feedback": "Feedback",
+    "help": "Get help"
   },
   "profile": {
     "menu": "Profile menu",
-    "account": "Account",
     "redLines": "Red lines",
+    "feedback": "Feedback",
+    "help": "Get help",
+    "settings": "Settings",
+    "language": "Language",
     "logOut": "Log out",
     "anonymous": "Browsing anonymously",
-    "logIn": "Log in",
-    "language": "Language"
+    "chooseLanguage": "Choose your language",
+    "searchLanguages": "Search languages",
+    "close": "Close"
   },
-  "languages": { "en": "English", "fr": "Français" },
+  "languages": {
+    "en": "English",
+    "fr": "Français"
+  },
   "home": {
     "title": "Who are you dealing with?",
     "lead": "Neutral, sourced fact sheets on public figures, brands and products."
@@ -115,7 +125,7 @@
     "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}."
   },
   "account": {
-    "title": "Account",
+    "title": "Settings",
     "lead": "Kwazat only keeps what logging in needs: your email address, a password and a second factor, plus your language.",
     "emailStep": "Change confirmed. If the address below is not the new one yet, open the link we sent to the new address to finish.",
     "emailTitle": "Email",
@@ -145,7 +155,11 @@
     "languageLead": "Language of the interface. By default, your browser’s.",
     "languageAuto": "Browser language",
     "languageSave": "Save",
-    "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}."
+    "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "languageChange": "Change",
+    "redLinesTitle": "Red lines",
+    "redLinesLead": "What you do not want to support. Setting them up is coming soon.",
+    "redLinesLink": "How red lines work"
   },
   "twoFactor": {
     "titleChange": "Change your second factor",
@@ -180,7 +194,7 @@
   "redLines": {
     "title": "Red lines",
     "lead": "Choose what you do not want to support, and Kwazat will tell you how each person, brand or product measures up, with its sources.",
-    "soon": "Coming soon: how red lines work is being designed."
+    "soon": "Coming soon: a preview of how red lines work, with screenshots."
   },
   "mail": {
     "codeSubject": "{code} is your Kwazat code",
@@ -189,5 +203,13 @@
     "changeBody": "Someone (hopefully you) asked to change the email address of your Kwazat account to {newEmail}.\n\nTo confirm, open:\n{url}\n\nIf it was not you, ignore this message and change your password.",
     "verifySubject": "Verify your Kwazat email address",
     "verifyBody": "Open this link to verify this address for your Kwazat account:\n{url}"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "soon": "Coming soon: a way to tell us what you think."
+  },
+  "help": {
+    "title": "Get help",
+    "soon": "Coming soon: how Kwazat works and how its sheets are built."
   }
 }
