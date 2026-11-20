@@ -80,7 +80,15 @@ sections:
     item_schema:
       type: object
       properties:
-        severity: { type: string, enum: [high, medium, low, cleared] }
+        severity:
+          type: string
+          enum: [high, medium, low, cleared]
+          description: >
+            Legal or factual status, not an opinion. high: final criminal conviction, or misconduct
+            established by a court or admitted. medium: criminal charges, trial or appeal pending,
+            or serious allegations under official investigation. low: allegations, civil or
+            commercial dispute, controversy or reputational matter without criminal proceedings.
+            cleared: closed without charge, acquitted, dismissed or overturned.
         case_name: { type: string }
         subject: { type: string, description: "What the proceeding is about." }
         court: { type: [string, "null"] }
@@ -114,7 +122,15 @@ sections:
     item_schema:
       type: object
       properties:
-        severity: { type: string, enum: [high, medium, low, cleared] }
+        severity:
+          type: string
+          enum: [high, medium, low, cleared]
+          description: >
+            Legal or factual status, not an opinion. high: final criminal conviction, or misconduct
+            established by a court or admitted. medium: criminal charges, trial or appeal pending,
+            or serious allegations under official investigation. low: allegations, civil or
+            commercial dispute, controversy or reputational matter without criminal proceedings.
+            cleared: closed without charge, acquitted, dismissed or overturned.
         title: { type: string }
         outlet: { type: string }
         publication_date: { type: [string, "null"] }
@@ -141,7 +157,15 @@ sections:
     item_schema:
       type: object
       properties:
-        severity: { type: string, enum: [high, medium, low, cleared] }
+        severity:
+          type: string
+          enum: [high, medium, low, cleared]
+          description: >
+            Legal or factual status, not an opinion. high: final criminal conviction, or misconduct
+            established by a court or admitted. medium: criminal charges, trial or appeal pending,
+            or serious allegations under official investigation. low: allegations, civil or
+            commercial dispute, controversy or reputational matter without criminal proceedings.
+            cleared: closed without charge, acquitted, dismissed or overturned.
         title: { type: string }
         date: { type: [string, "null"] }
         summary: { type: string }
@@ -184,7 +208,15 @@ sections:
     item_schema:
       type: object
       properties:
-        severity: { type: string, enum: [high, medium, low, cleared] }
+        severity:
+          type: string
+          enum: [high, medium, low, cleared]
+          description: >
+            Legal or factual status, not an opinion. high: final criminal conviction, or misconduct
+            established by a court or admitted. medium: criminal charges, trial or appeal pending,
+            or serious allegations under official investigation. low: allegations, civil or
+            commercial dispute, controversy or reputational matter without criminal proceedings.
+            cleared: closed without charge, acquitted, dismissed or overturned.
         member: { type: string }
         membership_period: { type: [string, "null"], description: "E.g. 1994-present, or 1994-2000." }
         matter: { type: string, description: "One neutral line." }

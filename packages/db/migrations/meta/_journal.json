@@ -50,6 +50,13 @@
       "when": 1795210645115,
       "tag": "0006_band_entity_type",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795215454939,
+      "tag": "0007_research_hash",
+      "breakpoints": true
     }
   ]
 }

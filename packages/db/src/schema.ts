@@ -168,6 +168,10 @@ export const sectionRuns = pgTable(
     playbookVersion: integer("playbook_version").notNull(),
     sectionId: text("section_id").notNull(),
     sectionHash: text("section_hash").notNull(),
+    /** Hash of the research step alone: equal hashes mean the saved notes are still valid. */
+    researchHash: text("research_hash"),
+    /** The research notes of an earlier run were reused (only the extraction ran again). */
+    notesReused: boolean("notes_reused").notNull().default(false),
     model: text("model").notNull(),
     status: runStatus("status").notNull().default("running"),
     /** Free-text research notes produced by the research step (kept for audit/debug). */

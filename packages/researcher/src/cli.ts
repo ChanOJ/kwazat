@@ -216,7 +216,7 @@ async function main() {
         else if (outcome.status === "failed") console.error(`FAILED: ${outcome.error}`);
         else
           console.error(
-            `${outcome.facts} facts, ${outcome.relations} relations (${outcome.needsReview} to review) · ` +
+            `${outcome.notesReused ? "notes reused, " : ""}${outcome.facts} facts, ${outcome.relations} relations (${outcome.needsReview} to review) · ` +
               `${formatCost(outcome.usage)} · ${(outcome.durationMs / 1000).toFixed(0)}s`,
           );
         if (outcome.status !== "skipped") total = addUsage(total, outcome.usage);

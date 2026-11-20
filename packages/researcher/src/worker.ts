@@ -88,7 +88,7 @@ export async function researchProgress(
   const history = await db
     .select({ sectionId: sectionRuns.sectionId, startedAt: sectionRuns.startedAt, finishedAt: sectionRuns.finishedAt })
     .from(sectionRuns)
-    .where(and(eq(sectionRuns.playbookId, playbookId), eq(sectionRuns.status, "succeeded")))
+    .where(and(eq(sectionRuns.playbookId, playbookId), eq(sectionRuns.status, "succeeded"), eq(sectionRuns.notesReused, false)))
     .orderBy(desc(sectionRuns.startedAt))
     .limit(200);
   const parts: SectionProgress[] = sections.map((s) => {

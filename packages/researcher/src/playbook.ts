@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
-import { PIPELINE_FINGERPRINT, toolBudget, type RunConfig } from "./claude.ts";
+import { EXTRACTION_FINGERPRINT, RESEARCH_FINGERPRINT, toolBudget, type RunConfig } from "./claude.ts";
 import { SEARCH_PIPELINE_FINGERPRINT } from "./research.ts";
 import { SourceTypeSchema, type SourceSelection } from "./sources.ts";
 
@@ -87,10 +87,54 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
+const sha = (value: unknown) => createHash("sha256").update(stableStringify(value)).digest("hex").slice(0, 16);
+
 /**
- * Hash of everything that influences a section's output: the section definition, the shared
- * style rules, the sources selected for this subject, the models, effort and tool budgets. A
- * change in any of them makes existing results for this section stale. The source selection
+ * Hash of everything that influences the research step of a section (what is searched and
+ * read): the section's instructions, the shared style rules, the sources selected for this
+ * subject, the research model, effort and tool budgets, the search provider and the research
+ * code. When it is unchanged, the notes of an earlier run are still valid.
+ */
+export function researchHash(
+  playbook: Playbook,
+  section: PlaybookSection,
+  config: RunConfig,
+  sources: SourceSelection | null,
+): string {
+  const research = section.method === "research";
+  // What only shapes the extracted items (schema, relations) does not change the research.
+  const { item_schema: _schema, emits_relations: _emits, relation_types: _types, ttl_days: _ttl, ...researchPart } =
+    section as Record<string, unknown>;
+  return sha({
+    section: researchPart,
+    style: playbook.style,
+    sourceGuidance: playbook.source_guidance,
+    sources,
+    researchModel: config.researchModel,
+    researchEffort: config.researchEffort,
+    // Effective budgets (not the raw caps): raising a cap above a section's limit changes nothing.
+    budget: research ? toolBudget(section, config) : null,
+    searchProvider: config.searchProvider,
+    pipeline: config.searchProvider === "anthropic" ? RESEARCH_FINGERPRINT : SEARCH_PIPELINE_FINGERPRINT,
+  });
+}
+
+/** Hash of what influences the extraction of items from the notes: schema, model, extraction code. */
+export function extractionHash(section: PlaybookSection, config: RunConfig): string {
+  const research = section.method === "research";
+  return sha({
+    title: section.title,
+    itemSchema: research ? section.item_schema ?? null : null,
+    emitsRelations: research ? section.emits_relations : null,
+    relationTypes: research ? section.relation_types ?? null : null,
+    extractModel: config.extractModel,
+    pipeline: EXTRACTION_FINGERPRINT,
+  });
+}
+
+/**
+ * Hash of everything that influences a section's output: its research and its extraction. A
+ * change in either makes existing results for this section stale. The source selection
  * depends on the subject's countries, so editing sources/FR.yaml only affects French subjects.
  */
 export function sectionHash(
@@ -99,19 +143,5 @@ export function sectionHash(
   config: RunConfig,
   sources: SourceSelection | null,
 ): string {
-  const research = section.method === "research";
-  const payload = stableStringify({
-    section,
-    style: playbook.style,
-    sourceGuidance: playbook.source_guidance,
-    sources,
-    researchModel: config.researchModel,
-    extractModel: config.extractModel,
-    researchEffort: config.researchEffort,
-    // Effective budgets (not the raw caps): raising a cap above a section's limit changes nothing.
-    budget: research ? toolBudget(section, config) : null,
-    searchProvider: config.searchProvider,
-    pipeline: config.searchProvider === "anthropic" ? PIPELINE_FINGERPRINT : SEARCH_PIPELINE_FINGERPRINT,
-  });
-  return createHash("sha256").update(payload).digest("hex").slice(0, 16);
+  return sha([researchHash(playbook, section, config, sources), extractionHash(section, config)]);
 }
