@@ -65,7 +65,7 @@ button {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .search-form { display: flex; gap: .5rem; }
-.stack { display: grid; gap: 1rem; max-width: 22rem; }
+.stack { display: grid; gap: 1rem; max-width: 32rem; }
 .stack label { display: grid; gap: .25rem; font-weight: 600; }
 .error { color: var(--error); }
 .empty { color: var(--muted); }
