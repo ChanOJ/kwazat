@@ -12,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Second screen of the login: the password. */
-export default async function LoginPasswordPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
-  const { next: rawNext, error } = await searchParams;
+export default async function LoginPasswordPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; exists?: string }> }) {
+  const { next: rawNext, error, exists } = await searchParams;
   const next = safeNextPath(rawNext);
   const viewer = await getViewer();
   if (viewer) redirect(viewer.twoFactorEnabled ? next : ENROLL_PATH);
@@ -23,6 +23,7 @@ export default async function LoginPasswordPage({ searchParams }: { searchParams
   return (
     <section className="login">
       <h1>{t("passwordTitle")}</h1>
+      {exists && !error && <p className="notice">{t("exists")}</p>}
       {error && (
         <p className="error" role="alert">
           {t("error")}

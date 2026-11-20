@@ -27,7 +27,10 @@ export async function startLogin(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!looksLikeEmail(email)) redirect(withNext("/login?error=email", next));
   (await cookies()).set(EMAIL_COOKIE, email, EMAIL_COOKIE_OPTIONS);
-  redirect(withNext(formData.get("intent") === "signup" ? "/signup/password" : "/login/password", next));
+  if (formData.get("intent") !== "signup") redirect(withNext("/login/password", next));
+  // Say so now rather than after two passwords. Rate-limited, since it reveals that an account exists.
+  const [existing] = hit(passwordChecks(clientIp(await headers()), email)) > 0 ? [] : await (await getDb()).select({ id: users.id }).from(users).where(eq(users.email, email));
+  redirect(withNext(existing ? "/login/password?exists=1" : "/signup/password", next));
 }
 
 /** Second screen of the login: the password for the address from the first screen. */
