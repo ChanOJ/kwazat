@@ -7,7 +7,7 @@ import { bandsOfMember, findEntity, knownByWikidataIds } from "@kwazat/researche
 import { loadSheet, wikidataIdOf } from "@kwazat/researcher/pipeline";
 import { SEVERITIES, SEVERITY_ICONS, severityOf } from "@kwazat/researcher/severity";
 import { loadPlaybook } from "@kwazat/researcher/playbook";
-import { latestResearch, runningSections } from "@kwazat/researcher/worker";
+import { latestResearch, researchProgress, runningSections } from "@kwazat/researcher/worker";
 import { getDb } from "@/lib/db.ts";
 import { AutoRefresh } from "../../auto-refresh.tsx";
 import { startResearch } from "../../research/actions.ts";
@@ -45,6 +45,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const inProgress = job?.status === "queued" || job?.status === "running";
   const running = new Set(inProgress ? await runningSections(db, entity.id) : []);
   const researchSections = playbook.sections.filter((s) => s.method === "research");
+  const progress = inProgress && job ? await researchProgress(db, entity.id, researchSections, job.createdAt) : null;
   const identity = entity.identity as Record<string, unknown>;
   // Legend of the severity icons that appear on this sheet.
   const legend = SEVERITIES.filter((s) => sheet.facts.some((f) => f.reviewStatus !== "rejected" && severityOf(f.data) === s));
@@ -117,9 +118,24 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
         </p>
       )}
       {inProgress && (
-        <p className="notice" aria-live="polite">
-          {t("inProgress")}
-        </p>
+        <div className="notice progress-notice" aria-live="polite">
+          <p>{t("inProgress")}</p>
+          {progress && (
+            <>
+              <div
+                className="progress"
+                role="progressbar"
+                aria-label={t("progress", progress)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress.percent}
+              >
+                <div className="progress-bar" style={{ width: `${progress.percent}%` }} />
+              </div>
+              <p className="progress-text">{t("progress", progress)}</p>
+            </>
+          )}
+        </div>
       )}
       {!inProgress && job?.status !== "failed" && wikidataId && researchSections.some((s) => !sheet.runs.some((r) => r.sectionId === s.id)) && (
         <form action={startResearch} className="notice">

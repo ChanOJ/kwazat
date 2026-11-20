@@ -218,3 +218,9 @@ a.button:hover { filter: brightness(1.1); }
 .severity { margin-right: .15rem; cursor: help; }
 .severity-legend { color: var(--muted); font-size: .9rem; margin: 1rem 0; }
 .severity-legend ul { list-style: none; padding-left: 0; margin: .5rem 0 0; }
+
+.progress-notice { display: grid; gap: .5rem; }
+.progress { height: .5rem; border-radius: 999px; background: var(--line); overflow: hidden; }
+.progress-bar { height: 100%; background: var(--accent); transition: width 3s linear; }
+.progress-text { color: var(--muted); font-size: .9rem; }
+@media (prefers-reduced-motion: reduce) { .progress-bar { transition: none; } }
