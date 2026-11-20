@@ -7,7 +7,7 @@
 export const SEVERITIES = ["high", "medium", "low", "cleared"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
-export const SEVERITY_ICONS: Record<Severity, string> = { high: "🔴", medium: "🟠", low: "🟡", cleared: "🟢" };
+export const SEVERITY_ICONS: Record<Severity, string> = { high: "🔴", medium: "🟠", low: "🟡", cleared: "◯" };
 
 /** Severity of a fact from its structured data, or null when it has none. */
 export function severityOf(data: Record<string, unknown> | null | undefined): Severity | null {
