@@ -1,6 +1,6 @@
 {
   "meta": {
-    "description": "Des fiches neutres et sourcées sur les personnalités publiques, les marques et les produits.",
+    "description": "Des fiches neutres et sourcées sur tout.",
     "search": "Recherche",
     "researching": "Recherche en cours",
     "login": "Connexion",
@@ -40,7 +40,7 @@
   },
   "home": {
     "title": "À qui avez-vous affaire ?",
-    "lead": "Des fiches neutres et sourcées sur les personnalités publiques, les marques et les produits."
+    "lead": "Des fiches neutres et sourcées sur tout."
   },
   "search": {
     "label": "Nom d’une personnalité publique, d’un groupe de musique, d’une marque ou d’un produit",

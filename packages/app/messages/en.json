@@ -1,6 +1,6 @@
 {
   "meta": {
-    "description": "Neutral, sourced fact sheets on public figures, brands and products.",
+    "description": "Neutral, sourced fact sheets on anything.",
     "search": "Search",
     "researching": "Researching",
     "login": "Log in",
@@ -40,7 +40,7 @@
   },
   "home": {
     "title": "Who are you dealing with?",
-    "lead": "Neutral, sourced fact sheets on public figures, brands and products."
+    "lead": "Neutral, sourced fact sheets on anything."
   },
   "search": {
     "label": "Name of a public figure, band, brand or product",
