@@ -1,52 +1,44 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { safeNextPath } from "@/lib/access.ts";
-import { getAuth } from "@/lib/auth.ts";
+import { ENROLL_PATH, safeNextPath } from "@/lib/access.ts";
 import { getViewer } from "@/lib/viewer.ts";
+import { logIn } from "./actions.ts";
 
-export const metadata: Metadata = { title: "Log in" };
-
-async function logIn(formData: FormData): Promise<void> {
-  "use server";
-  const next = safeNextPath(formData.get("next"));
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  const auth = await getAuth();
-  let ok = false;
-  try {
-    // nextCookies() turns the session cookie of this call into a response cookie.
-    await auth.api.signInEmail({ body: { email, password }, headers: await headers() });
-    ok = true;
-  } catch {
-    // Same message whatever went wrong (unknown email, wrong password, rate limit).
-  }
-  redirect(ok ? next : `/login?error=1${next === "/" ? "" : `&next=${encodeURIComponent(next)}`}`);
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getTranslations("meta"))("login") };
 }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
-  const { next, error } = await searchParams;
-  if (await getViewer()) redirect(safeNextPath(next));
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; expired?: string }> }) {
+  const { next, error, expired } = await searchParams;
+  const viewer = await getViewer();
+  if (viewer) redirect(viewer.twoFactorEnabled ? safeNextPath(next) : ENROLL_PATH);
+  const t = await getTranslations("login");
   return (
     <section className="login">
-      <h1>Log in</h1>
-      <p className="lead">Kwazat is in private preview.</p>
+      <h1>{t("title")}</h1>
+      <p className="lead">{t("lead")}</p>
       {error && (
         <p className="error" role="alert">
-          Wrong email or password, or too many attempts. Try again in a minute.
+          {t("error")}
+        </p>
+      )}
+      {expired && (
+        <p className="error" role="alert">
+          {t("expired")}
         </p>
       )}
       <form action={logIn} className="stack">
         <input type="hidden" name="next" value={safeNextPath(next)} />
         <label>
-          Email
+          {t("email")}
           <input name="email" type="email" autoComplete="username" required autoFocus />
         </label>
         <label>
-          Password
+          {t("password")}
           <input name="password" type="password" autoComplete="current-password" required />
         </label>
-        <button type="submit">Log in</button>
+        <button type="submit">{t("submit")}</button>
       </form>
     </section>
   );

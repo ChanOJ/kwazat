@@ -1,35 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { getViewer } from "@/lib/viewer.ts";
-import { signOut } from "./actions.ts";
+import { AnonymousProfile, ProfileMenu } from "./profile-menu.tsx";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: { default: "Kwazat", template: "%s · Kwazat" },
-  description: "Neutral, sourced fact sheets on public figures, brands and products.",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return {
+    title: { default: "Kwazat", template: "%s · Kwazat" },
+    description: t("description"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const viewer = await getViewer();
+  const [viewer, locale] = await Promise.all([getViewer(), getLocale()]);
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body>
-        <header className="site-header">
-          <Link href="/" className="brand">
-            Kwazat
-          </Link>
-          {viewer && (
-            <form action={signOut} className="session">
-              <span className="who">{viewer.name}</span>
-              <button type="submit" className="link-button">
-                Log out
-              </button>
-            </form>
-          )}
-        </header>
-        <main>{children}</main>
+        <NextIntlClientProvider>
+          <header className="site-header">
+            <Link href="/" className="brand">
+              Kwazat
+            </Link>
+            {viewer ? <ProfileMenu email={viewer.email} /> : <AnonymousProfile />}
+          </header>
+          <main>{children}</main>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

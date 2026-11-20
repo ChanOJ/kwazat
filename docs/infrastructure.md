@@ -23,9 +23,14 @@ locally only since 2026-11-19; `test.kwazat.fyi` and `www.kwazat.fyi` still serv
 waiting page. Deploying it is a separate change: a Node image for `packages/app` in place of (or
 behind) the Caddy container, keeping its security headers, redirects, `robots.txt` and
 `security.txt`; a `BETTER_AUTH_SECRET` secret per environment and `DATABASE_URL` (runtime
-identity) for the container; `BETTER_AUTH_URL` per environment; the client IP forwarded by
-Scaleway trusted for login rate limiting; and the owner's account created with
-`DATABASE_URL=... pnpm users add` against each database.
+identity) for the container; `BETTER_AUTH_URL` per environment; the client IP for rate
+limiting, which the app reads from the last `X-Forwarded-For` entry, so the proxy in front of it
+must append the real client address there; a mail transport for sign-in codes and email changes:
+Scaleway Transactional Email, sending from the dedicated subdomain `auth.kwazat.fyi` (decided
+2026-11-20) with its own SPF, DKIM and DMARC, so login mail keeps its own reputation, apart
+from Proton's mail on `kwazat.fyi`;
+a research worker job running the `research` queue with the Anthropic and Brave keys; and the
+owner's account created with `DATABASE_URL=... pnpm users add` against each database.
 
 ## Environments
 

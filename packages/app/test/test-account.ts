@@ -5,6 +5,5 @@
  */
 export const TEST_ACCOUNT = {
   email: "test@kwazat.local",
-  name: "Test account",
   password: "local-test-account-only",
 };

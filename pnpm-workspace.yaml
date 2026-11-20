@@ -2,6 +2,9 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
+  # Pulled in by next-intl; their install scripts are not needed (prebuilt binaries ship as optional deps).
+  "@parcel/watcher": false
+  "@swc/core": false
 # drizzle-kit (dev only, `pnpm db:generate`) still pulls esbuild 0.18 through the deprecated
 # @esbuild-kit loader; esbuild <= 0.24.2 has GHSA-67mh-4wv8-2f99 (its dev server).
 overrides:

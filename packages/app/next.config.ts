@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const config: NextConfig = {
   // Workspace packages are TypeScript sources (imports with .ts extensions).
@@ -23,4 +24,5 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+// Interface language without locale prefixes in URLs: see src/i18n/request.ts.
+export default createNextIntlPlugin("./src/i18n/request.ts")(config);
