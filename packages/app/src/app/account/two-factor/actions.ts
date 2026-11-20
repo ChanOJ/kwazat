@@ -5,14 +5,21 @@ import QRCode from "qrcode";
 import { eq, twoFactors, users } from "@kwazat/db";
 import { getAuth } from "@/lib/auth.ts";
 import { getDb } from "@/lib/db.ts";
+import { clientIp, hit, LIMITS, passwordChecks, RESEND_SECONDS, sendChecks, waitMinutes } from "@/lib/rate-limit.ts";
 
 export type Method = "email" | "totp";
 
-/** `error` is a message key of the "twoFactor" namespace. */
+/**
+ * `error` is a message key of the "twoFactor" namespace, `minutes` its value for "tooMany".
+ * `resendIn` is the resend countdown in seconds, restarted whenever `sentAt` (ms) changes.
+ */
+type Problem = { error?: string; minutes?: number };
 export type EnrollState =
-  | { step: "choose"; error?: string }
-  | { step: "verify"; method: Method; qrSvg?: string; totpURI?: string; backupCodes?: string[]; error?: string }
+  | ({ step: "choose" } & Problem)
+  | ({ step: "verify"; method: Method; qrSvg?: string; totpURI?: string; backupCodes?: string[]; sentAt?: number; resendIn?: number; resent?: boolean } & Problem)
   | { step: "done"; method: Method; backupCodes?: string[] };
+
+const tooMany = (wait: number): Problem => ({ error: "tooMany", minutes: waitMinutes(wait) });
 
 async function currentUser() {
   const auth = await getAuth();
@@ -35,11 +42,16 @@ async function startEnrollment(_: EnrollState, formData: FormData): Promise<Enro
   const method: Method = formData.get("method") === "totp" ? "totp" : "email";
   const password = String(formData.get("password") ?? "");
   const { auth, user } = await currentUser();
-  if (!(await passwordIsRight(user.id, password))) return { step: "choose", error: "wrongPassword" };
   const requestHeaders = await headers();
+  const ip = clientIp(requestHeaders);
+  const passwordWait = hit(passwordChecks(ip, user.email));
+  if (passwordWait > 0) return { step: "choose", ...tooMany(passwordWait) };
+  if (!(await passwordIsRight(user.id, password))) return { step: "choose", error: "wrongPassword" };
   if (method === "email") {
+    const wait = hit(sendChecks(ip, user.email));
+    if (wait > 0) return { step: "choose", ...tooMany(wait) };
     await auth.api.sendTwoFactorOTP({ headers: requestHeaders });
-    return { step: "verify", method };
+    return { step: "verify", method, sentAt: Date.now(), resendIn: RESEND_SECONDS };
   }
   // A verified authenticator must be replaced, not doubled: mark it unverified first.
   const db = await getDb();
@@ -57,11 +69,13 @@ async function confirmEnrollment(state: EnrollState, formData: FormData): Promis
   const code = String(formData.get("code") ?? "").replace(/\s+/g, "");
   const { auth, user } = await currentUser();
   const requestHeaders = await headers();
+  const wait = hit([[`code:ip:${clientIp(requestHeaders)}`, LIMITS.codePerIp]]);
+  if (wait > 0) return { ...state, resent: false, ...tooMany(wait) };
   try {
     if (state.method === "totp") await auth.api.verifyTOTP({ body: { code }, headers: requestHeaders });
     else await auth.api.verifyTwoFactorOTP({ body: { code }, headers: requestHeaders });
   } catch {
-    return { ...state, error: "wrongCode" };
+    return { ...state, resent: false, error: "wrongCode" };
   }
   const db = await getDb();
   await db.update(users).set({ twoFactorEnabled: true, twoFactorMethod: state.method, updatedAt: new Date() }).where(eq(users.id, user.id));
@@ -79,9 +93,12 @@ export async function enroll(state: EnrollState, formData: FormData): Promise<En
       return confirmEnrollment(state, formData);
     case "resend": {
       if (state.step !== "verify" || state.method !== "email") return state;
-      const { auth } = await currentUser();
-      await auth.api.sendTwoFactorOTP({ headers: await headers() });
-      return { ...state, error: undefined };
+      const { auth, user } = await currentUser();
+      const requestHeaders = await headers();
+      const wait = hit(sendChecks(clientIp(requestHeaders), user.email));
+      if (wait > 0) return { ...state, resent: false, sentAt: Date.now(), resendIn: wait, ...tooMany(wait) };
+      await auth.api.sendTwoFactorOTP({ headers: requestHeaders });
+      return { ...state, error: undefined, minutes: undefined, resent: true, sentAt: Date.now(), resendIn: RESEND_SECONDS };
     }
     default:
       return { step: "choose" };

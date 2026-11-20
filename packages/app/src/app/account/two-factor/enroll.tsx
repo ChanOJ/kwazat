@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
+import { ResendButton } from "../../resend-button.tsx";
 import { enroll, type EnrollState, type Method } from "./actions.ts";
 
 export function Enroll({ current }: { current: Method | null }) {
@@ -50,9 +51,10 @@ export function Enroll({ current }: { current: Method | null }) {
         ) : (
           <p>{t("emailSent")}</p>
         )}
+        {state.resent && <p className="notice">{t("sent")}</p>}
         {state.error && (
           <p className="error" role="alert">
-            {t(state.error as never)}
+            {t(state.error as never, { minutes: state.minutes ?? 1 } as never)}
           </p>
         )}
         <form action={action} className="stack">
@@ -67,9 +69,7 @@ export function Enroll({ current }: { current: Method | null }) {
         </form>
         <form action={action} className="alt-actions">
           {state.method === "email" && (
-            <button type="submit" name="op" value="resend" className="link-button" disabled={pending}>
-              {t("resend")}
-            </button>
+            <ResendButton key={state.sentAt} namespace="twoFactor" seconds={state.resendIn ?? 0} name="op" value="resend" disabled={pending} />
           )}
           <button type="submit" name="op" value="restart" className="link-button" disabled={pending}>
             {t("another")}
@@ -84,7 +84,7 @@ export function Enroll({ current }: { current: Method | null }) {
       <input type="hidden" name="op" value="start" />
       {state.error && (
         <p className="error" role="alert">
-          {t(state.error as never)}
+          {t(state.error as never, { minutes: state.minutes ?? 1 } as never)}
         </p>
       )}
       <fieldset className="choices">

@@ -88,7 +88,7 @@
   "login": {
     "title": "Log in",
     "lead": "Kwazat is in private preview.",
-    "error": "Wrong email or password, or too many attempts. Try again in a minute.",
+    "error": "Wrong email or password, or too many attempts. Try again in a few minutes.",
     "expired": "The login took too long. Please start again.",
     "email": "Email",
     "password": "Password",
@@ -102,7 +102,7 @@
     "leadPrefilled": "Your code is filled in: confirm to log in.",
     "leadEmail": "We emailed you a 6-digit code and a link. They expire in {minutes} minutes.",
     "error": "This code is wrong or has expired.",
-    "sent": "A new code is on its way.",
+    "sent": "New code sent. Codes sent earlier no longer work.",
     "labelCode": "Code",
     "labelBackup": "Backup code",
     "trust": "Trust this device for 30 days",
@@ -110,7 +110,9 @@
     "resend": "Send a new code",
     "useApp": "Use the authenticator app",
     "useBackup": "Use a backup code",
-    "restart": "Start again"
+    "restart": "Start again",
+    "resendIn": "Send a new code ({time})",
+    "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}."
   },
   "account": {
     "title": "Account",
@@ -142,7 +144,8 @@
     "languageTitle": "Language",
     "languageLead": "Language of the interface. By default, your browser’s.",
     "languageAuto": "Browser language",
-    "languageSave": "Save"
+    "languageSave": "Save",
+    "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}."
   },
   "twoFactor": {
     "titleChange": "Change your second factor",
@@ -169,7 +172,10 @@
     "currentPassword": "Current password",
     "start": "Continue",
     "wrongPassword": "Wrong password.",
-    "wrongCode": "This code is wrong or has expired."
+    "wrongCode": "This code is wrong or has expired.",
+    "sent": "New code sent. Codes sent earlier no longer work.",
+    "resendIn": "Send a new code ({time})",
+    "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}."
   },
   "redLines": {
     "title": "Red lines",

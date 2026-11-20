@@ -78,13 +78,18 @@ export function createAuth(db: Db, opts: { baseURL?: string } = {}) {
       expiresIn: 60 * 60 * 24 * 30, // 30 days, extended while used
       updateAge: 60 * 60 * 24,
     },
-    // Login attempts per IP, also in development (default: production only). In memory: per
-    // server process, enough for one container.
+    // Direct calls to /api/auth, per IP, also in development (default: production only). In
+    // memory: per server process, enough for one container. The app's own forms call `auth.api`
+    // from server actions, which skips these rules: they use lib/rate-limit.ts instead.
     rateLimit: {
       enabled: true,
       window: 60,
       max: 100,
-      customRules: { "/sign-in/email": { window: 60, max: 5 } },
+      customRules: {
+        "/sign-in/email": { window: 60, max: 5 },
+        "/two-factor/send-otp": { window: 30, max: 1 },
+        "/two-factor/verify-*": { window: 60, max: 10 },
+      },
     },
     advanced: { database: { generateId: () => uuidv7() } },
     telemetry: { enabled: false },
@@ -93,6 +98,8 @@ export function createAuth(db: Db, opts: { baseURL?: string } = {}) {
         issuer: "Kwazat",
         otpOptions: {
           period: EMAIL_CODE_MINUTES,
+          // Only a hash in the database: a leaked table gives no usable code.
+          storeOTP: "hashed",
           // The code, plus a link that opens the code page with it filled in (same browser).
           sendOTP: async ({ user, otp }, ctx) => {
             const t = translator(mailLocale(user, ctx?.headers), "mail");

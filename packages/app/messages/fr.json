@@ -88,7 +88,7 @@
   "login": {
     "title": "Connexion",
     "lead": "Kwazat est en accès privé.",
-    "error": "E-mail ou mot de passe incorrect, ou trop de tentatives. Réessayez dans une minute.",
+    "error": "E-mail ou mot de passe incorrect, ou trop de tentatives. Réessayez dans quelques minutes.",
     "expired": "La connexion a pris trop de temps. Recommencez, s’il vous plaît.",
     "email": "E-mail",
     "password": "Mot de passe",
@@ -102,7 +102,7 @@
     "leadPrefilled": "Votre code est déjà rempli : confirmez pour vous connecter.",
     "leadEmail": "Nous vous avons envoyé par e-mail un code à 6 chiffres et un lien. Ils expirent dans {minutes} minutes.",
     "error": "Ce code est incorrect ou a expiré.",
-    "sent": "Un nouveau code est en route.",
+    "sent": "Nouveau code envoyé. Les codes reçus avant ne fonctionnent plus.",
     "labelCode": "Code",
     "labelBackup": "Code de secours",
     "trust": "Faire confiance à cet appareil pendant 30 jours",
@@ -110,7 +110,9 @@
     "resend": "Envoyer un nouveau code",
     "useApp": "Utiliser l’application d’authentification",
     "useBackup": "Utiliser un code de secours",
-    "restart": "Recommencer"
+    "restart": "Recommencer",
+    "resendIn": "Envoyer un nouveau code ({time})",
+    "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}."
   },
   "account": {
     "title": "Compte",
@@ -142,7 +144,8 @@
     "languageTitle": "Langue",
     "languageLead": "Langue de l’interface. Par défaut, celle de votre navigateur.",
     "languageAuto": "Langue du navigateur",
-    "languageSave": "Enregistrer"
+    "languageSave": "Enregistrer",
+    "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}."
   },
   "twoFactor": {
     "titleChange": "Changer de second facteur",
@@ -169,7 +172,10 @@
     "currentPassword": "Mot de passe actuel",
     "start": "Continuer",
     "wrongPassword": "Mot de passe incorrect.",
-    "wrongCode": "Ce code est incorrect ou a expiré."
+    "wrongCode": "Ce code est incorrect ou a expiré.",
+    "sent": "Nouveau code envoyé. Les codes reçus avant ne fonctionnent plus.",
+    "resendIn": "Envoyer un nouveau code ({time})",
+    "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}."
   },
   "redLines": {
     "title": "Lignes rouges",

@@ -50,11 +50,12 @@ describe("auth", () => {
   let db: Db;
   let auth: ReturnType<typeof createAuth>;
   const base = "http://localhost:3000/api/auth";
-  const post = (p: string, body: unknown, cookie = "") =>
+  // `ip`: the client address Better Auth's rate limits count by.
+  const post = (p: string, body: unknown, cookie = "", ip = "192.0.2.1") =>
     auth.handler(
       new Request(`${base}${p}`, {
         method: "POST",
-        headers: { "content-type": "application/json", origin: "http://localhost:3000", cookie },
+        headers: { "content-type": "application/json", origin: "http://localhost:3000", cookie, "x-forwarded-for": ip },
         body: JSON.stringify(body),
       }),
     );
@@ -101,6 +102,10 @@ describe("auth", () => {
     assert.equal(mail.to, TEST_ACCOUNT.email);
     const code = mail.subject.match(/^(\d{6}) /)![1]!;
     assert.match(mail.text, new RegExp(`/login/code\\?code=${code}`));
+    // Only a hash of the code is stored.
+    const stored = await db.execute<{ value: string }>(sql`select value from verifications where identifier like '2fa-otp-%'`);
+    assert.equal(stored.rows.length, 1);
+    assert.ok(!stored.rows[0]!.value.includes(code));
 
     assert.equal((await post("/two-factor/verify-otp", { code: "000000" }, pending)).status, 401);
     const step2 = await post("/two-factor/verify-otp", { code }, pending);
@@ -113,7 +118,9 @@ describe("auth", () => {
   test("emailed codes follow the account's language", async () => {
     await db.execute(sql`update users set locale = 'fr' where email = ${TEST_ACCOUNT.email}`);
     const step1 = await post("/sign-in/email", { email: TEST_ACCOUNT.email, password: TEST_ACCOUNT.password });
-    await post("/two-factor/send-otp", {}, cookiesOf(step1));
+    // Another address: this one just had a code (one every 30 seconds).
+    assert.equal((await post("/two-factor/send-otp", {}, cookiesOf(step1), "192.0.2.2")).status, 200);
+    assert.equal((await post("/two-factor/send-otp", {}, cookiesOf(step1), "192.0.2.2")).status, 429);
     assert.match(readDevMailbox(1)[0]!.subject, /^\d{6} est votre code Kwazat$/);
     await db.execute(sql`update users set locale = null where email = ${TEST_ACCOUNT.email}`);
   });

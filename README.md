@@ -214,9 +214,15 @@ pnpm users test-account                 # local test account, codes by email (re
 ```
 
 The local test account (`packages/app/test/test-account.ts`) is for automated checks and local
-browser testing; it only exists in the local PGlite database. Login attempts are rate limited
-(5 per minute per client, in memory), and second-factor failures lock the account for 15
-minutes after 10 attempts. Next.js and Better Auth telemetry are off; the dev server listens on
+browser testing; it only exists in the local PGlite database.
+
+Limits (`packages/app/src/lib/rate-limit.ts`, in memory, per server process): password checks 5
+per minute per client address and 10 per 15 minutes per account; codes typed in 10 per minute
+per address; emailed codes one every 30 seconds (the resend button counts down), 5 per hour per
+account and 20 per address. Each code allows 5 tries, only the latest code sent works, and 10
+second-factor failures lock the account for 15 minutes. The forms call Better Auth from server
+actions, which skips its own rate limiter; that one still guards direct calls to `/api/auth`.
+Emailed codes are stored hashed. Next.js and Better Auth telemetry are off; the dev server listens on
 127.0.0.1 only.
 
 | Setting | Local development | Staging and prod (not deployed yet) |
@@ -224,5 +230,5 @@ minutes after 10 attempts. Next.js and Better Auth telemetry are off; the dev se
 | `BETTER_AUTH_SECRET` | built-in development value | required; Secret Manager |
 | `BETTER_AUTH_URL` | `http://localhost:3000` | `https://test.kwazat.fyi`, `https://www.kwazat.fyi` |
 | `DATABASE_URL` | unset (PGlite) | Secret Manager (runtime identity) |
-| Mail transport | local mailbox | to choose (e.g. Scaleway Transactional Email) |
+| Mail transport | local mailbox | Scaleway Transactional Email from `auth.kwazat.fyi` (to set up) |
 
