@@ -25,7 +25,9 @@ export function Enroll({ current, passwordKnown }: { current: Method | null; pas
           </>
         )}
         <p>
-          <Link href="/">{t("continue")}</Link>
+          <Link href="/" className="button">
+            {t("continue")}
+          </Link>
         </p>
       </div>
     );
