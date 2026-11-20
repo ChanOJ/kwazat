@@ -21,20 +21,21 @@ import {
   wikidataSearchCache,
   type Db,
 } from "@kwazat/db";
-import { searchCandidates, type Candidate } from "./wikidata.ts";
+import { searchCandidates, type Candidate, type EntityKind } from "./wikidata.ts";
 
 const CACHE_TTL_HOURS = 24;
 /** Part of the cache key: bump it when the candidate search changes, to ignore older lists. */
-const SEARCH_VERSION = 3;
-const SEARCH_LANG = `en:v${SEARCH_VERSION}`;
+const SEARCH_VERSION = 4;
 
 const inFlight = new Map<string, Promise<Candidate[]>>();
 
 /** Wikidata candidates for a query, from the cache when fresh. */
-export async function wikidataCandidates(db: Db, query: string, opts: { humansOnly: boolean }): Promise<Candidate[]> {
+export async function wikidataCandidates(db: Db, query: string, opts: { kinds: EntityKind[] }): Promise<Candidate[]> {
   const normalized = normalizeName(query);
   if (!normalized) return [];
-  const key = `${SEARCH_LANG}|${opts.humansOnly}|${normalized}`;
+  // The wanted kinds are part of the cache key (stored in the language column, no schema change).
+  const lang = `en:v${SEARCH_VERSION}:${[...opts.kinds].sort().join("+")}`;
+  const key = `${lang}|${normalized}`;
 
   const [cached] = await db
     .select()
@@ -42,8 +43,8 @@ export async function wikidataCandidates(db: Db, query: string, opts: { humansOn
     .where(
       and(
         eq(wikidataSearchCache.query, normalized),
-        eq(wikidataSearchCache.lang, SEARCH_LANG),
-        eq(wikidataSearchCache.humansOnly, opts.humansOnly),
+        eq(wikidataSearchCache.lang, lang),
+        eq(wikidataSearchCache.humansOnly, false),
       ),
     );
   if (cached && Date.now() - cached.fetchedAt.getTime() < CACHE_TTL_HOURS * 3_600_000) {
@@ -56,7 +57,7 @@ export async function wikidataCandidates(db: Db, query: string, opts: { humansOn
     pending = (async () => {
       try {
         const results = await searchCandidates(query, opts);
-        const values = { query: normalized, lang: SEARCH_LANG, humansOnly: opts.humansOnly, results, fetchedAt: new Date() };
+        const values = { query: normalized, lang, humansOnly: false, results, fetchedAt: new Date() };
         await db
           .insert(wikidataSearchCache)
           .values(values)

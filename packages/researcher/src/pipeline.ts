@@ -16,7 +16,7 @@ import {
 import { researchWithSearch } from "./research.ts";
 import { sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
 import { confidenceCap, lookupSource, minConfidence, selectSources, type Registry } from "./sources.ts";
-import { getPersonIdentity, type Candidate } from "./wikidata.ts";
+import { getBandIdentity, getPersonIdentity, type Candidate, type EntityKind } from "./wikidata.ts";
 
 export type Entity = typeof entities.$inferSelect;
 
@@ -32,7 +32,7 @@ export type Resolution =
  */
 export async function resolve(db: Db, playbook: Playbook, query: string, pick?: number): Promise<Resolution> {
   if (/^Q\d+$/.test(query.trim())) return { kind: "resolved", wikidataId: query.trim() };
-  const candidates = await wikidataCandidates(db, query, { humansOnly: playbook.entity_type === "person" });
+  const candidates = await wikidataCandidates(db, query, { kinds: [playbook.entity_type as EntityKind] });
   if (!candidates.length) return { kind: "not_found" };
   if (pick !== undefined) {
     const chosen = candidates[pick - 1];
@@ -43,16 +43,20 @@ export async function resolve(db: Db, playbook: Playbook, query: string, pick?: 
   return { kind: "ambiguous", candidates };
 }
 
+/** Creates or refreshes a person from Wikidata (see upsertEntity). */
+export const upsertPerson = (db: Db, wikidataId: string) => upsertEntity(db, wikidataId, "person");
+
 /**
- * Creates or refreshes a person from Wikidata: entity (Kwazat id), Wikidata identifier,
- * searchable names, and deterministic Wikidata relations.
+ * Creates or refreshes a person or a music group from Wikidata: entity (Kwazat id), Wikidata
+ * identifier, searchable names, and deterministic Wikidata relations (family and party for
+ * people, members for bands).
  */
-export async function upsertPerson(db: Db, wikidataId: string): Promise<Entity> {
-  const person = await getPersonIdentity(wikidataId);
+export async function upsertEntity(db: Db, wikidataId: string, kind: EntityKind): Promise<Entity> {
+  const person = kind === "band" ? await getBandIdentity(wikidataId) : await getPersonIdentity(wikidataId);
   const existing = await findEntityByIdentifier(db, "wikidata", wikidataId);
   return db.transaction(async (tx) => {
     const values = {
-      type: "person" as const,
+      type: kind,
       label: person.label,
       description: person.description,
       aliases: person.aliases,
@@ -108,14 +112,21 @@ export function wikidataIdOf(entity: Entity): string | null {
 }
 
 export function subjectOf(entity: Entity): SubjectContext {
-  const id = entity.identity as { birthDate?: string; occupations?: string[]; nationalities?: string[] };
+  const id = entity.identity as {
+    birthDate?: string;
+    occupations?: string[];
+    nationalities?: string[];
+    genres?: string[];
+  };
   return {
     label: entity.label,
     wikidataId: wikidataIdOf(entity),
     description: entity.description,
+    kind: entity.type === "band" ? "band" : "person",
     birthDate: id.birthDate ?? null,
     occupations: id.occupations ?? [],
     nationalities: id.nationalities ?? [],
+    genres: id.genres ?? [],
   };
 }
 

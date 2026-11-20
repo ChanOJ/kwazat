@@ -72,7 +72,7 @@ button {
 .results { list-style: none; padding: 0; margin: 0; }
 .results li { display: grid; padding: .6rem 0; border-bottom: 1px solid var(--line); }
 .results .label { font-weight: 600; }
-.results .description, .results .id { color: var(--muted); font-size: .95rem; }
+.results .description, .results .id, .results .kind { color: var(--muted); font-size: .95rem; }
 
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

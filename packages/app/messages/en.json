@@ -43,15 +43,16 @@
     "lead": "Neutral, sourced fact sheets on public figures, brands and products."
   },
   "search": {
-    "label": "Name of a public figure, brand or product",
-    "placeholder": "A public figure, brand or product",
+    "label": "Name of a public figure, band, brand or product",
+    "placeholder": "A public figure, band, brand or product",
     "button": "Search",
     "known": "Known to Kwazat",
     "noSheet": "No sheet yet for “{query}”.",
     "others": "Other matches on Wikidata",
     "wikidataDown": "Wikidata could not be reached. Try again in a moment.",
     "noOther": "No other match.",
-    "notYet": "Not in Kwazat yet · research this person"
+    "notYet": "Not in Kwazat yet · start the research",
+    "kind": { "person": "Person", "band": "Band" }
   },
   "research": {
     "failedTitle": "Research failed",
@@ -64,6 +65,13 @@
     "occupation": "Occupation",
     "born": "Born",
     "died": "Died",
+    "formed": "Formed",
+    "disbanded": "Disbanded",
+    "origin": "Origin",
+    "genres": "Genres",
+    "recordLabels": "Labels",
+    "website": "Website",
+    "members": "Members",
     "inProgress": "Research in progress: sections appear as they are done.",
     "missing": "Some sections have not been researched yet.",
     "researchThem": "Research them",
@@ -81,10 +89,12 @@
     "ongoing_cases": "Ongoing legal proceedings",
     "investigative_revelations": "Investigative revelations",
     "controversies": "Controversies",
+    "legal_proceedings": "Legal proceedings",
     "political_affiliation": "Political affiliation",
     "notable_relations": "Notable relations"
   },
   "relations": {
+    "has_member": "member",
     "spouse_of": "spouse of",
     "former_spouse_of": "former spouse of",
     "partner_of": "partner of",

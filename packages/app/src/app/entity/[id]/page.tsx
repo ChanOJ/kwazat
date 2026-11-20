@@ -37,17 +37,30 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const sheet = await loadSheet(db, entity.id);
   const playbook = loadPlaybook(entity.type);
   const wikidataId = wikidataIdOf(entity);
-  const job = wikidataId ? await latestResearch(db, { type: "person", wikidataId }) : undefined;
+  const isBand = entity.type === "band";
+  const researchType = isBand ? "band" : "person";
+  const job = wikidataId ? await latestResearch(db, { type: researchType, wikidataId }) : undefined;
   const inProgress = job?.status === "queued" || job?.status === "running";
   const running = new Set(inProgress ? await runningSections(db, entity.id) : []);
   const researchSections = playbook.sections.filter((s) => s.method === "research");
   const identity = entity.identity as Record<string, unknown>;
-  const facts: [string, string | null][] = [
-    [t("nationality"), list(identity.nationalities)],
-    [t("occupation"), list(identity.occupations)],
-    [t("born"), (identity.birthDate as string) ?? null],
-    [t("died"), (identity.deathDate as string) ?? null],
-  ];
+  const facts: [string, string | null][] = isBand
+    ? [
+        [t("origin"), list(identity.origins)],
+        [t("genres"), list(identity.genres)],
+        [t("recordLabels"), list(identity.labels)],
+        [t("formed"), (identity.birthDate as string) ?? null],
+        [t("disbanded"), (identity.deathDate as string) ?? null],
+      ]
+    : [
+        [t("nationality"), list(identity.nationalities)],
+        [t("occupation"), list(identity.occupations)],
+        [t("born"), (identity.birthDate as string) ?? null],
+        [t("died"), (identity.deathDate as string) ?? null],
+      ];
+  const website = typeof identity.website === "string" ? identity.website : null;
+  // Wikidata relations of a band are its members, shown under their own heading.
+  const wikidataRelations = sheet.relations.filter((r) => r.origin === "wikidata");
 
   return (
     <article className="sheet">
@@ -77,6 +90,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
           <p className="links">
             {typeof identity.wikipediaUrl === "string" && <a href={identity.wikipediaUrl}>Wikipedia</a>}
             {typeof identity.wikidataUrl === "string" && <a href={identity.wikidataUrl}>Wikidata</a>}
+            {website && <a href={website} rel="noreferrer">{t("website")}</a>}
           </p>
         </div>
       </header>
@@ -95,6 +109,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
         <form action={startResearch} className="notice">
           <span>{t("missing")}</span>
           <input type="hidden" name="wikidataId" value={wikidataId} />
+          <input type="hidden" name="type" value={researchType} />
           <button type="submit">{t("researchThem")}</button>
         </form>
       )}
@@ -102,6 +117,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
         <form action={startResearch} className="notice error">
           <span>{t("failed", { error: job.lastError ?? "" })}</span>
           <input type="hidden" name="wikidataId" value={wikidataId} />
+          <input type="hidden" name="type" value={researchType} />
           <button type="submit">{(await getTranslations("research"))("tryAgain")}</button>
         </form>
       )}
@@ -164,18 +180,17 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
           );
         })}
 
-      {sheet.relations.some((r) => r.origin === "wikidata") && (
+      {wikidataRelations.length > 0 && (
         <section className="sheet-section">
-          <h2>{t("wikidataRelations")}</h2>
+          <h2>{isBand ? t("members") : t("wikidataRelations")}</h2>
           <ul className="facts" lang="en">
-            {sheet.relations
-              .filter((r) => r.origin === "wikidata")
-              .map((r) => (
-                <li key={r.id}>
-                  <span className="relation" lang={locale}>{relationLabel(r.relationType)}</span> {r.toLabel}
-                  {r.description && ` · ${r.description}`}
-                </li>
-              ))}
+            {wikidataRelations.map((r) => (
+              <li key={r.id}>
+                {!isBand && <><span className="relation" lang={locale}>{relationLabel(r.relationType)}</span>{" "}</>}
+                {r.toLabel}
+                {r.description && ` · ${r.description}`}
+              </li>
+            ))}
           </ul>
         </section>
       )}

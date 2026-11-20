@@ -19,8 +19,11 @@ export default async function ResearchPage({ params }: { params: Promise<{ wikid
   const db = await getDb();
   const entity = await findEntityByIdentifier(db, "wikidata", wikidataId);
   if (entity) redirect(`/entity/${entity.id}`);
-  const job = await latestResearch(db, { type: "person", wikidataId });
+  // The subject is a person or a band: the job tells which.
+  const jobs = await Promise.all((["person", "band"] as const).map((type) => latestResearch(db, { type, wikidataId })));
+  const job = jobs.filter((j) => !!j).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
   if (!job) notFound();
+  const type = (job.payload as { type?: string }).type === "band" ? "band" : "person";
 
   if (job.status === "failed") {
     return (
@@ -29,6 +32,7 @@ export default async function ResearchPage({ params }: { params: Promise<{ wikid
         <p className="error">{job.lastError}</p>
         <form action={startResearch}>
           <input type="hidden" name="wikidataId" value={wikidataId} />
+          <input type="hidden" name="type" value={type} />
           <button type="submit">{t("tryAgain")}</button>
         </form>
       </section>

@@ -6,7 +6,7 @@ import { runEval } from "./eval.ts";
 import { updateIndices } from "./indices.ts";
 import { checkAccess } from "./access.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
-import { countryCodesOf, findEntityByWikidataId, loadSheet, resolve, runSection, upsertPerson } from "./pipeline.ts";
+import { countryCodesOf, findEntityByWikidataId, loadSheet, resolve, runSection, upsertEntity } from "./pipeline.ts";
 import { loadRegistry, selectSources } from "./sources.ts";
 import { renderSheet } from "./sheet.ts";
 import { summarizeTrust, updateTrust } from "./trusttxt.ts";
@@ -14,11 +14,11 @@ import { summarizeTrust, updateTrust } from "./trusttxt.ts";
 const RUN_OPTIONS =
   "[--research-model M] [--extract-model M] [--effort low|medium|high] [--max-searches N] [--max-fetches N] [--source-mode auto|restricted|preferred] [--search-provider brave|brave-context|anthropic]";
 const USAGE = `Usage:
-  research <name|Q-id> [--type person] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
-  sheet <name|Q-id> [--type person] [--pick N] [--all]
-  lookup <name> [--type person]  (name search: known entities, then cached Wikidata candidates)
+  research <name|Q-id> [--type person|band] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
+  sheet <name|Q-id> [--type person|band] [--pick N] [--all]
+  lookup <name> [--type person|band]  (name search: known entities, then cached Wikidata candidates)
   migrate                      (applies pending database migrations; run once per deploy)
-  sources <name|Q-id> [--type person] [--pick N] [--sections a,b]
+  sources <name|Q-id> [--type person|band] [--pick N] [--sections a,b]
   indices                      (downloads country indices into sources/countries.json)
   reach                        (lists registry domains the web tools cannot reach)
   trust                        (reads the trust.txt of registry domains into sources/trust.json)
@@ -153,7 +153,7 @@ async function main() {
       console.log(`Known entities (${Date.now() - t} ms):`);
       for (const k of known) console.log(`  ${k.label} — ${k.description ?? ""} [${k.entityId}] score ${k.score.toFixed(2)}`);
       t = Date.now();
-      const candidates = await wikidataCandidates(db, query, { humansOnly: values.type === "person" });
+      const candidates = await wikidataCandidates(db, query, { kinds: [values.type === "band" ? "band" : "person"] });
       console.log(`Wikidata candidates (${Date.now() - t} ms):`);
       for (const c of candidates) console.log(`  ${c.label} (${c.wikidataId}) — ${c.description ?? ""}`);
     } finally {
@@ -164,14 +164,14 @@ async function main() {
   if (command !== "research" && command !== "sheet" && command !== "sources") throw new Error(USAGE);
 
   const playbook = loadPlaybook(values.type);
-  if (playbook.entity_type !== "person") throw new Error(`Playbook "${playbook.id}" is not supported yet`);
+  if (playbook.entity_type !== "person" && playbook.entity_type !== "band") throw new Error(`Playbook "${playbook.id}" is not supported yet`);
   const registry = loadRegistry();
   const db = await openDb();
   const wikidataId = await resolveOrExit(db, playbook);
   try {
     if (command === "sources") {
       // Free: shows which sources each section would use for this subject (no LLM call).
-      const entity = await upsertPerson(db, wikidataId);
+      const entity = await upsertEntity(db, wikidataId, playbook.entity_type);
       console.log(`${entity.label} (${wikidataId}) · countries: ${countryCodesOf(entity).join(", ") || "none on Wikidata"}`);
       for (const section of selectSections(playbook.sections)) {
         const sel = selectSources(registry, {
@@ -203,7 +203,7 @@ async function main() {
     }
 
     console.error(`Resolving identity from Wikidata (${wikidataId})...`);
-    const entity = await upsertPerson(db, wikidataId);
+    const entity = await upsertEntity(db, wikidataId, playbook.entity_type);
     console.error(`→ ${entity.label}: ${entity.description ?? ""}`);
     if (!values["identity-only"]) {
       assertApiKey();

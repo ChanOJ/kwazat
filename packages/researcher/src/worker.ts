@@ -8,12 +8,12 @@ import { randomUUID } from "node:crypto";
 import { and, claim, complete, enqueue, eq, fail, inArray, jobs, requeueStale, sectionRuns, type Db, type Job } from "@kwazat/db";
 import { resolveConfig, type RunConfig } from "./claude.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
-import { runSection, upsertPerson } from "./pipeline.ts";
+import { runSection, upsertEntity } from "./pipeline.ts";
 import { loadRegistry } from "./sources.ts";
 
 export const RESEARCH_JOB = "research";
 
-export type ResearchPayload = { type: "person"; wikidataId: string };
+export type ResearchPayload = { type: "person" | "band"; wikidataId: string };
 
 export const researchJobKey = (p: ResearchPayload) => `${RESEARCH_JOB}:${p.type}:${p.wikidataId}`;
 
@@ -41,9 +41,9 @@ export function missingResearchKeys(config: RunConfig = resolveConfig()): string
 }
 
 export async function runResearchJob(db: Db, payload: ResearchPayload, log: (line: string) => void = () => {}) {
-  if (payload.type !== "person") throw new Error(`Unsupported type ${payload.type}`);
+  if (payload.type !== "person" && payload.type !== "band") throw new Error(`Unsupported type ${payload.type}`);
   // Identity first: free (Wikidata), and it lets the sheet page show who this is right away.
-  const entity = await upsertPerson(db, payload.wikidataId);
+  const entity = await upsertEntity(db, payload.wikidataId, payload.type);
   log(`research ${entity.label} (${payload.wikidataId})`);
   const config = resolveConfig();
   const missing = missingResearchKeys(config);
