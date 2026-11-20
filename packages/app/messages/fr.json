@@ -27,7 +27,8 @@
     "chooseLanguage": "Choisir la langue",
     "searchLanguages": "Rechercher une langue",
     "close": "Fermer",
-    "logIn": "Connexion"
+    "logIn": "Connexion",
+    "signUp": "Inscription"
   },
   "themes": {
     "dark": "Sombre",
@@ -136,17 +137,14 @@
   },
   "login": {
     "title": "Connexion",
-    "lead": "Saisissez votre adresse e-mail pour vous connecter ou créer un compte.",
+    "lead": "Connectez-vous à votre compte.",
     "error": "E-mail ou mot de passe incorrect, ou trop de tentatives. Réessayez dans quelques minutes.",
     "expired": "La connexion a pris trop de temps. Recommencez, s’il vous plaît.",
     "email": "E-mail",
     "password": "Mot de passe",
     "submit": "Se connecter",
     "createAccount": "Créer un compte",
-    "badEmail": "Cette adresse e-mail ne semble pas valide.",
-    "passwordTitle": "Votre mot de passe",
-    "exists": "Un compte existe déjà pour cette adresse : saisissez son mot de passe pour vous connecter.",
-    "otherAddress": "Utiliser une autre adresse"
+    "badEmail": "Cette adresse e-mail ne semble pas valide."
   },
   "code": {
     "titleCode": "Code de vérification",
@@ -260,7 +258,7 @@
   },
   "signup": {
     "title": "Créez votre compte",
-    "lead": "Choisissez un mot de passe. Vous configurerez ensuite un second facteur.",
+    "lead": "Saisissez votre adresse e-mail et choisissez un mot de passe.",
     "email": "Adresse e-mail",
     "password": "Mot de passe",
     "confirm": "Mot de passe, une seconde fois",
@@ -270,9 +268,10 @@
     "ruleMatch": "Les deux saisies correspondent",
     "tip": "La longueur compte plus que les symboles : une phrase de quatre ou cinq mots sans lien est facile à retenir et difficile à deviner. Un gestionnaire de mots de passe fait encore mieux.",
     "submit": "Créer le compte",
-    "otherAddress": "Utiliser une autre adresse",
+    "haveAccount": "J’ai déjà un compte",
     "logInInstead": "Se connecter plutôt",
     "error": {
+      "email": "Cette adresse e-mail ne semble pas valide.",
       "differ": "Les deux mots de passe diffèrent.",
       "weak": "Ce mot de passe est trop faible : voir les critères ci-dessous.",
       "exists": "Un compte existe déjà pour cette adresse.",

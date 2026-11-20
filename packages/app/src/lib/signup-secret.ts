@@ -51,3 +51,28 @@ export async function rememberedPassword(userId: string): Promise<string | null>
 export async function forgetPassword(): Promise<void> {
   (await cookies()).delete({ name: SIGNUP_COOKIE, path: "/settings" });
 }
+
+/**
+ * The password typed on the login screen when "Create account" is chosen, carried to the signup
+ * screen to pre-fill its first password field. Same encryption, bound to the address, 5 minutes,
+ * /signup only, deleted once the account is created.
+ */
+export const PREFILL_COOKIE = "kwazat_signup_prefill";
+
+export async function setPrefill(email: string, password: string): Promise<void> {
+  (await cookies()).set(PREFILL_COOKIE, seal(email, password), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/signup",
+    maxAge: 5 * 60,
+  });
+}
+
+export async function getPrefill(email: string): Promise<string> {
+  return open((await cookies()).get(PREFILL_COOKIE)?.value, email) ?? "";
+}
+
+export async function clearPrefill(): Promise<void> {
+  (await cookies()).delete({ name: PREFILL_COOKIE, path: "/signup" });
+}

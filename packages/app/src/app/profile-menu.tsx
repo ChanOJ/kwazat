@@ -66,6 +66,12 @@ const icons = {
       <path d="M4 12h11M11 8l4 4-4 4" />
     </Icon>
   ),
+  signUp: (
+    <Icon>
+      <circle cx="10" cy="8" r="3.5" />
+      <path d="M3.5 20c.5-3.5 3-5.5 6.5-5.5M17 14v6M14 17h6" />
+    </Icon>
+  ),
   logOut: (
     <Icon>
       <path d="M10 4H5v16h5" />
@@ -155,6 +161,10 @@ export async function AnonymousProfile() {
           <Link href="/login" role="menuitem">
             {icons.logIn}
             {t("logIn")}
+          </Link>
+          <Link href="/signup" role="menuitem">
+            {icons.signUp}
+            {t("signUp")}
           </Link>
           <hr />
           <CommonLinks />

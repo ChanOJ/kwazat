@@ -5,12 +5,12 @@ import { useState } from "react";
 import { PASSWORD_MAX, PASSWORD_MIN, passwordIssues } from "@/lib/password.ts";
 
 /**
- * Email (read-only, so password managers see the username), password and confirmation, with live
- * help. Pasting is allowed; the server applies the same rules.
+ * Email, password and confirmation, with live help. Pasting is allowed; the server applies the same rules.
  */
-export function NewPasswordFields({ email }: { email: string }) {
+export function NewPasswordFields({ initialEmail = "", initialPassword = "" }: { initialEmail?: string; initialPassword?: string }) {
   const t = useTranslations("signup");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(initialPassword);
+  const [email, setEmail] = useState(initialEmail);
   const [confirm, setConfirm] = useState("");
   const issues = passwordIssues(password, email);
   const typed = password.length > 0;
@@ -24,7 +24,7 @@ export function NewPasswordFields({ email }: { email: string }) {
     <>
       <label>
         {t("email")}
-        <input name="email" type="email" id="email" autoComplete="username" value={email} readOnly />
+        <input name="email" type="email" id="email" autoComplete="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoFocus={!initialEmail} />
       </label>
       <label>
         {t("password")}
@@ -38,8 +38,7 @@ export function NewPasswordFields({ email }: { email: string }) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
-          autoFocus
-        />
+                  />
       </label>
       <label>
         {t("confirm")}
@@ -53,6 +52,7 @@ export function NewPasswordFields({ email }: { email: string }) {
           value={confirm}
           onChange={(event) => setConfirm(event.target.value)}
           required
+          autoFocus={!!initialPassword}
         />
       </label>
       <ul className="rules" aria-live="polite">

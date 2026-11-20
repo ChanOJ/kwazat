@@ -172,8 +172,8 @@ test("password rules: length, no common or repetitive password, not the email", 
 });
 
 test("login and signup screens are public, their next page cannot loop back", () => {
-  for (const p of ["/login/password", "/signup", "/signup/password"]) assert.equal(access(p, null, { loginEverywhere: true }), "allow", p);
-  assert.equal(safeNextPath("/signup/password"), "/");
+  for (const p of ["/login/code", "/signup"]) assert.equal(access(p, null, { loginEverywhere: true }), "allow", p);
+  assert.equal(safeNextPath("/signup/x"), "/");
 });
 
 test("the signup password cookie is bound to the user, expires, and cannot be tampered with", () => {

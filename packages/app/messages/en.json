@@ -27,7 +27,8 @@
     "chooseLanguage": "Choose your language",
     "searchLanguages": "Search languages",
     "close": "Close",
-    "logIn": "Log in"
+    "logIn": "Log in",
+    "signUp": "Sign up"
   },
   "themes": {
     "dark": "Dark",
@@ -136,17 +137,14 @@
   },
   "login": {
     "title": "Log in",
-    "lead": "Enter your email address to log in or create an account.",
+    "lead": "Log in to your account.",
     "error": "Wrong email or password, or too many attempts. Try again in a few minutes.",
     "expired": "The login took too long. Please start again.",
     "email": "Email",
     "password": "Password",
     "submit": "Log in",
     "createAccount": "Create account",
-    "badEmail": "This does not look like an email address.",
-    "passwordTitle": "Your password",
-    "exists": "An account already exists for this address: enter its password to log in.",
-    "otherAddress": "Use another address"
+    "badEmail": "This does not look like an email address."
   },
   "code": {
     "titleCode": "Verification code",
@@ -260,7 +258,7 @@
   },
   "signup": {
     "title": "Create your account",
-    "lead": "Choose a password. Next, you will set up a second factor.",
+    "lead": "Enter your email address and choose a password.",
     "email": "Email address",
     "password": "Password",
     "confirm": "Password again",
@@ -270,9 +268,10 @@
     "ruleMatch": "Both entries match",
     "tip": "Length matters more than symbols: a phrase of four or five unrelated words is easy to remember and hard to guess. A password manager is even better.",
     "submit": "Create account",
-    "otherAddress": "Use another address",
+    "haveAccount": "I already have an account",
     "logInInstead": "Log in instead",
     "error": {
+      "email": "This does not look like an email address.",
       "differ": "The two passwords differ.",
       "weak": "This password is too weak: see the checks below.",
       "exists": "An account already exists for this address.",
