@@ -1,12 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 import { LOCALES } from "@/i18n/locales.ts";
+import { parseTheme, THEME_COOKIE } from "@/lib/theme.ts";
 import { signOut } from "./actions.ts";
 import { HideInLogin } from "./hide-in-login.tsx";
 import { LanguagePicker } from "./language-picker.tsx";
 import { setLocale } from "./locale-actions.ts";
 import { ProfileClose } from "./profile-close.tsx";
+import { setTheme } from "./theme-actions.ts";
+import { ThemeDialog, ThemeIcon } from "./theme-picker.tsx";
 
 const silhouette = (
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -123,7 +127,14 @@ export async function ProfileMenu({ email }: { email: string }) {
  * login funnel it only offers the language.
  */
 export async function AnonymousProfile() {
-  const [t, tl, current] = await Promise.all([getTranslations("profile"), getTranslations("languages"), getLocale()]);
+  const [t, tl, tt, current, cookieStore] = await Promise.all([
+    getTranslations("profile"),
+    getTranslations("languages"),
+    getTranslations("themes"),
+    getLocale(),
+    cookies(),
+  ]);
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
   return (
     <details className="profile">
       <ProfileClose />
@@ -158,6 +169,16 @@ export async function AnonymousProfile() {
           {icons.language}
           {t("language")}
         </LanguagePicker>
+        <ThemeDialog
+          action={setTheme}
+          current={theme}
+          names={{ dark: tt("dark"), light: tt("light"), device: tt("device") }}
+          role="menuitem"
+          labels={{ title: t("chooseTheme"), close: t("close") }}
+        >
+          <ThemeIcon theme={theme} />
+          {t("theme")}
+        </ThemeDialog>
       </div>
     </details>
   );

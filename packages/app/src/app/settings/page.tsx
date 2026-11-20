@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { cookies } from "next/headers";
 import { LOCALES } from "@/i18n/locales.ts";
+import { parseTheme, THEME_COOKIE } from "@/lib/theme.ts";
 import { getViewer } from "@/lib/viewer.ts";
 import { LanguagePicker } from "../language-picker.tsx";
 import { setLocale } from "../locale-actions.ts";
+import { setTheme } from "../theme-actions.ts";
+import { ThemeChoices } from "../theme-picker.tsx";
 import { BackupCodesForm, EmailForm, PasswordForm } from "./forms.tsx";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,7 +18,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ email?: string }> }) {
   const viewer = (await getViewer())!; // the proxy only lets logged-in users here
   const { email } = await searchParams;
-  const [t, tl, tp] = await Promise.all([getTranslations("account"), getTranslations("languages"), getTranslations("profile")]);
+  const [t, tl, tp, tt, cookieStore] = await Promise.all([
+    getTranslations("account"),
+    getTranslations("languages"),
+    getTranslations("profile"),
+    getTranslations("themes"),
+    cookies(),
+  ]);
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
   const current = viewer.locale ?? "auto";
   return (
     <section className="account">
@@ -59,6 +70,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         >
           {current === "auto" ? t("languageAuto") : tl(current as "en" | "fr")} · {t("languageChange")}
         </LanguagePicker>
+      </section>
+
+      <section className="panel">
+        <h2>{t("themeTitle")}</h2>
+        <p>{t("themeLead")}</p>
+        <ThemeChoices action={setTheme} current={theme} names={{ dark: tt("dark"), light: tt("light"), device: tt("device") }} />
       </section>
 
       <section className="panel">
