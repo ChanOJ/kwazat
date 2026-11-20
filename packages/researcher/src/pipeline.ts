@@ -1,4 +1,4 @@
-import { and, eq, uuidv7 } from "@kwazat/db";
+import { and, desc, eq, uuidv7 } from "@kwazat/db";
 import { entities, entityIdentifiers, facts, relations, sectionRuns, type Db, type Source } from "@kwazat/db";
 import { findEntityByIdentifier, setEntityNames, wikidataCandidates } from "./names.ts";
 import {
@@ -14,7 +14,7 @@ import {
   type Usage,
 } from "./claude.ts";
 import { researchWithSearch } from "./research.ts";
-import { sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
+import { researchHash, sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
 import { confidenceCap, lookupSource, minConfidence, selectSources, type Registry } from "./sources.ts";
 import { getBandIdentity, getPersonIdentity, type Candidate, type EntityKind } from "./wikidata.ts";
 
@@ -130,6 +130,30 @@ export function subjectOf(entity: Entity): SubjectContext {
   };
 }
 
+/**
+ * Research notes of an earlier run of this section that are still valid: same research hash
+ * (nothing that shapes the research changed) and younger than the section's validity period.
+ * Lets a change to the extraction alone (schema, severity ladder, extraction prompt) be applied
+ * without searching the web again.
+ */
+export async function findReusableNotes(
+  db: Db,
+  entityId: string,
+  section: ResearchSection,
+  hash: string,
+  now = new Date(),
+): Promise<{ notes: string; retrievedUrls: string[] } | null> {
+  const rows = await db
+    .select()
+    .from(sectionRuns)
+    .where(and(eq(sectionRuns.entityId, entityId), eq(sectionRuns.sectionId, section.id), eq(sectionRuns.status, "succeeded")))
+    .orderBy(desc(sectionRuns.startedAt));
+  const reusable = rows.find(
+    (r) => r.researchHash === hash && r.researchNotes && r.finishedAt && (now.getTime() - r.finishedAt.getTime()) / 86_400_000 < section.ttl_days,
+  );
+  return reusable ? { notes: reusable.researchNotes!, retrievedUrls: reusable.retrievedUrls } : null;
+}
+
 /** A band's members from Wikidata, with their membership dates when known ("Name (from 1994 to 2000)"). */
 export async function memberLines(db: Db, entityId: string): Promise<string[]> {
   const rows = await db
@@ -141,7 +165,16 @@ export async function memberLines(db: Db, entityId: string): Promise<string[]> {
 
 export type SectionOutcome =
   | { status: "skipped"; reason: string }
-  | { status: "succeeded"; facts: number; relations: number; needsReview: number; usage: Usage; durationMs: number }
+  | {
+      status: "succeeded";
+      facts: number;
+      relations: number;
+      needsReview: number;
+      usage: Usage;
+      durationMs: number;
+      /** Research notes of an earlier run were reused: only the extraction was paid. */
+      notesReused?: boolean;
+    }
   | { status: "failed"; error: string; usage: Usage; durationMs: number };
 
 /** Runs one research section for an entity, unless a fresh result with the same hash exists. */
@@ -162,6 +195,7 @@ export async function runSection(
     skipUnreachable: config.searchProvider === "anthropic",
   });
   const hash = sectionHash(playbook, section, config, sources);
+  const researchKey = researchHash(playbook, section, config, sources);
 
   if (!opts.force) {
     const [current] = await db
@@ -185,6 +219,7 @@ export async function runSection(
       playbookVersion: playbook.version,
       sectionId: section.id,
       sectionHash: hash,
+      researchHash: researchKey,
       model: `${config.researchModel}+${config.extractModel}`,
     })
     .returning();
@@ -194,9 +229,13 @@ export async function runSection(
   try {
     const subject = subjectOf(entity);
     if (entity.type === "band") subject.members = await memberLines(db, entity.id);
-    const found = config.searchProvider === "anthropic"
-      ? await research(playbook, section, subject, config, sources)
-      : await researchWithSearch(playbook, section, subject, config, sources, registry);
+    // Notes of an earlier run are reused when nothing that shapes the research changed.
+    const reused = opts.force ? null : await findReusableNotes(db, entity.id, section, researchKey);
+    const found = reused
+      ? { ...reused, usage: emptyUsage() }
+      : config.searchProvider === "anthropic"
+        ? await research(playbook, section, subject, config, sources)
+        : await researchWithSearch(playbook, section, subject, config, sources, registry);
     usage = addUsage(usage, found.usage);
     const extracted = await extract(section, subject, found.notes, found.retrievedUrls, config);
     usage = addUsage(usage, extracted.usage);
@@ -262,6 +301,7 @@ export async function runSection(
           isCurrent: true,
           researchNotes: found.notes,
           retrievedUrls: found.retrievedUrls,
+          notesReused: !!reused,
           usage,
           costUsd: usage.costUsd.toFixed(4),
           finishedAt: new Date(),
@@ -277,6 +317,7 @@ export async function runSection(
       needsReview,
       usage,
       durationMs: Date.now() - started,
+      notesReused: !!reused,
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);

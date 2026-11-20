@@ -588,22 +588,24 @@ ${retrievedUrls.join("\n")}
  * section hash so that editing a prompt in code marks cached sections as stale, like editing
  * a playbook does. Function sources are used so that no manual version bump is needed.
  */
-export const PIPELINE_FINGERPRINT = createHash("sha256")
-  .update(
-    [
-      RESEARCH_SYSTEM.toString(),
-      research.toString(),
-      researchTools.toString(),
-      domainFilter.toString(),
-      sourcesBlock.toString(),
-      countryContext.toString(),
-      finalNotes.toString(),
-      String(FETCH_MAX_CONTENT_TOKENS),
-      EXTRACTION_SYSTEM,
-      extract.toString(),
-      extractionSchema.toString(),
-      JSON.stringify(SOURCE_SCHEMA),
-    ].join("\n"),
-  )
-  .digest("hex")
-  .slice(0, 12);
+const fingerprint = (parts: string[]) => createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 12);
+
+/** The research step alone (web tools and prompts): when it changes, the research must be redone. */
+export const RESEARCH_FINGERPRINT = fingerprint([
+  RESEARCH_SYSTEM.toString(),
+  research.toString(),
+  researchTools.toString(),
+  domainFilter.toString(),
+  sourcesBlock.toString(),
+  countryContext.toString(),
+  finalNotes.toString(),
+  String(FETCH_MAX_CONTENT_TOKENS),
+]);
+
+/** The extraction step alone: when only this changes, the saved research notes can be reused. */
+export const EXTRACTION_FINGERPRINT = fingerprint([
+  EXTRACTION_SYSTEM,
+  extract.toString(),
+  extractionSchema.toString(),
+  JSON.stringify(SOURCE_SCHEMA),
+]);
