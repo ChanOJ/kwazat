@@ -10,7 +10,8 @@
     "redLines": "Red lines",
     "settings": "Settings",
     "feedback": "Feedback",
-    "help": "Get help"
+    "help": "Get help",
+    "signup": "Create account"
   },
   "profile": {
     "menu": "Profile menu",
@@ -23,7 +24,8 @@
     "anonymous": "Browsing anonymously",
     "chooseLanguage": "Choose your language",
     "searchLanguages": "Search languages",
-    "close": "Close"
+    "close": "Close",
+    "logIn": "Log in"
   },
   "languages": {
     "en": "English",
@@ -97,12 +99,16 @@
   },
   "login": {
     "title": "Log in",
-    "lead": "Kwazat is in private preview.",
+    "lead": "Enter your email address to log in or create an account.",
     "error": "Wrong email or password, or too many attempts. Try again in a few minutes.",
     "expired": "The login took too long. Please start again.",
     "email": "Email",
     "password": "Password",
-    "submit": "Log in"
+    "submit": "Log in",
+    "createAccount": "Create account",
+    "badEmail": "This does not look like an email address.",
+    "passwordTitle": "Your password",
+    "otherAddress": "Use another address"
   },
   "code": {
     "titleCode": "Verification code",
@@ -211,5 +217,26 @@
   "help": {
     "title": "Get help",
     "soon": "Coming soon: how Kwazat works and how its sheets are built."
+  },
+  "signup": {
+    "title": "Create your account",
+    "lead": "Choose a password. Next, you will set up a second factor.",
+    "email": "Email address",
+    "password": "Password",
+    "confirm": "Password again",
+    "ruleLength": "At least {min} characters",
+    "ruleCommon": "Not a commonly used password",
+    "ruleEmail": "Does not contain your email address",
+    "ruleMatch": "Both entries match",
+    "tip": "Length matters more than symbols: a phrase of four or five unrelated words is easy to remember and hard to guess. A password manager is even better.",
+    "submit": "Create account",
+    "otherAddress": "Use another address",
+    "logInInstead": "Log in instead",
+    "error": {
+      "differ": "The two passwords differ.",
+      "weak": "This password is too weak: see the checks below.",
+      "exists": "An account already exists for this address.",
+      "rate": "Too many attempts. Try again in a few minutes."
+    }
   }
 }

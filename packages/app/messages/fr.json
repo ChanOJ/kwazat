@@ -10,7 +10,8 @@
     "redLines": "Lignes rouges",
     "settings": "Réglages",
     "feedback": "Retours",
-    "help": "Aide"
+    "help": "Aide",
+    "signup": "Création de compte"
   },
   "profile": {
     "menu": "Menu du profil",
@@ -23,7 +24,8 @@
     "anonymous": "Navigation anonyme",
     "chooseLanguage": "Choisir la langue",
     "searchLanguages": "Rechercher une langue",
-    "close": "Fermer"
+    "close": "Fermer",
+    "logIn": "Connexion"
   },
   "languages": {
     "en": "English",
@@ -97,12 +99,16 @@
   },
   "login": {
     "title": "Connexion",
-    "lead": "Kwazat est en accès privé.",
+    "lead": "Saisissez votre adresse e-mail pour vous connecter ou créer un compte.",
     "error": "E-mail ou mot de passe incorrect, ou trop de tentatives. Réessayez dans quelques minutes.",
     "expired": "La connexion a pris trop de temps. Recommencez, s’il vous plaît.",
     "email": "E-mail",
     "password": "Mot de passe",
-    "submit": "Se connecter"
+    "submit": "Se connecter",
+    "createAccount": "Créer un compte",
+    "badEmail": "Cette adresse e-mail ne semble pas valide.",
+    "passwordTitle": "Votre mot de passe",
+    "otherAddress": "Utiliser une autre adresse"
   },
   "code": {
     "titleCode": "Code de vérification",
@@ -211,5 +217,26 @@
   "help": {
     "title": "Aide",
     "soon": "Bientôt : le fonctionnement de Kwazat et la méthode de ses fiches."
+  },
+  "signup": {
+    "title": "Créez votre compte",
+    "lead": "Choisissez un mot de passe. Vous configurerez ensuite un second facteur.",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "confirm": "Mot de passe, une seconde fois",
+    "ruleLength": "Au moins {min} caractères",
+    "ruleCommon": "Pas un mot de passe courant",
+    "ruleEmail": "Ne contient pas votre adresse e-mail",
+    "ruleMatch": "Les deux saisies correspondent",
+    "tip": "La longueur compte plus que les symboles : une phrase de quatre ou cinq mots sans lien est facile à retenir et difficile à deviner. Un gestionnaire de mots de passe fait encore mieux.",
+    "submit": "Créer le compte",
+    "otherAddress": "Utiliser une autre adresse",
+    "logInInstead": "Se connecter plutôt",
+    "error": {
+      "differ": "Les deux mots de passe diffèrent.",
+      "weak": "Ce mot de passe est trop faible : voir les critères ci-dessous.",
+      "exists": "Un compte existe déjà pour cette adresse.",
+      "rate": "Trop de tentatives. Réessayez dans quelques minutes."
+    }
   }
 }

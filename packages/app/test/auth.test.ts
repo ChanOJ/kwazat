@@ -9,10 +9,11 @@ import { openDb, sql, type Db } from "@kwazat/db";
 process.env.KWAZAT_MAIL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kwazat-mail-"));
 
 const { isDevKey, hasDevCookie, devKey, devGateEnabled } = await import("../src/lib/dev-gate.ts");
+const { passwordIssues } = await import("../src/lib/password.ts");
 const { access, safeNextPath } = await import("../src/lib/access.ts");
 const { createAuth } = await import("../src/lib/auth.ts");
 const { readDevMailbox } = await import("../src/lib/mail.ts");
-const { resetTwoFactor, setUser, useEmailCodes } = await import("../src/lib/users.ts");
+const { createAccount, CliError, resetTwoFactor, setUser, useEmailCodes } = await import("../src/lib/users.ts");
 const { TEST_ACCOUNT } = await import("./test-account.ts");
 
 const withTwoFactor = { twoFactorEnabled: true };
@@ -79,6 +80,15 @@ describe("auth", () => {
     assert.ok(res.status >= 400, `status ${res.status}`);
     assert.equal(await (await auth.$context).internalAdapter.findUserByEmail("new@example.com"), null);
     await assert.rejects(auth.api.signUpEmail({ body: { email: "new@example.com", password: "a-long-enough-password", name: "New" } }));
+  });
+
+  test("self-service signup creates an unverified account that can log in, once per address", async () => {
+    await createAccount(db, "signup@example.com", "a-long-enough-password");
+    const user = await (await auth.$context).internalAdapter.findUserByEmail("signup@example.com");
+    assert.equal(user?.user.emailVerified, false);
+    const res = await post("/sign-in/email", { email: "signup@example.com", password: "a-long-enough-password" });
+    assert.equal(res.status, 200);
+    await assert.rejects(createAccount(db, "signup@example.com", "another-long-password"), CliError);
   });
 
   test("without a second factor, login opens a session the gate sends to enrollment", async () => {
@@ -149,4 +159,18 @@ test("dev gate: key from the environment, default only outside production", () =
   for (const bad of ["", "gloub", "gloubix", null, undefined]) assert.ok(!isDevKey(bad, dev) && !hasDevCookie(bad, dev), String(bad));
   assert.ok(!isDevKey("gloubi", { NODE_ENV: "production" } as NodeJS.ProcessEnv));
   assert.ok(devGateEnabled({ NODE_ENV: "development" }) && !devGateEnabled({ NODE_ENV: "development", DEV_GATE: "off" }));
+});
+
+test("password rules: length, no common or repetitive password, not the email", () => {
+  assert.deepEqual(passwordIssues("a long passphrase of words", "x@y.fr"), []);
+  assert.ok(passwordIssues("short", "").includes("short"));
+  assert.ok(passwordIssues("Password123456", "").includes("common"));
+  assert.ok(passwordIssues("abcabcabcabcabc", "").includes("repetitive"));
+  assert.ok(passwordIssues("marie.dupont-2026-x", "marie.dupont@example.org").includes("email"));
+  assert.ok(passwordIssues("x".repeat(129), "").includes("long"));
+});
+
+test("login and signup screens are public, their next page cannot loop back", () => {
+  for (const p of ["/login/password", "/signup", "/signup/password"]) assert.equal(access(p, null, { loginEverywhere: true }), "allow", p);
+  assert.equal(safeNextPath("/signup/password"), "/");
 });

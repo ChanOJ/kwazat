@@ -11,8 +11,8 @@
  */
 export const LOGIN_REQUIRED_EVERYWHERE = false;
 
-/** Reachable without a session in every phase: login (with its code step) and the auth API. */
-const PUBLIC_PREFIXES = ["/login", "/api/auth"];
+/** Reachable without a session in every phase: login (with its code step), signup and the auth API. */
+const PUBLIC_PREFIXES = ["/login", "/signup", "/api/auth"];
 
 /** Local development mailbox: emailed codes must be readable before the login is complete. */
 const DEV_PUBLIC_PREFIXES = ["/dev/mail"];
@@ -50,6 +50,6 @@ export function access(
  */
 export function safeNextPath(next: unknown): string {
   if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return "/";
-  if (under(next, "/login") || under(next, "/api") || under(next, "/dev")) return "/";
+  if (under(next, "/login") || under(next, "/signup") || under(next, "/api") || under(next, "/dev")) return "/";
   return next;
 }

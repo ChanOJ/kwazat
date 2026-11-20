@@ -37,9 +37,10 @@ function mailLocale(user: object, requestHeaders?: Headers | null): Locale {
 export const EMAIL_CODE_MINUTES = 10;
 
 /**
- * Email and password login plus a mandatory second factor, sessions in Postgres. Signup is off
- * twice: Better Auth refuses it (`disableSignUp`) and its route does not exist (`disabledPaths`).
- * Accounts come from `pnpm users` only (scripts/users.ts).
+ * Email and password login plus a mandatory second factor, sessions in Postgres. Better Auth's own
+ * signup stays off twice (`disableSignUp` and `disabledPaths`): accounts come from the app's
+ * signup form (src/app/signup, which applies the password rules and rate limits and calls
+ * `createAccount`) or from `pnpm users` (scripts/users.ts).
  */
 export function createAuth(db: Db, opts: { baseURL?: string } = {}) {
   const baseURL = opts.baseURL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000";

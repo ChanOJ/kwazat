@@ -56,6 +56,12 @@ const icons = {
       <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" />
     </Icon>
   ),
+  logIn: (
+    <Icon>
+      <path d="M14 4h5v16h-5" />
+      <path d="M4 12h11M11 8l4 4-4 4" />
+    </Icon>
+  ),
   logOut: (
     <Icon>
       <path d="M10 4H5v16h5" />
@@ -135,6 +141,11 @@ export async function AnonymousProfile() {
       </summary>
       <div className="profile-menu" role="menu">
         <HideInLogin>
+          <Link href="/login" role="menuitem">
+            {icons.logIn}
+            {t("logIn")}
+          </Link>
+          <hr />
           <CommonLinks />
         </HideInLogin>
         <LanguagePicker

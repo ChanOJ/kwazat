@@ -7,6 +7,7 @@ import { ENROLL_PATH, safeNextPath } from "@/lib/access.ts";
 import { getAuth } from "@/lib/auth.ts";
 import { mergedCookies } from "@/lib/cookies.ts";
 import { getDb } from "@/lib/db.ts";
+import { EMAIL_COOKIE, EMAIL_COOKIE_OPTIONS, looksLikeEmail } from "@/lib/login-email.ts";
 import { clientIp, hit, LIMITS, passwordChecks, sendChecks } from "@/lib/rate-limit.ts";
 
 /** Which second factor the code page asks for (not a secret: it only picks the form). */
@@ -17,13 +18,26 @@ const LOGIN_COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax", path: "/login", 
 
 const withNext = (path: string, next: string) => (next === "/" ? path : `${path}${path.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`);
 
+/**
+ * First screen: only the address. "Log in" and "Create account" both submit it (the button's
+ * `intent`). It says nothing about whether the address has an account.
+ */
+export async function startLogin(formData: FormData): Promise<void> {
+  const next = safeNextPath(formData.get("next"));
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!looksLikeEmail(email)) redirect(withNext("/login?error=email", next));
+  (await cookies()).set(EMAIL_COOKIE, email, EMAIL_COOKIE_OPTIONS);
+  redirect(withNext(formData.get("intent") === "signup" ? "/signup/password" : "/login/password", next));
+}
+
+/** Second screen of the login: the password for the address from the first screen. */
 export async function logIn(formData: FormData): Promise<void> {
   const next = safeNextPath(formData.get("next"));
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const auth = await getAuth();
   const ip = clientIp(await headers());
-  let target = withNext("/login?error=1", next);
+  let target = withNext("/login/password?error=1", next);
   // Same message as a wrong password: says nothing about the account.
   if (hit(passwordChecks(ip, email)) > 0) redirect(target);
   try {
@@ -102,6 +116,7 @@ export async function verifyCode(formData: FormData): Promise<void> {
     const jar = await cookies();
     jar.delete({ name: METHOD_COOKIE, path: "/login" });
     jar.delete({ name: SENT_COOKIE, path: "/login" });
+    jar.delete({ name: EMAIL_COOKIE, path: "/" });
   }
   redirect(ok ? next : withNext("/login/code?error=1", next));
 }
