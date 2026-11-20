@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadPlaybook } from "../src/playbook.ts";
 import { subjectBlock } from "../src/claude.ts";
-import { BAND_CLASSES, bandFromEntity, kindOfClasses, type WdEntity } from "../src/wikidata.ts";
+import { BAND_CLASSES, bandFromEntity, displayName, kindOfClasses, type WdEntity } from "../src/wikidata.ts";
 
 const item = (id: string) => ({ datavalue: { type: "wikibase-entityid", value: { id } } });
 const text = (value: string) => ({ datavalue: { type: "string", value } });
@@ -42,12 +42,14 @@ const labels: Record<string, string> = {
   Q154852: "Till Lindemann",
   Q77040: "Christian Lorenz",
 };
+// The English label of a member can be a nickname; the display name is the Wikipedia one.
+const names: Record<string, string> = { Q77040: "Chris Lorenz (display)" };
 
 test("a music group's identity and members come from Wikidata claims", async () => {
   const b = await bandFromEntity(
     band,
     async (id) => (id === "Q183" ? "DE" : null),
-    async (ids) => Object.fromEntries(ids.map((id) => [id, labels[id] ?? id])),
+    async (ids) => Object.fromEntries(ids.map((id) => [id, { label: labels[id] ?? id, name: names[id] ?? labels[id] ?? id }])),
   );
   assert.equal(b.label, "Rammstein");
   assert.equal(b.identity.birthDate, "1994-01-04");
@@ -65,7 +67,7 @@ test("a music group's identity and members come from Wikidata claims", async () 
     b.relations.map((r) => [r.relationType, r.toLabel, r.from, r.to]),
     [
       ["has_member", "Till Lindemann", null, null],
-      ["has_member", "Christian Lorenz", "1994", "2000"],
+      ["has_member", "Chris Lorenz (display)", "1994", "2000"],
     ],
   );
   assert.ok(b.names.some((n) => n.name === "Rammstein (Band)" && n.lang === "de"));
@@ -157,4 +159,16 @@ test("a band's members are given to the research prompt with their dates", async
   } finally {
     await db.close();
   }
+});
+
+test("the display name is the English Wikipedia title, else the default label, else English", () => {
+  const flake = {
+    labels: { en: { value: "Flake Lorenz" }, mul: { value: "Christian Lorenz" }, de: { value: "Christian Lorenz" } },
+    sitelinks: { enwiki: { title: "Christian Lorenz" } },
+  };
+  assert.equal(displayName(flake), "Christian Lorenz");
+  assert.equal(displayName({ ...flake, sitelinks: undefined }), "Christian Lorenz", "no article: the default label wins over English");
+  assert.equal(displayName({ labels: { en: { value: "Only English" } } }), "Only English");
+  assert.equal(displayName({ labels: { en: { value: "Ann" } }, sitelinks: { enwiki: { title: "Ann Smith (musician)" } } }), "Ann Smith", "disambiguation suffix removed");
+  assert.equal(displayName({}), null);
 });

@@ -8,7 +8,8 @@ const API = "https://www.wikidata.org/w/api.php";
 // (no personal contact details).
 const USER_AGENT = "KwazatBot/0.1 (https://github.com/ChanOJ/kwazat)";
 // English first (the product works in English everywhere), then "mul" (language-neutral labels).
-const LANGS = ["en", "mul", "fr", "de", "es", "it"];
+// "mul" is Wikidata's default label for all languages, before English.
+const LANGS = ["mul", "en", "fr", "de", "es", "it"];
 
 type Snak = { datavalue?: { value: unknown; type: string } };
 type Claim = { mainsnak: Snak; qualifiers?: Record<string, Snak[]>; rank: string };
@@ -81,17 +82,30 @@ async function callUnthrottled(params: Record<string, string>): Promise<any> {
   }
 }
 
+/**
+ * Name shown for a person or a group: the title of its English Wikipedia article (without a
+ * disambiguation suffix), else Wikidata's default label, else the English one. The English
+ * label may be a nickname ("Flake Lorenz") where Wikipedia and the default label use the
+ * name ("Christian Lorenz"); the other labels stay searchable through `names`.
+ */
+export function displayName(e: Pick<WdEntity, "labels" | "sitelinks">): string | null {
+  const article = e.sitelinks?.enwiki?.title;
+  return article ? article.replace(/\s+\([^)]*\)$/, "") : pick(e.labels);
+}
+
 function pick(map: Record<string, { value: string }> | undefined): string | null {
   for (const l of LANGS) if (map?.[l]) return map[l].value;
   return null;
 }
 
 async function getEntities(ids: string[], props: string): Promise<Record<string, WdEntity>> {
+  // Only the English Wikipedia link is needed (display name): not the hundreds of other sites.
+  const sitefilter: Record<string, string> = props.includes("sitelinks") ? { sitefilter: "enwiki|frwiki|dewiki" } : {};
   const out: Record<string, WdEntity> = {};
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = ids.slice(i, i + 50);
     if (!chunk.length) continue;
-    const data = await call({ action: "wbgetentities", ids: chunk.join("|"), props, languages: LANGS.join("|") });
+    const data = await call({ action: "wbgetentities", ids: chunk.join("|"), props, languages: LANGS.join("|"), ...sitefilter });
     Object.assign(out, data.entities);
   }
   return out;
@@ -164,13 +178,13 @@ export async function searchCandidates(query: string, opts: { kinds: EntityKind[
     limit: "10",
   });
   const toCandidates = async (ids: string[]) => {
-    const entities = await getEntities(ids, "labels|descriptions|claims");
+    const entities = await getEntities(ids, "labels|descriptions|claims|sitelinks");
     return ids
       .map((id) => entities[id])
       .filter((e): e is WdEntity => !!e)
       .map((e) => ({
         wikidataId: e.id,
-        label: pick(e.labels) ?? e.id,
+        label: displayName(e) ?? e.id,
         description: pick(e.descriptions),
         birthDate: timeValue(claimsOf(e, "P569")[0]?.mainsnak),
         kind: kindOfClasses(itemIds(e, "P31")),
@@ -259,14 +273,16 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
     ...itemIds(e, "P106"),
     ...relationClaims.map(({ c }) => itemId(c.mainsnak)).filter((x): x is string => !!x),
   ]);
-  const labels = await getEntities([...referenced], "labels");
+  const labels = await getEntities([...referenced], "labels|sitelinks");
   const labelOf = (id: string) => pick(labels[id]?.labels) ?? id;
+  // Relation targets are people, parties, employers: shown under their Wikipedia name.
+  const nameOf = (id: string) => (labels[id] ? displayName(labels[id]!) : null) ?? id;
   const countryCodes = (await Promise.all(itemIds(e, "P27").map(isoCountryCode))).filter((c): c is string => !!c);
 
   const image = claimsOf(e, "P18")[0]?.mainsnak.datavalue?.value as string | undefined;
   const frwiki = e.sitelinks?.frwiki?.title;
   const enwiki = e.sitelinks?.enwiki?.title;
-  const label = pick(e.labels) ?? wikidataId;
+  const label = displayName(e) ?? wikidataId;
 
   return {
     wikidataId,
@@ -302,7 +318,7 @@ export async function getPersonIdentity(wikidataId: string): Promise<PersonIdent
         {
           relationType: meta.type,
           toWikidataId: id,
-          toLabel: labelOf(id),
+          toLabel: nameOf(id),
           strength: meta.strength,
           from: timeValue(c.qualifiers?.P580?.[0]),
           to: timeValue(c.qualifiers?.P582?.[0]),
@@ -347,13 +363,18 @@ export async function getBandIdentity(wikidataId: string): Promise<BandIdentity>
   return bandFromEntity(e, async (id) => isoCountryCode(id));
 }
 
-/** Pure part of getBandIdentity (tested with fixtures); `labelsOf` resolves item labels. */
+/** Pure part of getBandIdentity (tested with fixtures); `labelsOf` resolves item labels and display names. */
 export async function bandFromEntity(
   e: WdEntity,
   countryCode: (countryId: string) => Promise<string | null>,
-  labelsOf: (ids: string[]) => Promise<Record<string, string>> = async (ids) => {
-    const labels = await getEntities(ids, "labels");
-    return Object.fromEntries(ids.map((id) => [id, pick(labels[id]?.labels) ?? id]));
+  labelsOf: (ids: string[]) => Promise<Record<string, { label: string; name: string }>> = async (ids) => {
+    const entities = await getEntities(ids, "labels|sitelinks");
+    return Object.fromEntries(
+      ids.map((id) => {
+        const label = pick(entities[id]?.labels) ?? id;
+        return [id, { label, name: (entities[id] ? displayName(entities[id]!) : null) ?? label }];
+      }),
+    );
   },
 ): Promise<BandIdentity> {
   const wikidataId = e.id;
@@ -370,14 +391,16 @@ export async function bandFromEntity(
       ...members.map((m) => m.id),
     ]),
   ];
-  const names = await labelsOf(referenced);
-  const labelOf = (id: string) => names[id] ?? id;
+  const resolved = await labelsOf(referenced);
+  const labelOf = (id: string) => resolved[id]?.label ?? id;
+  // Members are people: shown under their Wikipedia name.
+  const nameOf = (id: string) => resolved[id]?.name ?? id;
   const countryCodes = (await Promise.all(itemIds(e, "P495").map(countryCode))).filter((c): c is string => !!c);
 
   const str = (prop: string) => claimsOf(e, prop)[0]?.mainsnak.datavalue?.value as string | undefined;
   const frwiki = e.sitelinks?.frwiki?.title;
   const enwiki = e.sitelinks?.enwiki?.title;
-  const label = pick(e.labels) ?? wikidataId;
+  const label = displayName(e) ?? wikidataId;
   const wiki = (lang: string, title: string) => `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replaceAll(" ", "_"))}`;
 
   return {
@@ -407,7 +430,7 @@ export async function bandFromEntity(
     relations: members.map(({ c, id }) => ({
       relationType: "has_member",
       toWikidataId: id,
-      toLabel: labelOf(id),
+      toLabel: nameOf(id),
       strength: 5,
       from: timeValue(c.qualifiers?.P580?.[0]),
       to: timeValue(c.qualifiers?.P582?.[0]),
