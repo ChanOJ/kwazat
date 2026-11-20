@@ -4,13 +4,13 @@ import { redirect } from "next/navigation";
 import { ENROLL_PATH, safeNextPath } from "@/lib/access.ts";
 import { getLoginEmail } from "@/lib/login-email.ts";
 import { getViewer } from "@/lib/viewer.ts";
-import { startLogin } from "./actions.ts";
+import { logIn, startSignup } from "./actions.ts";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations("meta"))("login") };
 }
 
-/** First screen: the email address only, then "Log in" or "Create account". */
+/** Login: address and password, then the second factor. Signup is its own page. */
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; expired?: string }> }) {
   const { next, error, expired } = await searchParams;
   const viewer = await getViewer();
@@ -21,9 +21,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <section className="login">
       <h1>{t("title")}</h1>
       <p className="lead">{t("lead")}</p>
-      {error === "email" && (
+      {error && (
         <p className="error" role="alert">
-          {t("badEmail")}
+          {error === "email" ? t("badEmail") : t("error")}
         </p>
       )}
       {expired && (
@@ -31,17 +31,19 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           {t("expired")}
         </p>
       )}
-      <form action={startLogin} className="stack">
+      <form action={logIn} className="stack">
         <input type="hidden" name="next" value={safeNextPath(next)} />
         <label>
           {t("email")}
           <input name="email" type="email" id="email" autoComplete="username" inputMode="email" defaultValue={previous ?? ""} required autoFocus />
         </label>
+        <label>
+          {t("password")}
+          <input name="password" type="password" id="password" autoComplete="current-password" required />
+        </label>
         <div className="actions">
-          <button type="submit" name="intent" value="login">
-            {t("submit")}
-          </button>
-          <button type="submit" name="intent" value="signup" className="secondary">
+          <button type="submit">{t("submit")}</button>
+          <button type="submit" formAction={startSignup} formNoValidate className="secondary">
             {t("createAccount")}
           </button>
         </div>
