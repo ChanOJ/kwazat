@@ -176,6 +176,11 @@ sections:
       no public position, with the date and the group's own words when public. Only state a
       reaction you can source; otherwise answer "unclear".
       Also note when the member's matter dates from before or after they were in the group.
+      Exactly ONE item per matter, and per member: the group's reaction goes in the
+      group_response fields of that item, never in a separate item. The statement says the
+      matter and, in the same sentence or the next, what the group did or said. When several
+      statements of the group concern the same matter, summarise them in group_response_detail
+      and give the latest as group_response_date.
     item_schema:
       type: object
       properties:

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Source } from "@kwazat/db";
 import { bandsOfMember, findEntity, knownByWikidataIds } from "@kwazat/researcher/names";
 import { loadSheet, wikidataIdOf } from "@kwazat/researcher/pipeline";
+import { matchMember } from "@kwazat/researcher/members";
 import { SEVERITIES, SEVERITY_ICONS, severityOf } from "@kwazat/researcher/severity";
 import { loadPlaybook } from "@kwazat/researcher/playbook";
 import { latestResearch, researchProgress, runningSections } from "@kwazat/researcher/worker";
@@ -32,7 +33,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const entity = await entityOr404(id);
   if (entity.id !== id) redirect(`/entity/${entity.id}`); // merged duplicate
-  const [t, ts, tr, tsev, locale] = await Promise.all([getTranslations("sheet"), getTranslations("sections"), getTranslations("relations"), getTranslations("severity"), getLocale()]);
+  const [t, ts, tr, tsev, tgr, locale] = await Promise.all([getTranslations("sheet"), getTranslations("sections"), getTranslations("relations"), getTranslations("severity"), getTranslations("groupResponse"), getLocale()]);
   const sectionTitle = (id: string, fallback: string) => (ts.has(id as never) ? ts(id as never) : fallback);
   const relationLabel = (type: string) => (tr.has(type as never) ? tr(type as never) : type.replaceAll("_", " "));
   const db = await getDb();
@@ -70,6 +71,12 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const memberSheets = isBand
     ? await knownByWikidataIds(db, wikidataRelations.map((r) => r.toWikidataId).filter((x): x is string => !!x))
     : new Map<string, string>();
+  // The sheet of the member a matter is about, when Kwazat has one.
+  const memberSheetOf = (name: unknown): string | null => {
+    if (!isBand || typeof name !== "string") return null;
+    const member = matchMember(name, wikidataRelations.map((r) => ({ label: r.toLabel, wikidataId: r.toWikidataId })));
+    return (member?.wikidataId && memberSheets.get(member.wikidataId)) || null;
+  };
   const bands = !isBand && wikidataId ? await bandsOfMember(db, wikidataId) : [];
 
   return (
@@ -204,6 +211,12 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
                         </span>
                       )}{" "}
                       {f.factDate && <span className="date">{f.factDate}</span>} {f.statement} {cite(f.sources)}
+                      {typeof f.data.group_response === "string" && tgr.has(f.data.group_response as never) && (
+                        <span className="badge" lang={locale}>{tgr("label")}: {tgr(f.data.group_response as never)}</span>
+                      )}
+                      {memberSheetOf(f.data.member) && (
+                        <> <Link href={`/entity/${memberSheetOf(f.data.member)}`} lang={locale}>{tgr("memberSheet")}</Link></>
+                      )}
                       {f.reviewStatus === "needs_review" && <span className="badge" lang={locale}>{t("needsReview")}</span>}
                     </li>
                   ))}
