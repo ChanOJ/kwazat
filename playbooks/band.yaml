@@ -30,6 +30,14 @@ style: |
     members_conduct section, and never attribute a member's personal conduct to the group.
     Each matter appears in exactly one section: group-level matters in the group sections,
     member matters only in members_conduct.
+  - Give every item a severity, on this ladder only (it describes the legal or factual status,
+    not your opinion of the matter):
+      high: a final criminal conviction, or misconduct established by a court or admitted;
+      medium: criminal charges, a trial or an appeal pending, or serious allegations that an
+        official investigation is looking into;
+      low: allegations or controversies without legal proceedings, civil or commercial disputes,
+        bans or lawsuits about the work, reputational matters;
+      cleared: closed without charge, acquitted, dismissed or overturned.
   - Within a section, list items from the most recent to the oldest, dated by the latest
     decision or event of the matter (not by its start).
   - Only report facts related to the group's public activity or of clear public interest.
@@ -72,6 +80,7 @@ sections:
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         case_name: { type: string }
         subject: { type: string, description: "What the proceeding is about." }
         court: { type: [string, "null"] }
@@ -84,7 +93,7 @@ sections:
         outcome: { type: [string, "null"] }
         last_update_date: { type: [string, "null"], description: "ISO date, possibly partial, of the latest decision." }
         group_response: { type: [string, "null"] }
-      required: [case_name, subject, court, country, procedural_stage, is_final, overturned, outcome, last_update_date, group_response]
+      required: [severity, case_name, subject, court, country, procedural_stage, is_final, overturned, outcome, last_update_date, group_response]
 
   - id: investigative_revelations
     title: Investigative revelations
@@ -105,13 +114,14 @@ sections:
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         title: { type: string }
         outlet: { type: string }
         publication_date: { type: [string, "null"] }
         summary: { type: string }
         follow_up: { type: [string, "null"] }
         group_response: { type: [string, "null"] }
-      required: [title, outlet, publication_date, summary, follow_up, group_response]
+      required: [severity, title, outlet, publication_date, summary, follow_up, group_response]
 
   - id: controversies
     title: Controversies
@@ -131,6 +141,7 @@ sections:
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         title: { type: string }
         date: { type: [string, "null"] }
         summary: { type: string }
@@ -142,7 +153,7 @@ sections:
               actor: { type: string }
               position: { type: string }
             required: [actor, position]
-      required: [title, date, summary, perspectives]
+      required: [severity, title, date, summary, perspectives]
 
   - id: members_conduct
     title: Members' conduct and the group's response
@@ -168,6 +179,7 @@ sections:
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         member: { type: string }
         membership_period: { type: [string, "null"], description: "E.g. 1994-present, or 1994-2000." }
         matter: { type: string, description: "One neutral line." }
@@ -185,4 +197,4 @@ sections:
           enum: [distanced, supported, no_public_position, unclear]
         group_response_detail: { type: [string, "null"], description: "What the group did or said, attributed." }
         group_response_date: { type: [string, "null"] }
-      required: [member, membership_period, matter, matter_type, procedural_stage, is_final, matter_date, member_response, group_response, group_response_detail, group_response_date]
+      required: [severity, member, membership_period, matter, matter_type, procedural_stage, is_final, matter_date, member_response, group_response, group_response_detail, group_response_date]

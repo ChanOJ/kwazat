@@ -87,6 +87,13 @@
     "identitySource": "Identity data from <link>Wikidata</link>.",
     "contentLanguage": ""
   },
+  "severity": {
+    "legend": "Status of each matter",
+    "high": "Final conviction, or misconduct established by a court or admitted",
+    "medium": "Charges, trial or appeal pending, or serious allegations under official investigation",
+    "low": "Allegations, civil dispute or controversy without criminal proceedings",
+    "cleared": "Closed without charge, acquitted, dismissed or overturned"
+  },
   "sections": {
     "convictions": "Criminal convictions",
     "ongoing_cases": "Ongoing legal proceedings",

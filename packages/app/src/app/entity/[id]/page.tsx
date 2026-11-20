@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Source } from "@kwazat/db";
 import { bandsOfMember, findEntity, knownByWikidataIds } from "@kwazat/researcher/names";
 import { loadSheet, wikidataIdOf } from "@kwazat/researcher/pipeline";
+import { SEVERITIES, SEVERITY_ICONS, severityOf } from "@kwazat/researcher/severity";
 import { loadPlaybook } from "@kwazat/researcher/playbook";
 import { latestResearch, runningSections } from "@kwazat/researcher/worker";
 import { getDb } from "@/lib/db.ts";
@@ -31,7 +32,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const entity = await entityOr404(id);
   if (entity.id !== id) redirect(`/entity/${entity.id}`); // merged duplicate
-  const [t, ts, tr, locale] = await Promise.all([getTranslations("sheet"), getTranslations("sections"), getTranslations("relations"), getLocale()]);
+  const [t, ts, tr, tsev, locale] = await Promise.all([getTranslations("sheet"), getTranslations("sections"), getTranslations("relations"), getTranslations("severity"), getLocale()]);
   const sectionTitle = (id: string, fallback: string) => (ts.has(id as never) ? ts(id as never) : fallback);
   const relationLabel = (type: string) => (tr.has(type as never) ? tr(type as never) : type.replaceAll("_", " "));
   const db = await getDb();
@@ -45,6 +46,8 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const running = new Set(inProgress ? await runningSections(db, entity.id) : []);
   const researchSections = playbook.sections.filter((s) => s.method === "research");
   const identity = entity.identity as Record<string, unknown>;
+  // Legend of the severity icons that appear on this sheet.
+  const legend = SEVERITIES.filter((s) => sheet.facts.some((f) => f.reviewStatus !== "rejected" && severityOf(f.data) === s));
   const facts: [string, string | null][] = isBand
     ? [
         [t("origin"), list(identity.origins)],
@@ -135,6 +138,19 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
         </form>
       )}
 
+      {legend.length > 0 && (
+        <details className="severity-legend">
+          <summary>{tsev("legend")}</summary>
+          <ul>
+            {legend.map((s) => (
+              <li key={s}>
+                <span aria-hidden="true">{SEVERITY_ICONS[s]}</span> {tsev(s)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {researchSections.map((section) => {
           const run = sheet.runs.find((r) => r.sectionId === section.id);
           // Most recent first (partial dates compare as text); undated items last.
@@ -166,6 +182,11 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
                 <ul className="facts" lang="en">
                   {sectionFacts.map((f) => (
                     <li key={f.id}>
+                      {severityOf(f.data) && (
+                        <span role="img" className="severity" aria-label={tsev(severityOf(f.data)!)} title={tsev(severityOf(f.data)!)}>
+                          {SEVERITY_ICONS[severityOf(f.data)!]}
+                        </span>
+                      )}{" "}
                       {f.factDate && <span className="date">{f.factDate}</span>} {f.statement} {cite(f.sources)}
                       {f.reviewStatus === "needs_review" && <span className="badge" lang={locale}>{t("needsReview")}</span>}
                     </li>
