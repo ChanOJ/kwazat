@@ -5,14 +5,16 @@
  * (local development, PGlite) or as its own process (Serverless Job, later).
  */
 import { randomUUID } from "node:crypto";
-import { and, claim, complete, enqueue, eq, fail, inArray, jobs, requeueStale, sectionRuns, type Db, type Job } from "@kwazat/db";
+import { and, claim, complete, desc, enqueue, eq, fail, inArray, jobs, requeueStale, sectionRuns, type Db, type Job } from "@kwazat/db";
 import { resolveConfig, type RunConfig } from "./claude.ts";
-import { estimateSeconds, progressPercent, type SectionProgress } from "./progress.ts";
+import { estimateSeconds, medianSeconds, progressPercent, type SectionProgress } from "./progress.ts";
 import { loadPlaybook, type ResearchSection } from "./playbook.ts";
 import { runSection, upsertEntity } from "./pipeline.ts";
 import { loadRegistry } from "./sources.ts";
 
 export const RESEARCH_JOB = "research";
+/** How many earlier runs of a section the progress estimate looks at. */
+const HISTORY_RUNS = 10;
 
 export type ResearchPayload = { type: "person" | "band"; wikidataId: string };
 
@@ -76,18 +78,32 @@ export async function queueResearch(db: Db, p: ResearchPayload) {
 export async function researchProgress(
   db: Db,
   entityId: string,
+  playbookId: string,
   sections: { id: string; max_searches: number; max_fetches: number }[],
   since: Date,
   now = new Date(),
 ): Promise<{ percent: number; done: number; total: number }> {
   const runs = await db.select().from(sectionRuns).where(eq(sectionRuns.entityId, entityId));
+  // Durations of earlier successful runs of the same playbook's sections, any entity and version.
+  const history = await db
+    .select({ sectionId: sectionRuns.sectionId, startedAt: sectionRuns.startedAt, finishedAt: sectionRuns.finishedAt })
+    .from(sectionRuns)
+    .where(and(eq(sectionRuns.playbookId, playbookId), eq(sectionRuns.status, "succeeded")))
+    .orderBy(desc(sectionRuns.startedAt))
+    .limit(200);
   const parts: SectionProgress[] = sections.map((s) => {
-    const estimateS = estimateSeconds(s);
-    const mine = runs.filter((r) => r.sectionId === s.id && r.startedAt >= since);
-    const running = mine.find((r) => !r.finishedAt);
-    if (running) return { estimateS, state: "running", elapsedS: (now.getTime() - running.startedAt.getTime()) / 1000 };
-    const finished = mine.find((r) => r.finishedAt);
-    if (finished) return { estimateS, state: "done", elapsedS: (finished.finishedAt!.getTime() - finished.startedAt.getTime()) / 1000 };
+    const past = history
+      .filter((r) => r.sectionId === s.id && r.finishedAt && r.startedAt < since)
+      .slice(0, HISTORY_RUNS)
+      .map((r) => (r.finishedAt!.getTime() - r.startedAt.getTime()) / 1000);
+    const estimateS = medianSeconds(past) ?? estimateSeconds(s);
+    // Only the latest run of the section in this job counts: an older one left "running" by a
+    // stopped server must not hide the run that replaced it.
+    const latest = runs
+      .filter((r) => r.sectionId === s.id && r.startedAt >= since)
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0];
+    if (latest && !latest.finishedAt) return { estimateS, state: "running", elapsedS: (now.getTime() - latest.startedAt.getTime()) / 1000 };
+    if (latest?.finishedAt) return { estimateS, state: "done", elapsedS: (latest.finishedAt.getTime() - latest.startedAt.getTime()) / 1000 };
     // No run in this job: done only if a current result already exists (skipped as up to date).
     return { estimateS, state: runs.some((r) => r.sectionId === s.id && r.isCurrent) ? "done" : "pending" };
   });

@@ -46,7 +46,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
   const inProgress = job?.status === "queued" || job?.status === "running";
   const running = new Set(inProgress ? await runningSections(db, entity.id) : []);
   const researchSections = playbook.sections.filter((s) => s.method === "research");
-  const progress = inProgress && job ? await researchProgress(db, entity.id, researchSections, job.createdAt) : null;
+  const progress = inProgress && job ? await researchProgress(db, entity.id, playbook.id, researchSections, job.createdAt) : null;
   const identity = entity.identity as Record<string, unknown>;
   // Legend of the severity icons that appear on this sheet.
   const legend = SEVERITIES.filter((s) => sheet.facts.some((f) => f.reviewStatus !== "rejected" && severityOf(f.data) === s));
@@ -206,7 +206,7 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
                   {sectionFacts.map((f) => (
                     <li key={f.id}>
                       {severityOf(f.data) && (
-                        <span role="img" className="severity" aria-label={tsev(severityOf(f.data)!)} title={tsev(severityOf(f.data)!)}>
+                        <span role="img" className="severity" aria-label={tsev(severityOf(f.data)!)} data-label={tsev(severityOf(f.data)!)} tabIndex={0}>
                           {SEVERITY_ICONS[severityOf(f.data)!]}
                         </span>
                       )}{" "}

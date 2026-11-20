@@ -1,0 +1,54 @@
+# Germany. See sources/README.md for the fields and how they are used.
+#
+# Tiers are computed in code from evidence-backed `signals` and from the country indices; nobody
+# sets a tier by hand. Entries without deciding evidence are unrated (confidence capped at
+# medium). Only outlets and institutions whose type is not in doubt are listed; signals are
+# added when someone records the evidence.
+
+country: DE
+languages: [ de ]
+
+sources:
+  # Courts and official sources
+  - { domain: bundesverfassungsgericht.de, name: Federal Constitutional Court, types: [ court ], signals: [ { id: official } ] }
+  - { domain: bundesgerichtshof.de, name: Federal Court of Justice, types: [ court ], signals: [ { id: official } ] }
+  - { domain: bundesverwaltungsgericht.de, name: Federal Administrative Court, types: [ court ], signals: [ { id: official } ] }
+  - { domain: bundesarbeitsgericht.de, name: Federal Labour Court, types: [ court ], signals: [ { id: official } ] }
+  - { domain: bundesfinanzhof.de, name: Federal Fiscal Court, types: [ court ], signals: [ { id: official } ] }
+  - { domain: gesetze-im-internet.de, name: Federal laws (Ministry of Justice), types: [ government ], signals: [ { id: official } ] }
+  - { domain: bundesregierung.de, name: Federal Government, types: [ government ], signals: [ { id: official } ] }
+  - { domain: bundestag.de, name: Bundestag, types: [ government ], signals: [ { id: official } ] }
+
+  # Wire service
+  - { domain: dpa.com, name: dpa, types: [ wire ] }
+
+  # Public broadcasters
+  - { domain: tagesschau.de, name: Tagesschau (ARD), types: [ broadcaster ] }
+  - { domain: zdf.de, name: ZDF, types: [ broadcaster ] }
+  - { domain: deutschlandfunk.de, name: Deutschlandfunk, types: [ broadcaster ] }
+  - { domain: deutschlandfunkkultur.de, name: Deutschlandfunk Kultur, types: [ broadcaster ] }
+  - { domain: ndr.de, name: NDR, types: [ broadcaster, investigative ] }
+  - { domain: wdr.de, name: WDR, types: [ broadcaster, investigative ] }
+  - { domain: br.de, name: BR, types: [ broadcaster ] }
+  - { domain: rbb24.de, name: rbb, types: [ broadcaster ] }
+  - { domain: mdr.de, name: MDR, types: [ broadcaster ] }
+  - { domain: swr.de, name: SWR, types: [ broadcaster ] }
+
+  # Newspapers and magazines
+  - { domain: sueddeutsche.de, name: Süddeutsche Zeitung, types: [ newspaper, investigative ] }
+  - { domain: faz.net, name: Frankfurter Allgemeine Zeitung, types: [ newspaper ] }
+  - { domain: zeit.de, name: Die Zeit, types: [ newspaper, investigative ] }
+  - { domain: welt.de, name: Die Welt, types: [ newspaper ] }
+  - { domain: taz.de, name: taz, types: [ newspaper ] }
+  - { domain: handelsblatt.com, name: Handelsblatt, types: [ newspaper ] }
+  - { domain: tagesspiegel.de, name: Der Tagesspiegel, types: [ newspaper ] }
+  - { domain: berliner-zeitung.de, name: Berliner Zeitung, types: [ newspaper ] }
+  - { domain: morgenpost.de, name: Berliner Morgenpost, types: [ newspaper ] }
+  - { domain: fr.de, name: Frankfurter Rundschau, types: [ newspaper ] }
+  - { domain: spiegel.de, name: Der Spiegel, types: [ magazine, investigative ] }
+  - { domain: stern.de, name: Stern, types: [ magazine, investigative ] }
+
+  # Investigative and legal
+  - { domain: correctiv.org, name: CORRECTIV, types: [ investigative ] }
+  - { domain: netzpolitik.org, name: netzpolitik.org, types: [ investigative ] }
+  - { domain: lto.de, name: Legal Tribune Online, types: [ newspaper ], notes: Legal news; reports court decisions. }

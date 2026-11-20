@@ -83,3 +83,9 @@ excluded:
   - { domain: facebook.com, reason: "Social media posts are not sources." }
   - { domain: tiktok.com, reason: "Social media posts are not sources." }
   - { domain: reddit.com, reason: "Social media posts are not sources." }
+  - { domain: lambgoat.com, reason: "Music news blog: not a source for allegations or legal facts." }
+  - { domain: metalsucks.net, reason: "Music news blog: not a source for allegations or legal facts." }
+  - { domain: metalinjection.net, reason: "Music news blog: not a source for allegations or legal facts." }
+  - { domain: ghostcult.com, reason: "Music news blog: not a source for allegations or legal facts." }
+  - { domain: faroutmagazine.co.uk, reason: "Music news blog: not a source for allegations or legal facts." }
+  - { domain: promiflash.de, reason: "Celebrity gossip site: not a source." }
