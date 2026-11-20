@@ -9,6 +9,7 @@ import { openDb, sql, type Db } from "@kwazat/db";
 process.env.KWAZAT_MAIL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kwazat-mail-"));
 
 const { isDevKey, hasDevCookie, devKey, devGateEnabled } = await import("../src/lib/dev-gate.ts");
+const { seal, open } = await import("../src/lib/signup-secret.ts");
 const { passwordIssues } = await import("../src/lib/password.ts");
 const { access, safeNextPath } = await import("../src/lib/access.ts");
 const { createAuth } = await import("../src/lib/auth.ts");
@@ -173,4 +174,14 @@ test("password rules: length, no common or repetitive password, not the email", 
 test("login and signup screens are public, their next page cannot loop back", () => {
   for (const p of ["/login/password", "/signup", "/signup/password"]) assert.equal(access(p, null, { loginEverywhere: true }), "allow", p);
   assert.equal(safeNextPath("/signup/password"), "/");
+});
+
+test("the signup password cookie is bound to the user, expires, and cannot be tampered with", () => {
+  const token = seal("user-1", "a long passphrase here");
+  assert.equal(open(token, "user-1"), "a long passphrase here");
+  assert.equal(open(token, "user-2"), null);
+  assert.equal(open(token, "user-1", Date.now() + 16 * 60 * 1000), null);
+  assert.equal(open(token.slice(0, -2) + "AA", "user-1"), null);
+  assert.equal(open(undefined, "user-1"), null);
+  assert.ok(!Buffer.from(token, "base64url").toString("utf8").includes("passphrase"));
 });

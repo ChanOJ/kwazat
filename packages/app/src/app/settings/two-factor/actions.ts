@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { eq, twoFactors, users } from "@kwazat/db";
 import { getAuth } from "@/lib/auth.ts";
 import { getDb } from "@/lib/db.ts";
+import { forgetPassword, rememberedPassword } from "@/lib/signup-secret.ts";
 import { clientIp, hit, LIMITS, passwordChecks, RESEND_SECONDS, sendChecks, waitMinutes } from "@/lib/rate-limit.ts";
 
 export type Method = "email" | "totp";
@@ -40,8 +41,9 @@ async function passwordIsRight(userId: string, password: string): Promise<boolea
  */
 async function startEnrollment(_: EnrollState, formData: FormData): Promise<EnrollState> {
   const method: Method = formData.get("method") === "totp" ? "totp" : "email";
-  const password = String(formData.get("password") ?? "");
   const { auth, user } = await currentUser();
+  // Just after signup the password comes from the encrypted cookie (see lib/signup-secret.ts).
+  const password = String(formData.get("password") ?? "") || (await rememberedPassword(user.id)) || "";
   const requestHeaders = await headers();
   const ip = clientIp(requestHeaders);
   const passwordWait = hit(passwordChecks(ip, user.email));
@@ -81,6 +83,7 @@ async function confirmEnrollment(state: EnrollState, formData: FormData): Promis
   await db.update(users).set({ twoFactorEnabled: true, twoFactorMethod: state.method, updatedAt: new Date() }).where(eq(users.id, user.id));
   // Email only: the authenticator secret and its backup codes stop working.
   if (state.method === "email") await db.delete(twoFactors).where(eq(twoFactors.userId, user.id));
+  await forgetPassword();
   return { step: "done", method: state.method, backupCodes: state.backupCodes };
 }
 

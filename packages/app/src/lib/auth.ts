@@ -11,7 +11,7 @@ import { sendMail } from "./mail.ts";
 /** Only used by `next dev` and tests, against the local PGlite database. */
 const DEV_SECRET = "kwazat-local-dev-only-not-a-secret-000000";
 
-function secret(): string {
+export function secret(): string {
   const value = process.env.BETTER_AUTH_SECRET;
   if (value) return value;
   if (process.env.NODE_ENV === "production") throw new Error("BETTER_AUTH_SECRET is required in production");
