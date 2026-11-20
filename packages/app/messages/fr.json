@@ -95,6 +95,14 @@
     "low": "Accusations, litige civil ou polémique sans procédure pénale",
     "cleared": "Classée sans suite, relaxe, non-lieu ou décision annulée"
   },
+  "groupResponse": {
+    "label": "Réaction du groupe",
+    "distanced": "s’est désolidarisé",
+    "supported": "soutient le membre",
+    "no_public_position": "pas de position publique",
+    "unclear": "pas clair",
+    "memberSheet": "Fiche du membre"
+  },
   "sections": {
     "convictions": "Condamnations pénales",
     "ongoing_cases": "Procédures judiciaires en cours",

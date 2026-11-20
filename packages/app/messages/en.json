@@ -95,6 +95,14 @@
     "low": "Allegations, civil dispute or controversy without criminal proceedings",
     "cleared": "Closed without charge, acquitted, dismissed or overturned"
   },
+  "groupResponse": {
+    "label": "Group’s response",
+    "distanced": "distanced itself",
+    "supported": "supports the member",
+    "no_public_position": "no public position",
+    "unclear": "unclear",
+    "memberSheet": "Member’s sheet"
+  },
   "sections": {
     "convictions": "Criminal convictions",
     "ongoing_cases": "Ongoing legal proceedings",

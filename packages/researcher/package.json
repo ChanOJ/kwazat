@@ -7,7 +7,8 @@
     "./worker": "./src/worker.ts",
     "./playbook": "./src/playbook.ts",
     "./pipeline": "./src/pipeline.ts",
-    "./severity": "./src/severity.ts"
+    "./severity": "./src/severity.ts",
+    "./members": "./src/members.ts"
   },
   "scripts": {
     "research": "tsx src/cli.ts research",
