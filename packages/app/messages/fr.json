@@ -84,7 +84,15 @@
     "needsReview": "à vérifier",
     "unverified": "(non vérifiée)",
     "wikidataRelations": "Relations (Wikidata)",
+    "identitySource": "Données d’identité issues de <link>Wikidata</link>.",
     "contentLanguage": "Le contenu des fiches est encore en anglais."
+  },
+  "severity": {
+    "legend": "Statut de chaque affaire",
+    "high": "Condamnation définitive, ou faits établis par un tribunal ou reconnus",
+    "medium": "Poursuites, procès ou appel en cours, ou accusations graves visées par une enquête officielle",
+    "low": "Accusations, litige civil ou polémique sans procédure pénale",
+    "cleared": "Classée sans suite, relaxe, non-lieu ou décision annulée"
   },
   "sections": {
     "convictions": "Condamnations pénales",
@@ -92,6 +100,7 @@
     "investigative_revelations": "Révélations d’enquêtes",
     "controversies": "Polémiques",
     "legal_proceedings": "Procédures judiciaires",
+    "members_conduct": "Conduite des membres et réaction du groupe",
     "political_affiliation": "Affiliation politique",
     "notable_relations": "Relations notables"
   },

@@ -11,7 +11,11 @@ label: Band
 
 scope: >
   Music groups with a Wikidata item (bands, duos, vocal groups, orchestras of popular music).
-  Findings concern the group as such, or its members when acting for or within the group.
+  The sheet is about the group as an entity (its releases, concerts, business, collective
+  decisions). Matters of a single member in a personal capacity belong to that member's own
+  sheet; here they only appear in the members_conduct section, together with how the group
+  reacted (it distanced itself from the member or not), because that reaction is what reflects
+  on the group.
 
 style: |
   - Write neutral, factual, attributed statements: "According to <outlet>, ..." for anything
@@ -22,8 +26,20 @@ style: |
   - Presumption of innocence: never present anyone as guilty unless a conviction is final.
     Always state the procedural stage (investigation, indictment, first instance, appeal,
     cassation, final) and mention pending appeals.
-  - Say whether a finding concerns the group as a whole or named members, and name them.
-    Do not attribute a member's personal conduct to the whole group.
+  - Stay on the group. Do not research or detail the personal affairs of a member outside the
+    members_conduct section, and never attribute a member's personal conduct to the group.
+    Each matter appears in exactly one section: group-level matters in the group sections,
+    member matters only in members_conduct.
+  - Give every item a severity, on this ladder only (it describes the legal or factual status,
+    not your opinion of the matter):
+      high: a final criminal conviction, or misconduct established by a court or admitted;
+      medium: criminal charges, a trial or an appeal pending, or serious allegations that an
+        official investigation is looking into;
+      low: allegations or controversies without legal proceedings, civil or commercial disputes,
+        bans or lawsuits about the work, reputational matters;
+      cleared: closed without charge, acquitted, dismissed or overturned.
+  - Within a section, list items from the most recent to the oldest, dated by the latest
+    decision or event of the matter (not by its start).
   - Only report facts related to the group's public activity or of clear public interest.
     Nothing about health, sexual orientation, religion, or private life of members.
   - When the group or the member concerned responded publicly, include their position.
@@ -34,9 +50,10 @@ style: |
 source_guidance: >
   Prefer international wire services and newspapers of record, plus reputable national outlets
   of the group's country of origin (in any language). For legal facts, prefer official court or
-  ministry websites. Music magazines are fine for context but not for allegations. Avoid
-  tabloids, fan sites, social media posts and content farms; Wikipedia may help find leads but
-  is never a source.
+  ministry websites. Established music press may be used for the group's own statements and
+  releases, never alone for allegations. Never use fan sites, music blogs, celebrity or gossip
+  outlets, tabloids, social media posts or content farms; Wikipedia may help find leads but is
+  never a source.
 
 sections:
   - id: identity
@@ -50,58 +67,61 @@ sections:
     sensitive: true
     ttl_days: 14
     source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
-    max_searches: 8
-    max_fetches: 6
+    max_searches: 6
+    max_fetches: 5
     instructions: |
-      List criminal and significant civil proceedings involving this group or its members in
-      connection with the group: investigations, charges, trials, convictions, acquittals,
-      appeals, and lawsuits about the group's work (copyright, contracts, censorship or
-      banning of songs, albums or concerts by a court). For each, say who is concerned (the
-      group or named members), the court or authority, the procedural stage, whether it is
-      final, and the outcome. Include decisions later overturned, marked as overturned.
-      Remind that people are presumed innocent until a final conviction.
+      List legal proceedings involving the group itself, as a whole or as a business: lawsuits
+      about its work (copyright, plagiarism, contracts with labels, managers or promoters),
+      courts or authorities banning, indexing or restricting songs, albums, videos or concerts,
+      tax or business matters of the group, and criminal proceedings against the group as such.
+      Do NOT list proceedings against a single member in a personal capacity (another section
+      covers members). For each, give the court or authority, the procedural stage, whether it
+      is final and the outcome. Include decisions later overturned, marked as overturned.
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         case_name: { type: string }
-        concerned: { type: string, description: "The group as a whole, or the named members." }
-        allegations_or_subject: { type: string }
+        subject: { type: string, description: "What the proceeding is about." }
         court: { type: [string, "null"] }
         country: { type: [string, "null"], description: "ISO 3166-1 alpha-2 code." }
         procedural_stage:
           type: string
           enum: [investigation, indicted, first_instance, appeal, cassation, final, other]
         is_final: { type: boolean }
+        overturned: { type: boolean }
         outcome: { type: [string, "null"] }
-        last_update_date: { type: [string, "null"], description: "ISO date, possibly partial." }
-        response: { type: [string, "null"], description: "The concerned party's public response." }
-      required: [case_name, concerned, allegations_or_subject, court, country, procedural_stage, is_final, outcome, last_update_date, response]
+        last_update_date: { type: [string, "null"], description: "ISO date, possibly partial, of the latest decision." }
+        group_response: { type: [string, "null"] }
+      required: [severity, case_name, subject, court, country, procedural_stage, is_final, overturned, outcome, last_update_date, group_response]
 
   - id: investigative_revelations
     title: Investigative revelations
     method: research
     sensitive: true
     ttl_days: 14
-    source_types: [investigative, wire, newspaper, broadcaster, magazine]
-    max_searches: 8
-    max_fetches: 6
+    source_types: [investigative, wire, newspaper, broadcaster]
+    max_searches: 6
+    max_fetches: 5
     instructions: |
-      List significant revelations about this group or its members' conduct within the group
-      published by recognised investigative outlets (original reporting, not opinion pieces or
-      reviews). For each: the outlet that first published it, the date, a neutral summary, who
-      is concerned, any follow-up (official investigation, lawsuit, cancelled tour, label
-      decision) and the response of the group or members.
+      List significant revelations about the group as an organisation published by recognised
+      investigative outlets (original reporting, not opinion pieces or reviews): business
+      practices, finances, management, ticketing, labels, working conditions of crew, links
+      with companies or political groups. Do NOT list revelations about a member's personal
+      conduct (another section covers members). For each: the outlet that first published it,
+      the date, a neutral summary, any follow-up (official investigation, lawsuit, label or
+      sponsor decision) and the group's response.
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         title: { type: string }
         outlet: { type: string }
         publication_date: { type: [string, "null"] }
-        concerned: { type: string }
         summary: { type: string }
         follow_up: { type: [string, "null"] }
-        response: { type: [string, "null"] }
-      required: [title, outlet, publication_date, concerned, summary, follow_up, response]
+        group_response: { type: [string, "null"] }
+      required: [severity, title, outlet, publication_date, summary, follow_up, group_response]
 
   - id: controversies
     title: Controversies
@@ -109,16 +129,19 @@ sections:
     sensitive: false
     ttl_days: 7
     source_types: [wire, newspaper, broadcaster, magazine, fact_check]
-    max_searches: 6
+    max_searches: 5
     max_fetches: 4
     instructions: |
-      List the most significant public controversies involving this group (lyrics, imagery,
-      statements, performances, political or symbolic use, sponsorship, ticketing, conduct of
-      members within the group) that received broad media coverage. Limit to the 8 most
-      significant. For each, give the perspectives of the main actors, including the group.
+      List the most significant public controversies about the group as such (lyrics, imagery,
+      videos, statements by the group, performances, political or symbolic use of its work,
+      sponsorship, ticketing, collective decisions) that received broad media coverage. Limit
+      to the 8 most significant. Exclude anything already covered as a legal proceeding of the
+      group, and exclude matters of a single member in a personal capacity. For each, give the
+      perspectives of the main actors, including the group.
     item_schema:
       type: object
       properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
         title: { type: string }
         date: { type: [string, "null"] }
         summary: { type: string }
@@ -130,4 +153,48 @@ sections:
               actor: { type: string }
               position: { type: string }
             required: [actor, position]
-      required: [title, date, summary, perspectives]
+      required: [severity, title, date, summary, perspectives]
+
+  - id: members_conduct
+    title: Members' conduct and the group's response
+    method: research
+    sensitive: true
+    ttl_days: 14
+    source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
+    max_searches: 8
+    max_fetches: 6
+    instructions: |
+      Check each current and former member of the group (listed in the subject block) for
+      serious matters: criminal convictions, criminal investigations, charges or trials, or
+      allegations of serious misconduct reported by recognised investigative outlets. Only
+      members with such a matter appear; a member with nothing serious is left out. For each
+      matter keep ONE neutral summary line with its procedural stage (the member's own sheet
+      holds the details): do not recount the case at length.
+      The point of this section is the group's reaction. For each matter, establish from
+      sources whether the group distanced itself from the member (excluded, suspended, member
+      left, tour or release without the member), kept the member and supported them, or took
+      no public position, with the date and the group's own words when public. Only state a
+      reaction you can source; otherwise answer "unclear".
+      Also note when the member's matter dates from before or after they were in the group.
+    item_schema:
+      type: object
+      properties:
+        severity: { type: string, enum: [high, medium, low, cleared] }
+        member: { type: string }
+        membership_period: { type: [string, "null"], description: "E.g. 1994-present, or 1994-2000." }
+        matter: { type: string, description: "One neutral line." }
+        matter_type:
+          type: string
+          enum: [conviction, charges_or_trial, investigation, serious_allegations]
+        procedural_stage:
+          type: string
+          enum: [investigation, indicted, first_instance, appeal, cassation, final, closed_without_charge, not_applicable]
+        is_final: { type: boolean }
+        matter_date: { type: [string, "null"], description: "ISO date, possibly partial, of the latest development." }
+        member_response: { type: [string, "null"] }
+        group_response:
+          type: string
+          enum: [distanced, supported, no_public_position, unclear]
+        group_response_detail: { type: [string, "null"], description: "What the group did or said, attributed." }
+        group_response_date: { type: [string, "null"] }
+      required: [severity, member, membership_period, matter, matter_type, procedural_stage, is_final, matter_date, member_response, group_response, group_response_detail, group_response_date]
