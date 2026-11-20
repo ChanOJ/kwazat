@@ -20,12 +20,19 @@
     "help": "Get help",
     "settings": "Settings",
     "language": "Language",
+    "theme": "Theme",
+    "chooseTheme": "Choose your theme",
     "logOut": "Log out",
     "anonymous": "Browsing anonymously",
     "chooseLanguage": "Choose your language",
     "searchLanguages": "Search languages",
     "close": "Close",
     "logIn": "Log in"
+  },
+  "themes": {
+    "dark": "Dark",
+    "light": "Light",
+    "device": "Device"
   },
   "languages": {
     "en": "English",
@@ -157,6 +164,8 @@
     "newBackup": "New backup codes",
     "backupDone": "New backup codes (the old ones no longer work). They are not shown again:",
     "wrongPassword": "Wrong password.",
+    "themeTitle": "Theme",
+    "themeLead": "Dark, light, or the same as your device.",
     "languageTitle": "Language",
     "languageLead": "Language of the interface. By default, your browser’s.",
     "languageAuto": "Browser language",

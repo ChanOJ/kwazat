@@ -20,12 +20,19 @@
     "help": "Aide",
     "settings": "Réglages",
     "language": "Langue",
+    "theme": "Thème",
+    "chooseTheme": "Choisissez votre thème",
     "logOut": "Déconnexion",
     "anonymous": "Navigation anonyme",
     "chooseLanguage": "Choisir la langue",
     "searchLanguages": "Rechercher une langue",
     "close": "Fermer",
     "logIn": "Connexion"
+  },
+  "themes": {
+    "dark": "Sombre",
+    "light": "Clair",
+    "device": "Appareil"
   },
   "languages": {
     "en": "English",
@@ -157,6 +164,8 @@
     "newBackup": "Nouveaux codes de secours",
     "backupDone": "Nouveaux codes de secours (les anciens ne fonctionnent plus). Ils ne seront plus affichés :",
     "wrongPassword": "Mot de passe incorrect.",
+    "themeTitle": "Thème",
+    "themeLead": "Sombre, clair, ou celui de votre appareil.",
     "languageTitle": "Langue",
     "languageLead": "Langue de l’interface. Par défaut, celle de votre navigateur.",
     "languageAuto": "Langue du navigateur",

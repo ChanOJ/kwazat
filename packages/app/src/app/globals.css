@@ -6,10 +6,21 @@
   --accent: #1f4e79;
   --error: #9b1c1c;
   --field: #ffffff;
-  color-scheme: light dark;
+  color-scheme: light;
+}
+/* Dark: chosen explicitly, or by the device while no theme is chosen. */
+:root[data-theme="dark"] {
+  --bg: #161615;
+  --fg: #ecebe7;
+  --muted: #a3a29c;
+  --line: #3a3936;
+  --accent: #8cb8e0;
+  --error: #f08a8a;
+  --field: #1f1f1e;
+  color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --bg: #161615;
     --fg: #ecebe7;
     --muted: #a3a29c;
@@ -17,6 +28,7 @@
     --accent: #8cb8e0;
     --error: #f08a8a;
     --field: #1f1f1e;
+    color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
@@ -182,3 +194,15 @@ button.icon-text { display: inline-flex; align-items: center; gap: .5rem; cursor
 /* A link that looks like the primary button. */
 a.button { display: inline-block; padding: .6rem 1rem; border-radius: 6px; background: var(--accent); color: var(--bg); font-weight: 600; text-decoration: none; }
 a.button:hover { filter: brightness(1.1); }
+
+/* Theme choice: three buttons with an icon (settings) and the same inside a dialog (menu). */
+.theme-choices { display: flex; flex-wrap: wrap; gap: .5rem; }
+.theme-choices button {
+  display: inline-flex; align-items: center; gap: .5rem; background: none; color: var(--fg);
+  font-weight: 400; border: 1px solid var(--line);
+}
+.theme-choices button:hover { background: var(--line); }
+.theme-choices button[aria-pressed="true"] { border-color: var(--accent); font-weight: 600; }
+.theme-choices svg { color: var(--muted); }
+.theme-dialog { width: min(26rem, calc(100vw - 2rem)); }
+.theme-dialog .theme-choices { margin-top: 1rem; }
