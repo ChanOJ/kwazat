@@ -6,6 +6,7 @@
   --accent: #1f4e79;
   --error: #9b1c1c;
   --field: #ffffff;
+  --page-width: 56rem;
   color-scheme: light;
 }
 /* Dark: chosen explicitly, or by the device while no theme is chosen. */
@@ -38,14 +39,14 @@ body {
   color: var(--fg);
   font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+main { max-width: var(--page-width); margin: 0 auto; padding: 2rem 1rem 4rem; }
 h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; }
 h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; color: var(--muted); }
 .lead { color: var(--muted); margin: 0 0 1.5rem; }
 
 .site-header {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  max-width: 42rem; margin: 0 auto; padding: 1rem;
+  max-width: var(--page-width); margin: 0 auto; padding: 1rem;
   border-bottom: 1px solid var(--line);
 }
 .brand { font-weight: 700; color: var(--fg); text-decoration: none; letter-spacing: .02em; }
