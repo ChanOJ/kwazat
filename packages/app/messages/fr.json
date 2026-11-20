@@ -84,6 +84,7 @@
     "needsReview": "à vérifier",
     "unverified": "(non vérifiée)",
     "wikidataRelations": "Relations (Wikidata)",
+    "identitySource": "Données d’identité issues de <link>Wikidata</link>.",
     "contentLanguage": "Le contenu des fiches est encore en anglais."
   },
   "sections": {

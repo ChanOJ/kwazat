@@ -84,6 +84,7 @@
     "needsReview": "needs review",
     "unverified": "(unverified)",
     "wikidataRelations": "Relations (Wikidata)",
+    "identitySource": "Identity data from <link>Wikidata</link>.",
     "contentLanguage": ""
   },
   "sections": {

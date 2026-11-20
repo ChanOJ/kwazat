@@ -103,7 +103,6 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
           )}
           <p className="links">
             {typeof identity.wikipediaUrl === "string" && <a href={identity.wikipediaUrl}>Wikipedia</a>}
-            {typeof identity.wikidataUrl === "string" && <a href={identity.wikidataUrl}>Wikidata</a>}
             {website && <a href={website} rel="noreferrer">{t("website")}</a>}
           </p>
         </div>
@@ -222,6 +221,11 @@ export default async function EntityPage({ params }: { params: Promise<{ id: str
             ))}
           </ul>
         </section>
+      )}
+      {typeof identity.wikidataUrl === "string" && (
+        <p className="provenance">
+          {t.rich("identitySource", { link: (chunks) => <a href={identity.wikidataUrl as string}>{chunks}</a> })}
+        </p>
       )}
     </article>
   );
