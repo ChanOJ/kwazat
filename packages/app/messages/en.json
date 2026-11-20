@@ -238,5 +238,10 @@
       "exists": "An account already exists for this address.",
       "rate": "Too many attempts. Try again in a few minutes."
     }
+  },
+  "backupCodes": {
+    "copy": "Copy the codes",
+    "copied": "Copied",
+    "failed": "Copy failed: select the codes by hand."
   }
 }

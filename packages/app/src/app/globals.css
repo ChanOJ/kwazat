@@ -176,3 +176,5 @@ button.secondary:hover { border-color: var(--accent); }
 .rules .ok { color: var(--accent); }
 .hint { color: var(--muted); font-size: .95rem; margin: 0; }
 input[readonly] { color: var(--muted); }
+
+button.icon-text { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
