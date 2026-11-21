@@ -13,6 +13,7 @@
     "reach": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher reach",
     "eval": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/researcher eval",
     "app": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/app dev",
+    "app:reset": "pass-cli run --env-file secrets.env -- pnpm --filter @kwazat/app dev:reset",
     "users": "pnpm --filter @kwazat/app users",
     "infra": "infra/tofu.sh",
     "db:generate": "pnpm --filter @kwazat/db generate",
