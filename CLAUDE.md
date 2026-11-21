@@ -102,7 +102,9 @@ DB each time: `KWAZAT_DB_DIR=.data/pglite-checkN pnpm app`, then open the built-
   acceptable until the end of the beta, to be raised again before public opening. More languages
   come one by one, on request. Plan: Wikidata labels first, then cached LLM translation of
   published facts per (fact, language, source hash); quotes and source titles stay in the
-  original language. Don't block features on this.
+  original language. Don't block features on this. Details: `docs/design/content-localisation.md`.
+- **Red lines**: not designed yet; the structuring proposal and its open questions are in
+  `docs/design/red-lines.md`. Read it before any red-line work.
 - **Bands** (entity type `band`, same search box as people):
   - Sheet: identity and members from Wikidata (P527, dates in qualifiers). Research sections
     cover the group itself (`legal_proceedings`, `investigative_revelations`, `controversies`)
