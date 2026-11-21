@@ -14,6 +14,7 @@ import { parseArgs } from "node:util";
 import { asc, eq, openDb, users } from "@kwazat/db";
 import { createAuth } from "../src/lib/auth.ts";
 import { CliError, resetTwoFactor, setUser, useEmailCodes } from "../src/lib/users.ts";
+import { devServerRunning } from "./dev-lib.ts";
 import { TEST_ACCOUNT } from "../test/test-account.ts";
 
 const USAGE = `Usage: pnpm users list | add <email> | password <email> | reset-2fa <email> | remove <email> | test-account`;
@@ -64,20 +65,10 @@ async function askPassword(min: number, max: number): Promise<string> {
   return password;
 }
 
-/** PGlite allows one process per directory: refuse while `pnpm app` holds the local database. */
-async function devServerRunning(): Promise<boolean> {
-  try {
-    await fetch("http://localhost:3000/api/auth/ok", { signal: AbortSignal.timeout(500) });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function main() {
   if (process.env.DATABASE_URL) {
     if (command === "test-account") throw new CliError("test-account only runs against the local PGlite database (unset DATABASE_URL)");
-  } else if (await devServerRunning()) {
+  } else if (devServerRunning()) {
     throw new CliError("Stop `pnpm app` first: the local database can only be opened by one process at a time");
   }
   const db = await openDb();

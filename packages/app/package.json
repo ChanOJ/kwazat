@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "NEXT_TELEMETRY_DISABLED=1 next dev --hostname 127.0.0.1 --port 3000",
+    "dev": "tsx scripts/dev.ts",
+    "dev:reset": "tsx scripts/reset.ts",
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
     "start": "next start",
     "users": "tsx scripts/users.ts",

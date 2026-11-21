@@ -212,15 +212,35 @@ section titles and relation types are translated. Plan for content: Wikidata lab
 first, then machine translation of published facts on first view, cached per fact and language.
 
 **Email.** Locally, nothing is sent: messages land in `packages/app/.data/mail` and are shown at
-<http://localhost:3000/dev/mail> (development only, readable before login so codes can be
+`<url>/dev/mail` (development only, readable before login so codes can be
 used). Staging and prod have no mail transport yet: sending fails until one is set up.
 
+### Local development (worktrees, URLs, accounts)
+
 ```bash
-pnpm app        # http://localhost:3000, local PGlite database, API keys from Proton Pass (research)
+pnpm app          # this worktree's dev server, API keys and the dev password from Proton Pass
+pnpm app:reset    # delete this worktree's database and recreate it (server stopped)
 ```
 
-Without Proton Pass, `pnpm --filter @kwazat/app dev` runs the same app without API keys:
-everything works except research beyond the identity step.
+- **URL.** Each worktree is served at `http://<topic>.kwazat.localhost:4000`; the topic is the
+  branch name without `claude/` (`KWAZAT_TOPIC=demo pnpm app` to choose). Next itself listens on a
+  random free port (3000 to 3999); a small shared reverse proxy (`packages/app/scripts/dev-proxy.ts`,
+  fixed port 4000, `KWAZAT_PROXY_PORT` to change) maps the host name to it. `pnpm app` starts the
+  proxy when needed and registers the route in `~/.kwazat-dev/routes/<topic>.json`; routes of dead
+  processes are ignored and removed. `http://kwazat.localhost:4000` lists the running servers. Why
+  not portless or Caddy: nothing to install, 100 lines of Node, and the registry is just files.
+  The preview gate still applies: open any page once with `?dev=gloubi`.
+- **Database.** PGlite in `<worktree>/.data/pglite`, empty and migrated on first start, never
+  shared between worktrees. `pnpm app:reset` recreates it (and the local mailbox).
+- **Accounts**, created when missing (first start, after a reset). Both are verified and use the
+  email second factor: the code is at `<url>/dev/mail` and in the server log.
+  - `dev@kwazat.localhost`: for humans. Password from `KWAZAT_DEV_PASSWORD`, a Proton Pass
+    reference in `secrets.env` (item `kwazat-dev-account`, field `password`). Skipped with a
+    warning when the variable is missing.
+  - `claude@kwazat.localhost`: for Claude sessions. Random password generated at seed time in
+    `.data/test-account.json` (gitignored, one per worktree): read it from the file, never print it.
+- A second `pnpm app` with the same topic is refused. Without Proton Pass, `pnpm --filter @kwazat/app dev` runs the same thing without
+  API keys (research beyond the identity step is off, no dev account).
 
 Accounts (stop the app first when using the local database: PGlite allows one process):
 
@@ -230,11 +250,8 @@ pnpm users password you@example.com     # new password, logs out every session
 pnpm users reset-2fa you@example.com    # lost second factor: set up again at next login
 pnpm users list
 pnpm users remove you@example.com
-pnpm users test-account                 # local test account, codes by email (refused with DATABASE_URL)
+pnpm users test-account                 # test@kwazat.local, fixed password (packages/app/test/test-account.ts)
 ```
-
-The local test account (`packages/app/test/test-account.ts`) is for automated checks and local
-browser testing; it only exists in the local PGlite database.
 
 Limits (`packages/app/src/lib/rate-limit.ts`, in memory, per server process): password checks 5
 per minute per client address and 10 per 15 minutes per account; codes typed in 10 per minute
@@ -248,7 +265,7 @@ Emailed codes are stored hashed. Next.js and Better Auth telemetry are off; the 
 | Setting | Local development | Staging and prod (not deployed yet) |
 |---|---|---|
 | `BETTER_AUTH_SECRET` | built-in development value | required; Secret Manager |
-| `BETTER_AUTH_URL` | `http://localhost:3000` | `https://test.kwazat.fyi`, `https://www.kwazat.fyi` |
+| `BETTER_AUTH_URL` | `http://<topic>.kwazat.localhost:4000` (set by `pnpm app`) | `https://test.kwazat.fyi`, `https://www.kwazat.fyi` |
 | `DATABASE_URL` | unset (PGlite) | Secret Manager (runtime identity) |
 | Mail transport | local mailbox | Scaleway Transactional Email from `auth.kwazat.fyi` (to set up) |
 

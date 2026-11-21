@@ -6,6 +6,8 @@ const config: NextConfig = {
   transpilePackages: ["@kwazat/db", "@kwazat/researcher"],
   // PGlite loads its WebAssembly and extension files from disk at run time.
   serverExternalPackages: ["@electric-sql/pglite", "postgres"],
+  // Dev servers are reached as <topic>.kwazat.localhost through the local proxy (scripts/dev.ts).
+  allowedDevOrigins: ["*.kwazat.localhost"],
   poweredByHeader: false,
   async headers() {
     return [
