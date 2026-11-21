@@ -19,3 +19,5 @@ sources/countries.json
 packages/app/AGENTS.md
 # Personal Claude Code settings.
 .claude/settings.local.json
+# Claude Code session worktrees.
+.claude/worktrees/

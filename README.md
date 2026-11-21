@@ -227,6 +227,10 @@ pnpm app          # this worktree's dev server, API keys and the dev password fr
 pnpm app:reset    # delete this worktree's database and recreate it (server stopped)
 ```
 
+In Claude Code, start it with the `app` entry of `.claude/launch.json` (built-in browser preview):
+the app picks a free port (passed as `PORT`) and opens `http://localhost:<port>`; then go to this
+worktree's named URL, printed in the server log (sign-in works there).
+
 - **URL.** Each worktree is served at `http://<topic>.kwazat.localhost:4000`; the topic is the
   branch name without `claude/` (`KWAZAT_TOPIC=demo pnpm app` to choose). Next itself listens on a
   random free port (3000 to 3999); a small shared reverse proxy (`packages/app/scripts/dev-proxy.ts`,
