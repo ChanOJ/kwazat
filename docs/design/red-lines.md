@@ -1,7 +1,7 @@
 # Red Lines: structuring proposal
 
-Status: **in design** (2026-11-21). Owner decisions are in section 0; questions 3, 4, 8, 9 and 10
-of section 7 are still open. Update this file when they are answered.
+Status: **decided, v1 in progress** (2026-11-21). Owner decisions are in section 0, which
+supersedes sections 3 to 8 where they differ; the v1 scope is section 6.
 
 ## 0. Owner decisions (2026-11-21)
 
@@ -38,6 +38,41 @@ of section 7 are still open. Update this file when they are answered.
   logged-in user (search, sheet page, later a barcode scan): its history is a search history and
   is personal data. A local history in the browser or app is allowed for convenience. Server
   logs must not tie a user id to an entity id, with short retention.
+- **Q3, fixed public thresholds, no per-user slider.**
+  - Ownership chain: strong (red) when every hop gives control (share above 50 %, owner, parent
+    organisation) and the chain has at most 3 hops; weak (amber) when a hop is a minority stake
+    of at least 10 % or the chain has 4 or 5 hops. Stakes below 10 % are not followed; the walk
+    stops at 5 hops.
+  - Non-ownership links (ally, mentor, wedding witness, employer...) count only as direct links.
+  - Link strength is fixed in code by relation type; the model's 1–5 rating is not used for
+    matching.
+- **Q4, no weights in v1** (no number).
+- **Q8, red lines on sources later**: an outlet is a brand, so this follows the brand playbook.
+- **Q9, controlled `topics[]`** on convictions, ongoing cases, revelations and controversies, for
+  persons and bands. The list names subject matter, not judgement: corruption, fraud, tax,
+  violence, sexual_violence, harassment, discrimination_or_hate_speech, environment,
+  labour_rights, animal_welfare, public_health, data_privacy, other. The person playbook also
+  gets the `severity` field the band playbook already has. New rule type: "topic X, at least
+  amber". Cost: `item_schema` is not part of the research hash, so existing sheets re-run the
+  extraction only (notes and corpus reused, no web search).
+- **Q10, brand playbook right after v1.** v1 covers persons and bands (a rule on a person also
+  matches bands they are or were members of). The brand playbook then takes ownership from
+  Wikidata (P127, P749, share in qualifier P1107; free) plus one `ownership` research section for
+  the gaps, paid only for new brands.
+- **Political rules use party classifications chosen by the user, never a Kwazat label.**
+  - There is no official definition of "far right" or "far left", and classifiers disagree
+    (an official national classification can differ from common or academic usage).
+  - Classifications apply to parties, not people. A person inherits them through current party
+    membership (Wikidata P102 or the `political_affiliation` section); no party, no match. The
+    model-written `orientation` field is no longer used for matching.
+  - A rule reads "party classified X **according to** source S" (or "according to at least one
+    source"). Candidate sources: official (e.g. France's Interior ministry election
+    classification and its equivalents), academic (PopuList, Chapel Hill Expert Survey,
+    ParlGov), Wikidata (P1387 political alignment).
+  - The sheet shows every classification side by side with source and date, so disagreement is
+    visible and the user sees which source triggered the match.
+  - Data: `party_classifications(party_entity_id, source, value, as_of, url)`, filled by free
+    imports. Check each dataset's redistribution licence before importing (public repository).
 
 ## 1. What the initial design sessions said
 
@@ -117,20 +152,31 @@ A and B share one shape: `{ kind, target/category, thresholds, weight }`. They c
 - Staff and auditors should not read user red lines: separate table, restricted access.
 - Counsel review (press law + data protection) before opening beyond the owner.
 
-## 6. Minimal first version (UI)
+## 6. First version (v1)
 
-Page `/settings/red-lines` (behind login, consistent with `/settings`; header noindex). Phase 1, local only:
+Small PRs, one topic each, in this order:
 
-- List of the user's red lines + "Add" form with a type selector:
-  1. **Entity link**: pick an entity (existing search/autocomplete) + minimum strength (default 3) + "include ownership chains" checkbox.
-  2. **Convictions**: minimum `offense_class`, "final only" toggle (default on).
-  3. **Political orientation**: multi-select of `orientation` values, "current only" toggle.
-- Delete / disable per rule. Explicit notice about sensitive data and a "delete all my red lines" button; consent checkbox shown before the first rule is saved.
-- Storage: one encrypted blob per user, `red_lines(user_id, ciphertext, key_wrap metadata, updated_at)`; ON DELETE CASCADE from `users`; the server cannot read it (section 0).
-- Read side (small follow-up): on the entity sheet for a logged-in user, a banner "Red lines: N matches" with the evidence list and sources. No numeric score yet.
-- Tests: pure function `evaluate(redLines, entityGraph, facts) → matches`, unit-tested with fixture graphs (brand → company → holding → person chain).
+1. **Pure `evaluate()`** in a package shared by server and browser: `evaluate(rules, sheet) →
+   { verdict, matches[] }`, each match with its evidence (fact ids or relation path, sources,
+   confidence, stage) and the rule that triggered it. Rule types: entity link (with ownership
+   chains, section 0 thresholds), conviction (minimum `offense_class`, final only), ongoing
+   proceedings (opt-in, amber), political (party classification + source). Published data only.
+   Unit tests on fixture graphs with neutral placeholders (brand → company → holding → person,
+   band → member). No storage, no UI.
+2. **Encrypted storage and settings page** `/settings/red-lines` (replaces the placeholder at
+   `/red-lines`): consent notice before the first rule, add/delete/disable, export JSON,
+   delete all. Table `red_lines(user_id, ciphertext, key_wrap metadata, updated_at)`, ON DELETE
+   CASCADE from `users`. Keys: device key + passkey PRF; QR linking and recovery key may follow
+   in their own PR.
+3. **Read side on the sheet**: the sheet sends the published facts and ownership subgraph; the
+   browser decrypts the rules, runs `evaluate()` and shows the verdict and sourced matches, with
+   the user's rule next to each match.
+4. **Playbook changes**: `topics[]` and person `severity` (extraction-only re-run), then the topic
+   rule type; fixed strengths by relation type.
+5. **Party classifications** import (after licence checks) and the political rule's UI.
+6. **Brand playbook** (Q10), then red lines on sources (Q8).
 
-## 7. Open questions for the owner
+## 7. Open questions for the owner (all answered in section 0)
 
 1. Verdict colours first, or a 0–5 number from day one? (The brief says 0/5.)
 2. Should an unresolved ownership chain (no data) show grey/"unknown" or green? Recommendation: grey.
@@ -145,4 +191,4 @@ Page `/settings/red-lines` (behind login, consistent with `/settings`; header no
 
 ## 8. Recommendation
 
-Build **A + B behind one `red_lines` store**, deterministic and evaluated on the client (section 0), with a **colour verdict plus a sourced explanation** per match; no LLM matching and no numeric score in v1. Start with three rule types (entity link with ownership chains, conviction severity, political orientation), published data only, explicit Art. 9 consent, and no scan history. Add the 0–5 score and free-text topics once brand ownership data exists and counsel has reviewed.
+Build **A + B behind one `red_lines` store**, deterministic and evaluated on the client (section 0), with a **colour verdict plus a sourced explanation** per match; no LLM matching and no numeric score in v1. Start with the rule types of section 6, published data only, explicit Art. 9 consent, and no scan history. Revisit a 0–5 score and free-text (LLM) matching only after counsel review.
