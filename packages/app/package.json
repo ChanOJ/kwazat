@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@kwazat/db": "workspace:*",
+    "@kwazat/redlines": "workspace:*",
     "@kwazat/researcher": "workspace:*",
     "better-auth": "1.7.25",
     "next": "16.4.6",

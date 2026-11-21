@@ -81,7 +81,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <section className="panel">
         <h2>{t("redLinesTitle")}</h2>
         <p>{t("redLinesLead")}</p>
-        <p>
+        <p className="actions">
+          <Link href="/settings/red-lines">{t("redLinesManage")}</Link>
           <Link href="/red-lines">{t("redLinesLink")}</Link>
         </p>
       </section>
