@@ -13,7 +13,7 @@ import path from "node:path";
 import { createAuth } from "../src/lib/auth.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../src/lib/password.ts";
 import { setUser, useEmailCodes } from "../src/lib/users.ts";
-import { dataDir } from "./dev-lib.ts";
+import { dataDir, repoRoot } from "./dev-lib.ts";
 
 export const DEV_EMAIL = "dev@kwazat.localhost";
 export const CLAUDE_EMAIL = "claude@kwazat.localhost";
@@ -43,7 +43,7 @@ export async function seedAccounts(db: Db, log: (line: string) => void = console
     fs.writeFileSync(CLAUDE_PASSWORD_FILE, `${JSON.stringify({ email: CLAUDE_EMAIL, password }, null, 2)}\n`, { mode: 0o600 });
     await setUser(db, CLAUDE_EMAIL, password, "upsert");
     await useEmailCodes(db, CLAUDE_EMAIL);
-    log(`account ${CLAUDE_EMAIL} ready (password in ${path.relative(process.cwd(), CLAUDE_PASSWORD_FILE) || CLAUDE_PASSWORD_FILE}).`);
+    log(`account ${CLAUDE_EMAIL} ready (password in ${path.relative(repoRoot, CLAUDE_PASSWORD_FILE)}).`);
   }
 }
 
