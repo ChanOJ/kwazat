@@ -35,16 +35,6 @@
       "Bash(gh run view:*)",
       "Bash(lsof -iTCP:*)",
       "Bash(lsof -i :*)"
-    ],
-    "deny": [
-      "Bash(git push:*)",
-      "Bash(gh pr merge:*)",
-      "Bash(pnpm research:*)",
-      "Bash(pnpm eval:*)",
-      "Bash(pnpm reach:*)",
-      "Bash(pnpm infra:*)",
-      "Bash(infra/tofu.sh:*)",
-      "Bash(pass-cli:*)"
     ]
   },
   "hooks": {
