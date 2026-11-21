@@ -56,13 +56,14 @@ export function alive(pid: number): boolean {
 
 /** Topics come from branch names and, in the proxy, from the Host header: only a plain DNS label becomes a file name. */
 const routeFile = (topic: string) => {
-  if (!/^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/.test(topic)) throw new Error("Invalid topic");
-  return path.join(routesDir, `${topic}.json`);
+  const name = path.basename(topic.replace(/[^a-z0-9-]/g, ""));
+  if (name === "" || name !== topic) throw new Error("Invalid topic");
+  return path.join(routesDir, `${name}.json`);
 };
 
 /** The live route of a topic. A route whose process is gone is stale: it is deleted and ignored. */
 export function readRoute(topic: string): Route | null {
-  if (!/^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/.test(topic)) return null;
+  if (!/^[a-z0-9-]{1,63}$/.test(topic)) return null;
   const file = routeFile(topic);
   try {
     const route = JSON.parse(fs.readFileSync(file, "utf8")) as Route;
