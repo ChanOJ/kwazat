@@ -3,6 +3,8 @@
 # Same mechanics as person.yaml: each research section is researched independently, and editing
 # a section changes its hash, which marks that section as stale on every band sheet. The
 # identity block and the member list come from Wikidata (no LLM call).
+# Which field edits re-gather sources and which only re-write notes or items: see the header
+# of person.yaml.
 
 id: band
 version: 1
@@ -69,6 +71,11 @@ sections:
     source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
     max_searches: 6
     max_fetches: 5
+    search_topic: >
+      Legal proceedings involving the group itself: lawsuits about its work (copyright,
+      plagiarism, contracts), bans or restrictions of songs, albums, videos or concerts, tax or
+      business matters, criminal proceedings against the group. Latest decisions and appeals
+      first.
     instructions: |
       List legal proceedings involving the group itself, as a whole or as a business: lawsuits
       about its work (copyright, plagiarism, contracts with labels, managers or promoters),
@@ -111,6 +118,10 @@ sections:
     source_types: [investigative, wire, newspaper, broadcaster]
     max_searches: 6
     max_fetches: 5
+    search_topic: >
+      Investigative reporting about the group as an organisation: business practices, finances,
+      management, ticketing, labels, crew working conditions, links with companies or political
+      groups, and follow-ups.
     instructions: |
       List significant revelations about the group as an organisation published by recognised
       investigative outlets (original reporting, not opinion pieces or reviews): business
@@ -147,6 +158,9 @@ sections:
     source_types: [wire, newspaper, broadcaster, magazine, fact_check]
     max_searches: 5
     max_fetches: 4
+    search_topic: >
+      Major public controversies about the group as such: lyrics, imagery, videos, statements,
+      performances, political or symbolic use of its work, sponsorship, ticketing.
     instructions: |
       List the most significant public controversies about the group as such (lyrics, imagery,
       videos, statements by the group, performances, political or symbolic use of its work,
@@ -187,6 +201,10 @@ sections:
     source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
     max_searches: 8
     max_fetches: 6
+    search_topic: >
+      Serious matters of current and former members (criminal convictions, investigations,
+      charges, trials, serious misconduct allegations) and how the group reacted: exclusion,
+      suspension, departure, support, statements.
     instructions: |
       Check each current and former member of the group (listed in the subject block) for
       serious matters: criminal convictions, criminal investigations, charges or trials, or

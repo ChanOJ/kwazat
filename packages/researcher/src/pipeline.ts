@@ -1,5 +1,6 @@
 import { and, desc, eq, uuidv7 } from "@kwazat/db";
-import { entities, entityIdentifiers, facts, relations, sectionRuns, type Db, type Source } from "@kwazat/db";
+import { entities, entityIdentifiers, facts, relations, researchCorpora, sectionRuns, type Db, type Source } from "@kwazat/db";
+import { cacheTtls, purgeExpired, type PageFetcher } from "./cache.ts";
 import { findEntityByIdentifier, setEntityNames, wikidataCandidates } from "./names.ts";
 import {
   addUsage,
@@ -7,14 +8,24 @@ import {
   extract,
   normalizeUrl,
   research,
+  subjectBlock,
   type ExtractedFact,
   type ExtractedSource,
   type RunConfig,
   type SubjectContext,
   type Usage,
 } from "./claude.ts";
-import { researchWithSearch } from "./research.ts";
-import { researchHash, sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
+import {
+  defaultFetcher,
+  gatherCorpus,
+  hydrateCorpus,
+  notesFromDocs,
+  type CorpusDoc,
+  type ResearchDeps,
+  type StageUsage,
+} from "./research.ts";
+import { corpusKey, gatherHash, notesHash, notesKey, researchHash, sectionHash, type Playbook, type ResearchSection } from "./playbook.ts";
+import type { SearchProvider } from "./search/index.ts";
 import { confidenceCap, lookupSource, minConfidence, selectSources, type Registry } from "./sources.ts";
 import { getBandIdentity, getPersonIdentity, type Candidate, type EntityKind } from "./wikidata.ts";
 
@@ -154,6 +165,31 @@ export async function findReusableNotes(
   return reusable ? { notes: reusable.researchNotes!, retrievedUrls: reusable.retrievedUrls } : null;
 }
 
+export type StoredCorpus = { id: string; docs: CorpusDoc[]; createdAt: Date };
+
+/**
+ * The corpus gathered earlier for this section of this entity. With a hash: the latest one with
+ * this corpus key, younger than the section's validity period. Without (frozen corpus, dev
+ * replay): the latest one whatever its key and age.
+ */
+export async function findCorpus(
+  db: Db,
+  entityId: string,
+  section: ResearchSection,
+  hash: string | null,
+  now = new Date(),
+): Promise<StoredCorpus | null> {
+  const rows = await db
+    .select()
+    .from(researchCorpora)
+    .where(and(eq(researchCorpora.entityId, entityId), eq(researchCorpora.sectionId, section.id)))
+    .orderBy(desc(researchCorpora.createdAt));
+  const row = hash === null
+    ? rows[0]
+    : rows.find((r) => r.corpusHash === hash && (now.getTime() - r.createdAt.getTime()) / 86_400_000 < section.ttl_days);
+  return row ? { id: row.id, docs: row.docs as CorpusDoc[], createdAt: row.createdAt } : null;
+}
+
 /** A band's members from Wikidata, with their membership dates when known ("Name (from 1994 to 2000)"). */
 export async function memberLines(db: Db, entityId: string): Promise<string[]> {
   const rows = await db
@@ -174,10 +210,29 @@ export type SectionOutcome =
       durationMs: number;
       /** Research notes of an earlier run were reused: only the extraction was paid. */
       notesReused?: boolean;
+      /** The gathered corpus (search results, pages) of an earlier run was reused. */
+      corpusReused?: boolean;
     }
   | { status: "failed"; error: string; usage: Usage; durationMs: number };
 
-/** Runs one research section for an entity, unless a fresh result with the same hash exists. */
+export type RunSectionOptions = {
+  /** Re-run notes and extraction even when the section is up to date (the corpus is still reused). */
+  force?: boolean;
+  /** Dev replay: reuse the latest stored corpus whatever its key; never call the planner or the search provider. */
+  frozenCorpus?: boolean;
+  /** Gather the corpus again, bypassing the search and page caches (implies force). */
+  refreshCorpus?: boolean;
+  /** Test seams (offline provider and fetcher). */
+  provider?: SearchProvider;
+  fetcher?: PageFetcher;
+  log?: (line: string) => void;
+};
+
+/**
+ * Runs one research section for an entity, unless a fresh result with the same hash exists.
+ * With a search provider, each layer is reused when its key is unchanged (see playbook.ts):
+ * the corpus (plan, search, triage, fetch), then the notes, and only what changed is paid.
+ */
 export async function runSection(
   db: Db,
   entity: Entity,
@@ -185,8 +240,9 @@ export async function runSection(
   section: ResearchSection,
   config: RunConfig,
   registry: Registry,
-  opts: { force?: boolean } = {},
+  opts: RunSectionOptions = {},
 ): Promise<SectionOutcome> {
+  if (opts.frozenCorpus && opts.refreshCorpus) throw new Error("--frozen-corpus and --refresh-corpus are exclusive");
   const sources = selectSources(registry, {
     countryCodes: countryCodesOf(entity),
     types: section.source_types,
@@ -197,7 +253,7 @@ export async function runSection(
   const hash = sectionHash(playbook, section, config, sources);
   const researchKey = researchHash(playbook, section, config, sources);
 
-  if (!opts.force) {
+  if (!opts.force && !opts.refreshCorpus) {
     const [current] = await db
       .select()
       .from(sectionRuns)
@@ -219,26 +275,74 @@ export async function runSection(
       playbookVersion: playbook.version,
       sectionId: section.id,
       sectionHash: hash,
-      researchHash: researchKey,
       model: `${config.researchModel}+${config.extractModel}`,
     })
     .returning();
   if (!run) throw new Error("Could not create section run");
 
   let usage = emptyUsage();
+  let stages: StageUsage = {};
   try {
     const subject = subjectOf(entity);
     if (entity.type === "band") subject.members = await memberLines(db, entity.id);
-    // Notes of an earlier run are reused when nothing that shapes the research changed.
-    const reused = opts.force ? null : await findReusableNotes(db, entity.id, section, researchKey);
-    const found = reused
-      ? { ...reused, usage: emptyUsage() }
-      : config.searchProvider === "anthropic"
-        ? await research(playbook, section, subject, config, sources)
-        : await researchWithSearch(playbook, section, subject, config, sources, registry);
+    let notesReuseKey = researchKey;
+    let corpusReused = false;
+    let found: { notes: string; retrievedUrls: string[]; usage: Usage };
+    let notesReused = false;
+    if (config.searchProvider === "anthropic") {
+      // Claude's own web tools: search and notes in one call, reused as a whole.
+      const reused = opts.force ? null : await findReusableNotes(db, entity.id, section, researchKey);
+      found = reused ? { ...reused, usage: emptyUsage() } : await research(playbook, section, subject, config, sources);
+      notesReused = !!reused;
+      if (!reused) stages.research = found.usage;
+    } else {
+      const ttls = cacheTtls();
+      await purgeExpired(db, ttls);
+      const deps: ResearchDeps = {
+        db,
+        ttls,
+        provider: opts.provider,
+        fetcher: opts.fetcher ?? defaultFetcher(registry),
+        refresh: opts.refreshCorpus,
+        log: opts.log,
+      };
+      // 1. Corpus: reused unless what shapes the queries changed (or a rebuild is asked).
+      const key = corpusKey(gatherHash(playbook, section, config, sources), subjectBlock(subject));
+      let corpus = opts.refreshCorpus ? null : await findCorpus(db, entity.id, section, opts.frozenCorpus ? null : key);
+      corpusReused = !!corpus;
+      if (!corpus) {
+        if (opts.frozenCorpus) {
+          throw new Error("no stored corpus for this section: run once without --frozen-corpus (or with --refresh-corpus)");
+        }
+        const gathered = await gatherCorpus(section, subject, config, sources, registry, deps);
+        stages = { ...stages, ...gathered.stages };
+        const gatherUsage = Object.values(gathered.stages).reduce(addUsage, emptyUsage());
+        usage = addUsage(usage, gatherUsage);
+        const [row] = await db
+          .insert(researchCorpora)
+          .values({ entityId: entity.id, sectionId: section.id, corpusHash: key, docs: gathered.docs, usage: { ...gatherUsage, stages: gathered.stages } })
+          .returning();
+        if (!row) throw new Error("Could not store the corpus");
+        corpus = { id: row.id, docs: gathered.docs, createdAt: row.createdAt };
+      }
+      // 2. Notes: reused unless the instructions, style or corpus changed.
+      notesReuseKey = notesKey(notesHash(playbook, section, config), corpus.id);
+      const reused = opts.force || opts.refreshCorpus ? null : await findReusableNotes(db, entity.id, section, notesReuseKey);
+      if (reused) {
+        found = { ...reused, usage: emptyUsage() };
+        notesReused = true;
+      } else {
+        const docs = await hydrateCorpus(corpus.docs, registry, deps);
+        const notes = await notesFromDocs(playbook, section, subject, sources, docs, config);
+        stages = { ...stages, ...notes.stages };
+        found = notes;
+      }
+      if (!opts.log) process.stderr.write("\n  ");
+    }
     usage = addUsage(usage, found.usage);
     const extracted = await extract(section, subject, found.notes, found.retrievedUrls, config);
     usage = addUsage(usage, extracted.usage);
+    stages.extraction = extracted.usage;
 
     const retrieved = new Set(found.retrievedUrls);
     const toSources = (sources: ExtractedSource[]): Source[] =>
@@ -301,8 +405,9 @@ export async function runSection(
           isCurrent: true,
           researchNotes: found.notes,
           retrievedUrls: found.retrievedUrls,
-          notesReused: !!reused,
-          usage,
+          researchHash: notesReuseKey,
+          notesReused,
+          usage: { ...usage, stages },
           costUsd: usage.costUsd.toFixed(4),
           finishedAt: new Date(),
         })
@@ -317,13 +422,14 @@ export async function runSection(
       needsReview,
       usage,
       durationMs: Date.now() - started,
-      notesReused: !!reused,
+      notesReused,
+      corpusReused,
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     await db
       .update(sectionRuns)
-      .set({ status: "failed", error, usage, costUsd: usage.costUsd.toFixed(4), finishedAt: new Date() })
+      .set({ status: "failed", error, usage: { ...usage, stages }, costUsd: usage.costUsd.toFixed(4), finishedAt: new Date() })
       .where(eq(sectionRuns.id, run.id));
     return { status: "failed", error, usage, durationMs: Date.now() - started };
   }

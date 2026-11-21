@@ -189,6 +189,66 @@ export const sectionRuns = pgTable(
   (t) => [index("section_runs_entity_section_idx").on(t.entityId, t.sectionId)],
 );
 
+/**
+ * Web search results per (provider, normalized query, provider params), so that re-running a
+ * section does not pay the search provider again. Results are the provider's titles and
+ * snippets (licensed for AI use by the provider). Expired rows are purged at each run.
+ */
+export const searchCache = pgTable(
+  "search_cache",
+  {
+    /** sha256 of provider + normalized query + params (see researcher/src/cache.ts). */
+    key: text("key").primaryKey(),
+    provider: text("provider").notNull(),
+    query: jsonb("query").$type<Record<string, unknown>>().notNull(),
+    results: jsonb("results").$type<unknown[]>().notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("search_cache_fetched_at_idx").on(t.fetchedAt)],
+);
+
+/**
+ * Pages downloaded by KwazatBot, per normalized URL. Holds third-party article text: short
+ * retention outside local development, never exported, and never filled for a publisher that
+ * refuses AI processing (only the outcome is kept, without text). The publisher's policy is
+ * checked again before every use, so a later opt-out takes effect at once.
+ */
+export const pageCache = pgTable(
+  "page_cache",
+  {
+    url: text("url").primaryKey(),
+    status: text("status").notNull(),
+    reason: text("reason"),
+    title: text("title"),
+    text: text("text"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("page_cache_fetched_at_idx").on(t.fetchedAt)],
+);
+
+/**
+ * The material gathered for one section of one entity (plan, search, triage, fetch): search
+ * results and fetch outcomes, without page text (that lives in `page_cache`). `corpusHash`
+ * covers only what shapes the queries, so editing a section's wording reuses the corpus and
+ * only re-runs the notes and the extraction.
+ */
+export const researchCorpora = pgTable(
+  "research_corpora",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    sectionId: text("section_id").notNull(),
+    corpusHash: text("corpus_hash").notNull(),
+    docs: jsonb("docs").$type<unknown[]>().notNull(),
+    /** What gathering it cost (planner, search, triage). */
+    usage: jsonb("usage").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("research_corpora_entity_section_idx").on(t.entityId, t.sectionId)],
+);
+
 export type ConfidenceLevel = "high" | "medium" | "low";
 
 /** An atomic, sourced statement displayed on a sheet. */

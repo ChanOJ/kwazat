@@ -107,6 +107,9 @@ Defaults are tuned for cost during the design phase. Override with CLI flags or 
 | `--source-mode` | `KWAZAT_SOURCE_MODE` | `auto` | `auto`, `restricted` or `preferred` (see sources/README.md) |
 
 These settings are part of each section's hash: changing them marks cached sections as stale.
+Search results, fetched pages and each section's gathered corpus are cached in the database, so
+editing a section's wording does not pay for searching again: see
+[docs/research-cost.md](docs/research-cost.md) to iterate cheaply.
 Reports split the cost between model tokens and web searches.
 
 ## Usage
@@ -119,7 +122,9 @@ pnpm research "François Fillon" --pick 1 --identity-only
 # Full research (paid: Claude API + web search), or only some sections
 pnpm research Q101410
 pnpm research Q101410 --sections convictions,ongoing_cases
-pnpm research Q101410 --force                          # ignore cached sections
+pnpm research Q101410 --force                          # re-run notes + extraction (stored corpus reused)
+pnpm research Q101410 --frozen-corpus                  # dev replay: no planner, no search (see docs/research-cost.md)
+pnpm research Q101410 --refresh-corpus                 # gather sources again, bypassing the caches
 
 # Name search as the API will do it: known entities, then cached Wikidata candidates (free)
 pnpm lookup "Jerome Cahusac"

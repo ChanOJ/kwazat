@@ -14,7 +14,7 @@ import * as schema from "./schema.ts";
 export * from "./schema.ts";
 export * from "./ids.ts";
 export * from "./queue.ts";
-export { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+export { and, asc, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 export { schema };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
