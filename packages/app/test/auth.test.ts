@@ -181,7 +181,11 @@ test("the signup password cookie is bound to the user, expires, and cannot be ta
   assert.equal(open(token, "user-1"), "a long passphrase here");
   assert.equal(open(token, "user-2"), null);
   assert.equal(open(token, "user-1", Date.now() + 16 * 60 * 1000), null);
-  assert.equal(open(token.slice(0, -2) + "AA", "user-1"), null);
+  // Always change a character in the middle (a fixed suffix would leave the token intact one time
+  // in 4096, and the last base64 character can carry unused bits).
+  const mid = token.length >> 1;
+  const swapped = token[mid] === "A" ? "B" : "A";
+  assert.equal(open(token.slice(0, mid) + swapped + token.slice(mid + 1), "user-1"), null);
   assert.equal(open(undefined, "user-1"), null);
   assert.ok(!Buffer.from(token, "base64url").toString("utf8").includes("passphrase"));
 });
