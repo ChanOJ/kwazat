@@ -184,6 +184,9 @@ importers:
       '@kwazat/db':
         specifier: workspace:*
         version: link:../db
+      '@kwazat/redlines':
+        specifier: workspace:*
+        version: link:../redlines
       '@kwazat/researcher':
         specifier: workspace:*
         version: link:../researcher
@@ -234,6 +237,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+
+  packages/redlines: {}
 
   packages/researcher:
     dependencies:

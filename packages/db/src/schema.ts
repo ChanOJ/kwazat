@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { users } from "./auth-schema.ts";
 
 export const entityType = pgEnum("entity_type", ["person", "band", "brand", "product"]);
 
@@ -311,5 +312,38 @@ export const relations = pgTable(
     index("relations_to_wikidata_idx").on(t.toWikidataId),
   ],
 );
+
+/** A copy of a user's red-line data key, wrapped (encrypted) by one key the server never sees. */
+export type RedLineKeyWrap = {
+  /** Random id, also stored next to the wrapping key on the device. */
+  id: string;
+  /** "device": a non-extractable key kept in the browser. Passkey and recovery wraps come later. */
+  kind: "device";
+  /** Base64 AES-GCM wrap of the data key, and its IV. */
+  wrapped: string;
+  iv: string;
+  createdAt: string;
+};
+
+/**
+ * A user's red lines, end-to-end encrypted (docs/design/red-lines.md, section 0, Q6): one AES-GCM
+ * ciphertext per user, encrypted and decrypted in the browser. The server stores it and never
+ * holds a key that opens it. Red lines are special-category data (GDPR Art. 9): never log,
+ * copy or decode this table.
+ */
+export const redLines = pgTable("red_lines", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Base64 AES-GCM ciphertext of the rules, and its IV. */
+  ciphertext: text("ciphertext").notNull(),
+  iv: text("iv").notNull(),
+  keyWraps: jsonb("key_wraps").$type<RedLineKeyWrap[]>().notNull().default([]),
+  /** Bumped on every save; a save based on an older revision is refused (another device saved). */
+  revision: integer("revision").notNull().default(1),
+  /** When the user gave explicit consent (Art. 9(2)(a)), kept to demonstrate it (Art. 7(1)). */
+  consentedAt: timestamp("consented_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export * from "./auth-schema.ts";

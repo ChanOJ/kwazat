@@ -9,3 +9,5 @@ export {
   STRONG_LINK,
   STRONG_MAX_HOPS,
 } from "./graph.ts";
+export * as vault from "./vault.ts";
+export type { KeyWrap, Sealed, StoredRedLine, Vault } from "./vault.ts";

@@ -53,7 +53,10 @@
     "wikidataDown": "Wikidata ne répond pas. Réessayez dans un instant.",
     "noOther": "Aucun autre résultat.",
     "notYet": "Pas encore dans Kwazat · lancer la recherche",
-    "kind": { "person": "Personne", "band": "Groupe" }
+    "kind": {
+      "person": "Personne",
+      "band": "Groupe"
+    }
   },
   "research": {
     "failedTitle": "La recherche a échoué",
@@ -202,8 +205,9 @@
     "tooMany": "Trop de tentatives. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
     "languageChange": "Modifier",
     "redLinesTitle": "Lignes rouges",
-    "redLinesLead": "Ce que vous ne voulez pas soutenir. Leur configuration arrive bientôt.",
-    "redLinesLink": "Comment fonctionnent les lignes rouges"
+    "redLinesLead": "Ce que vous ne voulez pas soutenir, comparé à chaque fiche sur votre appareil.",
+    "redLinesLink": "Comment fonctionnent les lignes rouges",
+    "redLinesManage": "Gérer mes lignes rouges"
   },
   "twoFactor": {
     "titleChange": "Changer de second facteur",
@@ -282,5 +286,63 @@
     "copy": "Copier les codes",
     "copied": "Copié",
     "failed": "Échec de la copie : sélectionnez les codes à la main."
+  },
+  "redLinesSettings": {
+    "back": "← Réglages",
+    "title": "Vos lignes rouges",
+    "lead": "Choisissez ce que vous ne voulez pas soutenir. Kwazat présente les faits et leurs sources ; c’est vous qui décidez de ce qui compte.",
+    "loading": "Ouverture de vos lignes rouges sur cet appareil…",
+    "unlockFailed": "Impossible d’ouvrir vos lignes rouges sur cet appareil. Rien n’a été modifié.",
+    "consentTitle": "Avant de commencer",
+    "consentSensitive": "Les lignes rouges peuvent révéler vos opinions ou vos convictions : ce sont des données personnelles sensibles.",
+    "consentEncrypted": "Elles sont chiffrées dans votre navigateur avant d’être enregistrées. Kwazat ne peut pas les lire, et la comparaison avec les fiches se fait uniquement sur votre appareil.",
+    "consentDevice": "Pour l’instant, la clé reste sur cet appareil. En cas de perte ou d’effacement des données de ce site, vos lignes rouges ne peuvent pas être récupérées : il faudra les configurer à nouveau. L’utilisation sur d’autres appareils arrive bientôt.",
+    "consentRights": "Vous pouvez les exporter ou les supprimer à tout moment sur cette page.",
+    "consentCheckbox": "J’accepte que Kwazat enregistre mes lignes rouges, chiffrées, pour m’indiquer quelles fiches y correspondent.",
+    "consentButton": "Commencer",
+    "lockedTitle": "Verrouillées sur cet appareil",
+    "lockedBody": "Vos lignes rouges sont chiffrées avec une clé conservée sur l’appareil où vous les avez configurées. Ouvrez cette page sur cet appareil. Le déverrouillage sur d’autres appareils arrive bientôt. Vous pouvez aussi recommencer, ce qui les supprime sur tous les appareils.",
+    "startOver": "Supprimer et recommencer",
+    "listTitle": "Vos règles",
+    "listEmpty": "Aucune ligne rouge pour l’instant.",
+    "ruleEntityIndirect": "Liens avec {label}, y compris par chaînes de propriété et appartenance à un groupe",
+    "ruleEntityDirect": "Liens directs avec {label}",
+    "ruleConviction": "Condamnations pénales, à partir de : {class}",
+    "ruleProceedings": "Procédures pénales en cours, comme personne mise en cause",
+    "offense": {
+      "petty_offense": "contravention",
+      "misdemeanor": "délit",
+      "felony": "crime"
+    },
+    "enable": "Activer",
+    "disable": "Désactiver",
+    "remove": "Retirer",
+    "addTitle": "Ajouter une ligne rouge",
+    "kindLegend": "Type",
+    "kind": {
+      "entity": "Liens avec une personne ou un groupe",
+      "conviction": "Condamnations pénales",
+      "proceedings": "Procédures pénales en cours"
+    },
+    "kindHint": {
+      "entity": "Les liens forts (famille, couple, propriété, appartenance) s’affichent en rouge, les liens plus faibles ou passés en orange.",
+      "conviction": "Les condamnations définitives s’affichent en rouge ; celles en appel ou pas encore définitives en orange.",
+      "proceedings": "Toujours en orange : toute personne visée par une enquête ou un procès est présumée innocente."
+    },
+    "entitySearch": "Nom",
+    "entityNone": "Aucune personne ni aucun groupe connu sous ce nom.",
+    "chosen": "Choix : {label}.",
+    "change": "Changer",
+    "includeIndirect": "Aussi par chaînes de propriété et appartenance à un groupe",
+    "minClass": "À partir de",
+    "add": "Ajouter",
+    "dataTitle": "Vos données",
+    "dataBody": "Exportez vos lignes rouges dans un fichier, ou supprimez-les sur tous les appareils. La suppression retire aussi votre consentement.",
+    "export": "Exporter",
+    "deleteAll": "Supprimer toutes mes lignes rouges",
+    "deleteAllConfirm": "Supprimer toutes vos lignes rouges sur tous les appareils ? C’est définitif.",
+    "deletedAll": "Vos lignes rouges ont été supprimées.",
+    "conflict": "Vos lignes rouges ont été modifiées sur un autre appareil. La dernière version est affichée : refaites votre modification.",
+    "saveFailed": "La modification n’a pas pu être enregistrée. Réessayez."
   }
 }

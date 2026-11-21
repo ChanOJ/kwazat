@@ -3,7 +3,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const config: NextConfig = {
   // Workspace packages are TypeScript sources (imports with .ts extensions).
-  transpilePackages: ["@kwazat/db", "@kwazat/researcher"],
+  transpilePackages: ["@kwazat/db", "@kwazat/redlines", "@kwazat/researcher"],
   // PGlite loads its WebAssembly and extension files from disk at run time.
   serverExternalPackages: ["@electric-sql/pglite", "postgres"],
   // Dev servers are reached as <topic>.kwazat.localhost through the local proxy (scripts/dev.ts).

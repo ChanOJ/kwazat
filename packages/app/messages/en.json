@@ -53,7 +53,10 @@
     "wikidataDown": "Wikidata could not be reached. Try again in a moment.",
     "noOther": "No other match.",
     "notYet": "Not in Kwazat yet · start the research",
-    "kind": { "person": "Person", "band": "Band" }
+    "kind": {
+      "person": "Person",
+      "band": "Band"
+    }
   },
   "research": {
     "failedTitle": "Research failed",
@@ -202,8 +205,9 @@
     "tooMany": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "languageChange": "Change",
     "redLinesTitle": "Red lines",
-    "redLinesLead": "What you do not want to support. Setting them up is coming soon.",
-    "redLinesLink": "How red lines work"
+    "redLinesLead": "What you do not want to support, checked against every sheet on your device.",
+    "redLinesLink": "How red lines work",
+    "redLinesManage": "Manage my red lines"
   },
   "twoFactor": {
     "titleChange": "Change your second factor",
@@ -282,5 +286,63 @@
     "copy": "Copy the codes",
     "copied": "Copied",
     "failed": "Copy failed: select the codes by hand."
+  },
+  "redLinesSettings": {
+    "back": "← Settings",
+    "title": "Your red lines",
+    "lead": "Choose what you do not want to support. Kwazat states the facts with their sources; you decide what counts for you.",
+    "loading": "Opening your red lines on this device…",
+    "unlockFailed": "Your red lines could not be opened on this device. Nothing was changed.",
+    "consentTitle": "Before you start",
+    "consentSensitive": "Red lines can reveal your opinions or beliefs: they are sensitive personal data.",
+    "consentEncrypted": "They are encrypted in your browser before being stored. Kwazat cannot read them, and checks them against sheets on your device only.",
+    "consentDevice": "For now, the key stays on this device. If you lose it or clear this site's data, your red lines cannot be recovered: you will need to set them up again. Using them on other devices is coming soon.",
+    "consentRights": "You can export or delete them at any time on this page.",
+    "consentCheckbox": "I agree that Kwazat stores my red lines, encrypted, to show me which sheets match them.",
+    "consentButton": "Start",
+    "lockedTitle": "Locked on this device",
+    "lockedBody": "Your red lines are encrypted with a key kept on the device where you set them up. Open this page there. Unlocking them on other devices is coming soon. You can also start over, which deletes them on every device.",
+    "startOver": "Delete and start over",
+    "listTitle": "Your rules",
+    "listEmpty": "No red line yet.",
+    "ruleEntityIndirect": "Links to {label}, including ownership chains and band membership",
+    "ruleEntityDirect": "Direct links to {label}",
+    "ruleConviction": "Criminal convictions, {class} or more serious",
+    "ruleProceedings": "Ongoing criminal proceedings as suspect or defendant",
+    "offense": {
+      "petty_offense": "petty offence",
+      "misdemeanor": "misdemeanour",
+      "felony": "felony"
+    },
+    "enable": "Turn on",
+    "disable": "Turn off",
+    "remove": "Remove",
+    "addTitle": "Add a red line",
+    "kindLegend": "Type",
+    "kind": {
+      "entity": "Links to a person or band",
+      "conviction": "Criminal convictions",
+      "proceedings": "Ongoing criminal proceedings"
+    },
+    "kindHint": {
+      "entity": "Strong links (family, partner, owner, member) show in red, weaker or former ones in orange.",
+      "conviction": "Final convictions show in red; convictions under appeal or not final yet in orange.",
+      "proceedings": "Always shown in orange: people under investigation or on trial are presumed innocent."
+    },
+    "entitySearch": "Name",
+    "entityNone": "No known person or band with this name.",
+    "chosen": "Chosen: {label}.",
+    "change": "Change",
+    "includeIndirect": "Also through ownership chains and band membership",
+    "minClass": "At least",
+    "add": "Add",
+    "dataTitle": "Your data",
+    "dataBody": "Export your red lines as a file, or delete them on every device. Deleting also withdraws your consent.",
+    "export": "Export",
+    "deleteAll": "Delete all my red lines",
+    "deleteAllConfirm": "Delete all your red lines on every device? This cannot be undone.",
+    "deletedAll": "Your red lines were deleted.",
+    "conflict": "Your red lines were changed on another device. The latest version is shown: make your change again.",
+    "saveFailed": "Your change could not be saved. Try again."
   }
 }
