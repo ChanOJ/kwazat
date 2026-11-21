@@ -16,6 +16,7 @@ and docs (`@kwazat/*`, `KWAZAT_*`, `KwazatBot`); the old name "Waza" must not co
 |---|---|
 | `packages/db` | Drizzle schema + migrations, Postgres job queue. PGlite locally (`.data/pglite`), Postgres via `DATABASE_URL`. Engine-agnostic: plain Postgres migrations only |
 | `packages/researcher` | Wikidata resolution, Claude research/extraction pipeline, severity, CLI (`src/cli.ts`), eval runner, worker |
+| `packages/redlines` | Pure, deterministic red-line evaluation (`evaluate(rules, sheetGraph)`), shared by server and browser: no I/O, no dependencies. Design: `docs/design/red-lines.md` |
 | `packages/app` | Next.js 16 + Better Auth + next-intl web app (login, signup, search, sheets). Messages in `packages/app/messages` |
 | `web` | Static landing site (Caddy image, `web/public`), served on kwazat.fyi |
 | `infra` | OpenTofu for Scaleway (`shared`, `envs/staging`, `envs/prod`, `modules/environment`), deploy scripts in `infra/scripts` |
