@@ -111,7 +111,11 @@ publishers' stated wishes:
   text recorded in the registry (`ai_opt_out`) means "no AI processing": only the search
   engine's title and snippets are used, with the link;
 - paywalls and logins are never bypassed: only what the page serves publicly is read;
-- page texts are not stored: only extracted facts, quotes of 25 words at most, and URLs.
+- page texts are only cached briefly to avoid downloading the same article again (`page_cache`,
+  2 days on staging and production, longer on a developer's local database, never exported or
+  committed); they are never cached for a publisher refusing AI processing, and the publisher's
+  policy is checked again before every use of a cached page. Sheets keep only extracted facts,
+  quotes of 25 words at most, and URLs.
 
 ## trust.txt declarations
 

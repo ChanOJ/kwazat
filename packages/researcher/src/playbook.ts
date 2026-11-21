@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { z } from "zod";
 import { EXTRACTION_FINGERPRINT, RESEARCH_FINGERPRINT, toolBudget, type RunConfig } from "./claude.ts";
-import { SEARCH_PIPELINE_FINGERPRINT } from "./research.ts";
+import { GATHER_FINGERPRINT, NOTES_FINGERPRINT, searchTopicOf } from "./research.ts";
 import { SourceTypeSchema, type SourceSelection } from "./sources.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +29,11 @@ const ResearchSection = z.object({
   source_types: z.array(SourceTypeSchema).min(1),
   max_searches: z.number().int().positive().default(5),
   max_fetches: z.number().int().nonnegative().default(3),
+  /**
+   * What to search for, in a few lines: given to the query planner and the triage instead of
+   * the instructions, so that rewording the instructions reuses the gathered corpus.
+   */
+  search_topic: z.string().optional(),
   instructions: z.string(),
   item_schema: JsonSchema.optional(),
   emits_relations: z.boolean().default(false),
@@ -90,10 +95,55 @@ function stableStringify(value: unknown): string {
 const sha = (value: unknown) => createHash("sha256").update(stableStringify(value)).digest("hex").slice(0, 16);
 
 /**
+ * Cache keys of a research section, from the cheapest to rebuild to the most expensive:
+ *
+ *   gatherHash   what shapes the queries and which pages are read: section id, title,
+ *                search topic (`search_topic`, else the instructions), the sources selected
+ *                (source_types, sensitive, the subject's countries), the effective budgets,
+ *                the search provider, the planner/triage model and the gathering code.
+ *                Combined with the subject (pipeline.ts) it is the key of the stored corpus.
+ *   notesHash    what shapes the notes written from a corpus: title, instructions, the
+ *                playbook's scope and style, the research model and effort, the notes code.
+ *                Combined with the corpus id it is the key of reusable notes.
+ *   extractionHash  item_schema, relations, extraction model and code (notes → items).
+ *
+ * Not in any key: ttl_days (how long results stay valid, checked separately).
+ */
+export function gatherHash(
+  playbook: Playbook,
+  section: ResearchSection,
+  config: RunConfig,
+  sources: SourceSelection | null,
+): string {
+  return sha({
+    playbook: playbook.id,
+    section: section.id,
+    title: section.title,
+    topic: searchTopicOf(section),
+    sources,
+    budget: toolBudget(section, config),
+    searchProvider: config.searchProvider,
+    gatherModel: config.extractModel,
+    pipeline: GATHER_FINGERPRINT,
+  });
+}
+
+export function notesHash(playbook: Playbook, section: ResearchSection, config: RunConfig): string {
+  return sha({
+    title: section.title,
+    instructions: section.instructions,
+    scope: playbook.scope,
+    style: playbook.style,
+    researchModel: config.researchModel,
+    researchEffort: config.researchEffort,
+    pipeline: NOTES_FINGERPRINT,
+  });
+}
+
+/**
  * Hash of everything that influences the research step of a section (what is searched and
- * read): the section's instructions, the shared style rules, the sources selected for this
- * subject, the research model, effort and tool budgets, the search provider and the research
- * code. When it is unchanged, the notes of an earlier run are still valid.
+ * read, and how the notes are written). With a search provider it combines the gather and notes
+ * keys; with Claude's own web tools ("anthropic") the two cannot be separated.
  */
 export function researchHash(
   playbook: Playbook,
@@ -101,6 +151,9 @@ export function researchHash(
   config: RunConfig,
   sources: SourceSelection | null,
 ): string {
+  if (section.method === "research" && config.searchProvider !== "anthropic") {
+    return sha([gatherHash(playbook, section, config, sources), notesHash(playbook, section, config)]);
+  }
   const research = section.method === "research";
   // What only shapes the extracted items (schema, relations) does not change the research.
   const { item_schema: _schema, emits_relations: _emits, relation_types: _types, ttl_days: _ttl, ...researchPart } =
@@ -115,9 +168,15 @@ export function researchHash(
     // Effective budgets (not the raw caps): raising a cap above a section's limit changes nothing.
     budget: research ? toolBudget(section, config) : null,
     searchProvider: config.searchProvider,
-    pipeline: config.searchProvider === "anthropic" ? RESEARCH_FINGERPRINT : SEARCH_PIPELINE_FINGERPRINT,
+    pipeline: RESEARCH_FINGERPRINT,
   });
 }
+
+/** Key of a stored corpus: the gather hash and the subject as the planner sees it. */
+export const corpusKey = (gather: string, subject: string) => sha({ gather, subject });
+
+/** Key of reusable notes: the notes hash and the exact corpus they were written from. */
+export const notesKey = (notes: string, corpusId: string) => sha({ notes, corpusId });
 
 /** Hash of what influences the extraction of items from the notes: schema, model, extraction code. */
 export function extractionHash(section: PlaybookSection, config: RunConfig): string {

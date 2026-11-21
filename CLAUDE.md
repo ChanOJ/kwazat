@@ -52,6 +52,9 @@ Local dev server, URLs, ports and seeded accounts: see README section "Local dev
 
 ### Testing a change that needs a real research run
 
+Iterating on a section's wording: after one real run, `--frozen-corpus` replays the stored
+sources (no planner, no Brave) and only pays notes + extraction; see `docs/research-cost.md`.
+
 Only on the user's word, and say it costs money. Start the app from the worktree you are
 changing, in the Terminal panel (keys come from `pass-cli`, so not in your sandbox), on a fresh
 DB each time: `KWAZAT_DB_DIR=.data/pglite-checkN pnpm app`, then open the built-in browser on

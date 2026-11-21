@@ -3,6 +3,15 @@
 # Each section is researched independently: a research step (web search/fetch, free text)
 # then an extraction step (strict JSON). Editing a section changes its hash, which marks
 # that section as stale on every existing person sheet.
+#
+# What a field change costs on the next run (cache layers, see docs/research-cost.md):
+# - gather again (planner, search, triage, fetch, then notes and extraction): title,
+#   search_topic, source_types, sensitive, max_searches, max_fetches, source registry edits;
+# - notes and extraction only (the gathered corpus is reused): instructions, scope, style;
+# - extraction only (the notes are reused): item_schema, emits_relations, relation_types;
+# - nothing re-runs: ttl_days. source_guidance only matters with --search-provider anthropic.
+# A section without search_topic gives its instructions to the planner instead: rewording them
+# then gathers again.
 
 id: person
 version: 1
@@ -54,6 +63,9 @@ sections:
     source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
     max_searches: 8
     max_fetches: 6
+    search_topic: >
+      Criminal convictions of this person by a court in any country: court decisions, sentences,
+      appeals, final or overturned verdicts.
     instructions: |
       List every criminal conviction of this person by a court, in any country.
       For each case give: the case name commonly used by the press, the offences, the court,
@@ -91,6 +103,9 @@ sections:
     source_types: [court, government, international_org, wire, newspaper, broadcaster, investigative]
     max_searches: 8
     max_fetches: 6
+    search_topic: >
+      Criminal proceedings involving this person without a final decision: investigations, charges
+      or indictments, pending trials, verdicts under appeal.
     instructions: |
       List criminal proceedings currently involving this person without a final decision:
       preliminary or judicial investigations, formal charges or indictments (whatever the
@@ -120,6 +135,9 @@ sections:
     source_types: [investigative, wire, newspaper, broadcaster, magazine]
     max_searches: 8
     max_fetches: 6
+    search_topic: >
+      Revelations about this person by investigative outlets (original reporting) and their
+      follow-ups: official investigations, resignations, lawsuits.
     instructions: |
       List significant revelations about this person published by recognised investigative
       outlets (original reporting, not opinion pieces). For each: the outlet that first
@@ -144,6 +162,9 @@ sections:
     source_types: [wire, newspaper, broadcaster, magazine, fact_check]
     max_searches: 6
     max_fetches: 4
+    search_topic: >
+      Major public controversies involving this person (statements, decisions, behaviour) with
+      broad media coverage.
     instructions: |
       List the most significant public controversies involving this person (statements,
       decisions, behaviour) that received broad media coverage. Limit to the 8 most
@@ -172,6 +193,9 @@ sections:
     source_types: [parliament, government, regulator, wire, newspaper, broadcaster, magazine]
     max_searches: 5
     max_fetches: 3
+    search_topic: >
+      The person's public political affiliations over time: party memberships, mandates,
+      candidacies, official endorsements.
     instructions: |
       Describe the person's political affiliations over time, based only on what the person
       made public: party memberships, mandates, official endorsements, candidacies.
@@ -201,6 +225,9 @@ sections:
     max_searches: 6
     max_fetches: 4
     emits_relations: true
+    search_topic: >
+      Publicly documented links with other public figures or organisations: family ties, marriage
+      witnesses, business partnerships, employers, ownership or board positions.
     instructions: |
       List notable, publicly documented links between this person and other public figures
       or organisations: family ties, marriage witnesses, business partnerships, political

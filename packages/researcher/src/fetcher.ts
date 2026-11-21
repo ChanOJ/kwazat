@@ -8,7 +8,9 @@
  *   opt-out from AI processing, and so does the TDM reservation protocol (TDMRep) and a refusal
  *   written in plain text recorded in the registry (`ai_opt_out`);
  * - never bypasses a paywall or a login: only what the page serves publicly is read;
- * - keeps nothing of the page beyond the run (only extracted facts, short quotes and the URL).
+ * - keeps the page text only in a short-lived cache (cache.ts: never for an opted-out
+ *   publisher, policy re-checked before each use); sheets keep extracted facts, short quotes
+ *   and the URL.
  * When a page may not be processed, the search engine's title and snippet are used instead.
  */
 import { Readability } from "@mozilla/readability";

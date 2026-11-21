@@ -31,7 +31,9 @@ import {
   type SubjectContext,
   type Usage,
 } from "./claude.ts";
-import { Fetcher, type FetchOutcome } from "./fetcher.ts";
+import type { Db } from "@kwazat/db";
+import { cachedFetch, cachedSearch, type CacheTtls, type PageFetcher } from "./cache.ts";
+import { Fetcher, type FetchOutcome, type FetchStatus } from "./fetcher.ts";
 import type { Playbook, ResearchSection } from "./playbook.ts";
 import { createSearchProvider, type SearchProvider, type SearchResult } from "./search/index.ts";
 import { hostOf, isExcluded, lookupSource, type Registry, type SourceSelection } from "./sources.ts";
@@ -42,7 +44,7 @@ const TRIAGE_EXTRA = 3;
 /** What is kept from provider passages of a publisher refusing AI processing ("very short extract"). */
 const OPT_OUT_SNIPPET_CHARS = 300;
 
-type Doc = SearchResult & {
+export type Doc = SearchResult & {
   index: number;
   tierLabel: string;
   /** Why the page may not be read in full (publisher opt-out, robots.txt...), null if it may. */
@@ -70,6 +72,14 @@ async function jsonCall<T>(
     .map((b) => b.text)
     .join("");
   return { data: JSON.parse(text) as T, usage: usageOf(message) };
+}
+
+/**
+ * What the planner and the triage are told to look for: the section's `search_topic`, or its
+ * instructions when it has none. Only this (not the instructions) is part of the corpus key.
+ */
+export function searchTopicOf(section: ResearchSection): string {
+  return section.search_topic?.trim() || section.instructions;
 }
 
 // --- 1. Plan ---------------------------------------------------------------------------------
@@ -107,7 +117,7 @@ async function planQueries(section: ResearchSection, subject: SubjectContext, so
   return jsonCall<{ queries: PlannedQuery[] }>(
     config.extractModel,
     PLAN_SYSTEM,
-    `Subject:\n${subjectBlock(subject)}\n\nSection: ${section.title}\n${section.instructions}${countryContext(sources)}\n\n` +
+    `Subject:\n${subjectBlock(subject)}\n\nSection: ${section.title}\n${searchTopicOf(section)}${countryContext(sources)}\n\n` +
       `Write exactly ${n} distinct queries. Today's date: ${today}`,
     PLAN_SCHEMA,
   );
@@ -137,17 +147,19 @@ const TRIAGE_SCHEMA = {
   properties: { read: { type: "array", items: { type: "integer" }, description: "Result indexes, most useful first" } },
 };
 
-function docHeader(d: Doc): string {
+type Listed = SearchResult & { index: number; tierLabel: string };
+
+function docHeader(d: Listed): string {
   return `[${d.index}] ${d.title} — ${d.siteName ?? hostOf(d.url)} (${d.tierLabel})${d.publishedAt ? ` — ${d.publishedAt}` : ""}`;
 }
 
-async function triage(section: ResearchSection, subject: SubjectContext, docs: Doc[], n: number, config: RunConfig) {
+async function triage(section: ResearchSection, subject: SubjectContext, docs: Listed[], n: number, config: RunConfig) {
   const list = docs.map((d) => `${docHeader(d)}\n${d.url}\n${d.snippet}`).join("\n\n");
   return jsonCall<{ read: number[] }>(
     config.extractModel,
     "You select which search results are worth reading in full for a factual research task.",
     `Subject: ${subject.label}${subject.description ? ` (${subject.description})` : ""}\nSection: ${section.title}\n` +
-      `${section.instructions}\n\nPick up to ${n} results most likely to contain the key facts, most useful first. ` +
+      `${searchTopicOf(section)}\n\nPick up to ${n} results most likely to contain the key facts, most useful first. ` +
       `Prefer official and primary sources, then tier 1 outlets, and recent results. Ignore results about homonyms.\n\n${list}`,
     TRIAGE_SCHEMA,
   );
@@ -221,98 +233,171 @@ async function writeNotes(playbook: Playbook, section: ResearchSection, subject:
 }
 
 // --- Orchestration ---------------------------------------------------------------------------
+//
+// Two halves, cached separately (see pipeline.ts and docs/research-cost.md):
+//   gather (plan, search, filter, triage, fetch) → a corpus, keyed by what shapes the queries;
+//   notes (hydrate the corpus with page text, write the notes) → keyed by instructions + corpus.
 
-export async function researchWithSearch(
-  playbook: Playbook,
+/** A gathered document as stored in research_corpora: no page text (that lives in page_cache). */
+export type CorpusDoc = SearchResult & {
+  index: number;
+  tierLabel: string;
+  /** KwazatBot's outcome when the triage picked the page, null otherwise. */
+  fetch: { status: FetchStatus; reason: string | null; title: string | null } | null;
+};
+
+/** Usage per pipeline stage, stored in section_runs.usage.stages to see where the money goes. */
+export type Stage = "plan" | "search" | "triage" | "notes" | "extraction" | "research";
+export type StageUsage = Partial<Record<Stage, Usage>>;
+
+export type ResearchDeps = {
+  db: Db;
+  ttls: CacheTtls;
+  provider?: SearchProvider;
+  fetcher?: PageFetcher;
+  /** Bypass the search and page caches (rebuild the corpus from fresh results). */
+  refresh?: boolean;
+  log?: (line: string) => void;
+};
+
+const stderrLog = (line: string) => process.stderr.write(`\n    ${line}`);
+
+/** Provider passages of publishers refusing AI processing are cut down to a short snippet. */
+function trimRefused<T extends SearchResult>(d: T): T {
+  if (!d.passages?.length) return d;
+  return { ...d, snippet: (d.snippet || d.passages.join(" ")).slice(0, OPT_OUT_SNIPPET_CHARS), passages: [] };
+}
+
+export function defaultFetcher(registry: Registry): PageFetcher {
+  return new Fetcher({ aiOptOutDomains: registry.aiOptOut });
+}
+
+/** Plan, search, filter, triage and fetch: the paid part that does not depend on the instructions. */
+export async function gatherCorpus(
   section: ResearchSection,
   subject: SubjectContext,
   config: RunConfig,
   sources: SourceSelection,
   registry: Registry,
-  provider: SearchProvider = createSearchProvider(config.searchProvider as Exclude<RunConfig["searchProvider"], "anthropic">),
-): Promise<ResearchResult> {
+  deps: ResearchDeps,
+): Promise<{ docs: CorpusDoc[]; stages: StageUsage }> {
+  const provider =
+    deps.provider ?? createSearchProvider(config.searchProvider as Exclude<RunConfig["searchProvider"], "anthropic">);
+  const fetcher = deps.fetcher ?? defaultFetcher(registry);
+  const log = deps.log ?? stderrLog;
   const budget = toolBudget(section, config);
-  const log = (line: string) => process.stderr.write(`\n    ${line}`);
-  let usage = emptyUsage();
+  const stages: StageUsage = {};
 
-  // 1-2. Plan and search.
+  // 1-2. Plan and search (cached per normalized query).
   const plan = await planQueries(section, subject, sources, Math.max(1, budget.searches), config);
-  usage = addUsage(usage, plan.usage);
+  stages.plan = plan.usage;
   const queries = plan.data.queries.slice(0, Math.max(1, budget.searches));
   const seen = new Set<string>();
-  const docs: Doc[] = [];
-  for (const [i, q] of queries.entries()) {
-    if (i > 0) await new Promise((r) => setTimeout(r, 1100)); // provider rate limits (1 request/s)
-    const results = await provider.search({ q: q.q, lang: q.lang, country: q.country ?? undefined, count: RESULTS_PER_QUERY });
+  const found: (SearchResult & { index: number; tierLabel: string; refusal: string | null })[] = [];
+  let paid = 0;
+  for (const q of queries) {
+    const query = { q: q.q, lang: q.lang, country: q.country ?? undefined, count: RESULTS_PER_QUERY };
+    const { results, cached } = await cachedSearch(deps.db, provider, query, {
+      ttlDays: deps.ttls.searchDays,
+      refresh: deps.refresh,
+      // Provider rate limits (1 request/s): wait only between calls actually sent.
+      beforeCall: paid > 0 ? () => new Promise((r) => setTimeout(r, 1100)) : undefined,
+    });
+    if (!cached) paid++;
     // 3. Filter and deduplicate.
     for (const r of results) {
       const key = normalizeUrl(r.url);
       if (seen.has(key) || !keep(registry, sources, r.url)) continue;
       seen.add(key);
-      docs.push({ ...r, index: docs.length + 1, tierLabel: tierLabel(registry, r.url), refusal: null, fetch: null });
+      found.push({ ...r, index: found.length + 1, tierLabel: tierLabel(registry, r.url), refusal: null });
     }
-    log(`search "${q.q}" (${q.lang}) → ${results.length} results`);
+    log(`search "${q.q}" (${q.lang}) → ${results.length} results${cached ? " (cached)" : ""}`);
   }
-  const searchCost = queries.length * provider.costPerQueryUsd;
-  usage = addUsage(usage, { ...emptyUsage(), webSearches: queries.length, searchCostUsd: searchCost, costUsd: searchCost });
+  const searchCost = paid * provider.costPerQueryUsd;
+  stages.search = { ...emptyUsage(), webSearches: paid, searchCostUsd: searchCost, costUsd: searchCost };
 
-  // 4-5. Access policy, triage among readable pages, fetch.
-  // Free: robots.txt and TDMRep are fetched once per host and cached.
-  const fetcher = new Fetcher({ aiOptOutDomains: registry.aiOptOut });
-  await Promise.all(docs.map(async (d) => (d.refusal = await fetcher.policy(d.url))));
-  for (const d of docs) {
-    // Provider passages of publishers refusing AI processing are cut down to a short snippet.
-    if (d.refusal && d.passages?.length) {
-      d.snippet = (d.snippet || d.passages.join(" ")).slice(0, OPT_OUT_SNIPPET_CHARS);
-      d.passages = [];
-    }
-  }
+  // 4-5. Access policy (free: robots.txt and TDMRep once per host), triage, fetch.
+  await Promise.all(found.map(async (d) => (d.refusal = await fetcher.policy(d.url))));
+  const docs: (CorpusDoc & { refusal: string | null })[] = found.map((d) => ({ ...(d.refusal ? trimRefused(d) : d), fetch: null }));
   const readable = docs.filter((d) => !d.refusal);
   log(`${readable.length} of ${docs.length} results may be read in full; the others are used through their snippets`);
   // Pages already covered by provider passages need no download.
   const toRead = readable.filter((d) => !d.passages?.length);
   if (toRead.length && budget.fetches > 0) {
     const picked = await triage(section, subject, toRead, budget.fetches + TRIAGE_EXTRA, config);
-    usage = addUsage(usage, picked.usage);
+    stages.triage = picked.usage;
     let fetched = 0;
     for (const index of picked.data.read) {
       if (fetched >= budget.fetches) break;
       const doc = docs[index - 1];
       if (!doc || doc.fetch || doc.refusal) continue;
-      doc.fetch = await fetcher.fetch(doc.url);
-      if (doc.fetch.status === "fetched") fetched++;
-      log(`${doc.fetch.status.padEnd(12)} ${doc.url}${doc.fetch.reason ? ` (${doc.fetch.reason})` : ""}`);
+      const page = await cachedFetch(deps.db, fetcher, doc.url, { ttlDays: deps.ttls.pageDays, refresh: deps.refresh });
+      doc.fetch = { status: page.status, reason: page.reason, title: page.title };
+      if (page.status === "fetched") fetched++;
+      log(`${page.status.padEnd(12)} ${doc.url}${page.reason ? ` (${page.reason})` : ""}${page.cached ? " (cached)" : ""}`);
     }
-    usage = addUsage(usage, { ...emptyUsage(), webFetches: fetched });
+    stages.search = { ...stages.search, webFetches: fetched };
   }
-  process.stderr.write("\n  ");
-
-  // 6. Notes.
-  if (!docs.length) {
-    return { notes: "No search results.", retrievedUrls: [], usage, model: config.researchModel };
-  }
-  const notes = await writeNotes(playbook, section, subject, sources, docs, config);
-  usage = addUsage(usage, notes.usage);
-  return { notes: notes.notes, retrievedUrls: docs.map((d) => normalizeUrl(d.url)), usage, model: notes.model };
+  return { docs: docs.map(({ refusal: _refusal, ...d }) => d), stages };
 }
 
-/** Fingerprint of this pipeline's prompts and logic, part of the section hash. */
-export const SEARCH_PIPELINE_FINGERPRINT = createHash("sha256")
-  .update(
-    [
-      PLAN_SYSTEM,
-      JSON.stringify(PLAN_SCHEMA),
-      planQueries.toString(),
-      keep.toString(),
-      triage.toString(),
-      NOTES_SYSTEM.toString(),
-      docBlock.toString(),
-      writeNotes.toString(),
-      researchWithSearch.toString(),
-      String(RESULTS_PER_QUERY),
-      String(TRIAGE_EXTRA),
-      String(OPT_OUT_SNIPPET_CHARS),
-    ].join("\n"),
-  )
-  .digest("hex")
-  .slice(0, 12);
+/**
+ * Turns a stored corpus back into documents for the notes: the publisher's policy is checked
+ * again (an opt-out made since the corpus was gathered takes effect at once) and the text of
+ * pages read in full comes from the page cache, or is downloaded again (free) when expired.
+ */
+export async function hydrateCorpus(corpus: CorpusDoc[], registry: Registry, deps: ResearchDeps): Promise<Doc[]> {
+  const fetcher = deps.fetcher ?? defaultFetcher(registry);
+  const docs: Doc[] = [];
+  for (const d of corpus) {
+    const refusal = await fetcher.policy(d.url);
+    const doc: Doc = { ...(refusal ? trimRefused(d) : d), refusal, fetch: null };
+    if (!refusal && d.fetch?.status === "fetched") {
+      const { cached: _cached, ...page } = await cachedFetch(deps.db, fetcher, d.url, { ttlDays: deps.ttls.pageDays });
+      doc.fetch = page;
+    } else if (d.fetch) {
+      doc.fetch = { url: d.url, status: refusal ? "snippet_only" : d.fetch.status, reason: refusal ?? d.fetch.reason, title: d.fetch.title, text: null };
+    }
+    docs.push(doc);
+  }
+  return docs;
+}
+
+/** Notes from a hydrated corpus (the expensive call: research model over the documents). */
+export async function notesFromDocs(
+  playbook: Playbook,
+  section: ResearchSection,
+  subject: SubjectContext,
+  sources: SourceSelection,
+  docs: Doc[],
+  config: RunConfig,
+): Promise<ResearchResult & { stages: StageUsage }> {
+  if (!docs.length) {
+    return { notes: "No search results.", retrievedUrls: [], usage: emptyUsage(), model: config.researchModel, stages: {} };
+  }
+  const notes = await writeNotes(playbook, section, subject, sources, docs, config);
+  return { notes: notes.notes, retrievedUrls: docs.map((d) => normalizeUrl(d.url)), usage: notes.usage, model: notes.model, stages: { notes: notes.usage } };
+}
+
+const fingerprint = (parts: unknown[]) =>
+  createHash("sha256")
+    .update(parts.map(String).join("\n"))
+    .digest("hex")
+    .slice(0, 12);
+
+/** Fingerprint of the gathering prompts and logic, part of the corpus key. */
+export const GATHER_FINGERPRINT = fingerprint([
+  PLAN_SYSTEM,
+  JSON.stringify(PLAN_SCHEMA),
+  planQueries,
+  keep,
+  triage,
+  searchTopicOf,
+  gatherCorpus,
+  RESULTS_PER_QUERY,
+  TRIAGE_EXTRA,
+  OPT_OUT_SNIPPET_CHARS,
+]);
+
+/** Fingerprint of the notes prompts and logic, part of the notes key. */
+export const NOTES_FINGERPRINT = fingerprint([NOTES_SYSTEM, docBlock, writeNotes, hydrateCorpus, notesFromDocs, trimRefused]);

@@ -14,7 +14,11 @@ import { summarizeTrust, updateTrust } from "./trusttxt.ts";
 const RUN_OPTIONS =
   "[--research-model M] [--extract-model M] [--effort low|medium|high] [--max-searches N] [--max-fetches N] [--source-mode auto|restricted|preferred] [--search-provider brave|brave-context|anthropic]";
 const USAGE = `Usage:
-  research <name|Q-id> [--type person|band] [--pick N] [--sections a,b] [--force] [--identity-only] ${RUN_OPTIONS}
+  research <name|Q-id> [--type person|band] [--pick N] [--sections a,b] [--force] [--frozen-corpus | --refresh-corpus] [--identity-only] ${RUN_OPTIONS}
+      --force           re-run notes and extraction even when up to date (the stored corpus is reused)
+      --frozen-corpus   dev replay: reuse the stored corpus, never call the planner or the search provider
+                        (also KWAZAT_FROZEN_CORPUS=1)
+      --refresh-corpus  gather the corpus again (planner, search, triage, fetch), bypassing the caches
   sheet <name|Q-id> [--type person|band] [--pick N] [--all]
   lookup <name> [--type person|band]  (name search: known entities, then cached Wikidata candidates)
   migrate                      (applies pending database migrations; run once per deploy)
@@ -31,6 +35,8 @@ const { positionals, values } = parseArgs({
     pick: { type: "string" },
     sections: { type: "string" },
     force: { type: "boolean", default: false },
+    "frozen-corpus": { type: "boolean", default: false },
+    "refresh-corpus": { type: "boolean", default: false },
     "research-model": { type: "string" },
     "extract-model": { type: "string" },
     effort: { type: "string" },
@@ -56,6 +62,8 @@ const config = resolveConfig({
   searchProvider: values["search-provider"],
 });
 const sectionFilter = values.sections?.split(",").map((s) => s.trim());
+const refreshCorpus = values["refresh-corpus"];
+const frozenCorpus = !refreshCorpus && (values["frozen-corpus"] || process.env.KWAZAT_FROZEN_CORPUS === "1");
 
 function selectSections(playbookSections: ReturnType<typeof loadPlaybook>["sections"]): ResearchSection[] {
   const research = playbookSections.filter((s): s is ResearchSection => s.method === "research");
@@ -86,7 +94,8 @@ async function resolveOrExit(db: Db, playbook: ReturnType<typeof loadPlaybook>) 
 
 /** Fails early with a hint instead of letting every section fail on authentication. */
 function assertApiKey() {
-  if (config.searchProvider.startsWith("brave") && !process.env.BRAVE_SEARCH_API_KEY) {
+  // A frozen corpus never calls the search provider.
+  if (config.searchProvider.startsWith("brave") && !frozenCorpus && !process.env.BRAVE_SEARCH_API_KEY) {
     throw new Error(
       "BRAVE_SEARCH_API_KEY is not set. Create a key at https://api-dashboard.search.brave.com, store it in Proton " +
         "Pass (vault Kwazat, item brave-search-api-key) and uncomment its line in secrets.env, or use --search-provider anthropic.",
@@ -207,16 +216,20 @@ async function main() {
     console.error(`→ ${entity.label}: ${entity.description ?? ""}`);
     if (!values["identity-only"]) {
       assertApiKey();
-      console.error(`Config: ${describeConfig(config)}`);
+      console.error(`Config: ${describeConfig(config)}${frozenCorpus ? " · frozen corpus" : refreshCorpus ? " · refresh corpus" : ""}`);
       let total = emptyUsage();
       for (const section of selectSections(playbook.sections)) {
         process.stderr.write(`  ${section.id}... `);
-        const outcome = await runSection(db, entity, playbook, section, config, registry, { force: values.force });
+        const outcome = await runSection(db, entity, playbook, section, config, registry, {
+          force: values.force,
+          frozenCorpus,
+          refreshCorpus,
+        });
         if (outcome.status === "skipped") console.error(`skipped (${outcome.reason})`);
         else if (outcome.status === "failed") console.error(`FAILED: ${outcome.error}`);
         else
           console.error(
-            `${outcome.notesReused ? "notes reused, " : ""}${outcome.facts} facts, ${outcome.relations} relations (${outcome.needsReview} to review) · ` +
+            `${outcome.corpusReused ? "corpus reused, " : ""}${outcome.notesReused ? "notes reused, " : ""}${outcome.facts} facts, ${outcome.relations} relations (${outcome.needsReview} to review) · ` +
               `${formatCost(outcome.usage)} · ${(outcome.durationMs / 1000).toFixed(0)}s`,
           );
         if (outcome.status !== "skipped") total = addUsage(total, outcome.usage);
