@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm -s typecheck:*)",
+      "Bash(pnpm -s test:*)",
+      "Bash(pnpm --filter @kwazat/app typecheck:*)",
+      "Bash(pnpm --filter @kwazat/app test:*)",
+      "Bash(pnpm --filter @kwazat/app build:*)",
+      "Bash(pnpm --filter @kwazat/researcher typecheck:*)",
+      "Bash(pnpm --filter @kwazat/researcher test:*)",
+      "Bash(pnpm --filter @kwazat/db typecheck:*)",
+      "Bash(pnpm --filter @kwazat/db test:*)",
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm install --frozen-lockfile:*)",
+      "Bash(tofu fmt:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git worktree list:*)",
+      "Bash(git fetch:*)",
+      "Bash(git grep:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(lsof -iTCP:*)",
+      "Bash(lsof -i :*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/session-start.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}
