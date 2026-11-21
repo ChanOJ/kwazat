@@ -1,7 +1,43 @@
 # Red Lines: structuring proposal
 
-Status: **proposal, nothing decided yet** (2026-11-19). The open questions in section 7 are for
-the owner; update this file when they are answered.
+Status: **in design** (2026-11-21). Owner decisions are in section 0; questions 3, 4, 8, 9 and 10
+of section 7 are still open. Update this file when they are answered.
+
+## 0. Owner decisions (2026-11-21)
+
+- **Q1, verdict colours first.** No 0–5 number in v1: a number needs weights, which are
+  editorial choices. Revisit after counsel review.
+  - Red: at least one strong match (established, final, published).
+  - Amber: match on weak evidence (low confidence, pending appeal, long or weak chain).
+  - "No match in published data": the needed sections are published and nothing matches. Never
+    "compatible" or "clean".
+  - Grey: not enough data (sheet not researched, sections `needs_review`, unknown ownership).
+- **Q2, unknown ownership chain is grey**, never green.
+- **Q5, pending appeal is amber.** Red only for a final, not overturned conviction. Ongoing
+  proceedings (suspect or defendant) are a separate rule type the user opts into, always amber.
+- **Q6, red lines are private, end-to-end encrypted, evaluated on the client.**
+  - The server stores one encrypted blob per account (AES-GCM) and never holds the key: it
+    cannot read red lines, even in memory.
+  - Evaluation runs on the device: the server sends the sheet and the ownership subgraph it
+    needs (published, public data) and the shared pure `evaluate()` runs in the browser or app.
+    The server never learns the red lines nor the verdict. Trade-off accepted: no server-side
+    alerts ("a new fact matches your red lines").
+  - Keys, for users without a password manager (most people, or two unsynchronised ones:
+    browser and mobile OS):
+    1. a random data key, created on the first device, kept non-extractable on the device;
+    2. wrapped with a passkey through the WebAuthn PRF extension, so OS-synced passkeys
+       (iCloud, Google) unlock it on new devices with no user action (support per platform to
+       be checked before building);
+    3. device linking by QR code (ECDH, the server relays ciphertext only) when the passkey
+       does not follow, e.g. across ecosystems;
+    4. an optional recovery key, offered but never required.
+  - Losing every device and passkey loses the red lines; they are quick to re-enter. The
+    consent notice says so before the first rule is saved.
+  - No sharing between users in v1; export (JSON) and delete-all from the settings page.
+- **Q7, no search history on the server.** A "scan" is any consultation of a sheet by a
+  logged-in user (search, sheet page, later a barcode scan): its history is a search history and
+  is personal data. A local history in the browser or app is allowed for convenience. Server
+  logs must not tie a user id to an entity id, with short retention.
 
 ## 1. What the initial design sessions said
 
@@ -68,13 +104,13 @@ A and B share one shape: `{ kind, target/category, thresholds, weight }`. They c
 - Explanation block per match, always sourced:
   > "Brand B → owned by company C (100%, source, year) → controlled by holding H (…) → person P. Your red line: strong links to person P."
   Each hop links to its `sources[]` (outlet, date, quote) and shows `confidence` and `review` state.
-- Compute at read time, deterministic, per user; cache per (user, entity, data version); recompute when facts change. Never write scores into shared tables.
+- Compute at read time, on the client (section 0), deterministic, per user; never write verdicts or scores to the server.
 
 ## 5. Neutrality and GDPR
 
 - **Special-category data (Art. 9)**: red lines reveal political opinions, possibly religious or philosophical beliefs, health, sexual orientation. Even innocuous-looking lists ("no far-right links") reveal them. Required: explicit consent (Art. 9(2)(a)), purpose limitation, minimisation, DPIA (large-scale sensitive data), encryption at rest, export and delete from the settings page, retention limit, no use for ads or analytics, no sharing.
 - Do not log scanned entities per user in a way that profiles them: **scan history is inferential data too**. Prefer not storing it, or opt-in with deletion.
-- Compute on the server but do not copy red lines into logs, error trackers, URLs or LLM prompts (model C would send them to a processor: avoid for now).
+- Red lines never reach the server in clear (section 0): not in logs, error trackers, URLs or LLM prompts (model C would send them to a processor: avoid for now).
 - Entity data side: convictions fall under Art. 10; keep journalistic-exception framing, `published`-only scoring, presumption of innocence (pending appeal = amber, not red), correct overturned rulings.
 - Neutrality: Kwazat states facts; **the user** makes the judgment. Wording: "matches your red line X", never "bad/dangerous". Fixed public rules, no hidden weights. Colour = user's own criteria; show the user's rule next to each match.
 - Avoid a built-in catalogue of "suggested red lines" ranking political camps: that is an editorial stance. If presets are offered, make them objective (e.g. "final convictions for corruption") and neutral across orientations.
@@ -90,7 +126,7 @@ Page `/settings/red-lines` (behind login, consistent with `/settings`; header no
   2. **Convictions**: minimum `offense_class`, "final only" toggle (default on).
   3. **Political orientation**: multi-select of `orientation` values, "current only" toggle.
 - Delete / disable per rule. Explicit notice about sensitive data and a "delete all my red lines" button; consent checkbox shown before the first rule is saved.
-- Storage: one table `red_lines(id, user_id, kind, params jsonb, enabled, created_at)`; ON DELETE CASCADE from `users`; excluded from logs.
+- Storage: one encrypted blob per user, `red_lines(user_id, ciphertext, key_wrap metadata, updated_at)`; ON DELETE CASCADE from `users`; the server cannot read it (section 0).
 - Read side (small follow-up): on the entity sheet for a logged-in user, a banner "Red lines: N matches" with the evidence list and sources. No numeric score yet.
 - Tests: pure function `evaluate(redLines, entityGraph, facts) → matches`, unit-tested with fixture graphs (brand → company → holding → person chain).
 
@@ -109,4 +145,4 @@ Page `/settings/red-lines` (behind login, consistent with `/settings`; header no
 
 ## 8. Recommendation
 
-Build **A + B behind one `red_lines` table**, deterministic and server-side, with a **colour verdict plus a sourced explanation** per match; no LLM matching and no numeric score in v1. Start with three rule types (entity link with ownership chains, conviction severity, political orientation), published data only, explicit Art. 9 consent, and no scan history. Add the 0–5 score and free-text topics once brand ownership data exists and counsel has reviewed.
+Build **A + B behind one `red_lines` store**, deterministic and evaluated on the client (section 0), with a **colour verdict plus a sourced explanation** per match; no LLM matching and no numeric score in v1. Start with three rule types (entity link with ownership chains, conviction severity, political orientation), published data only, explicit Art. 9 consent, and no scan history. Add the 0–5 score and free-text topics once brand ownership data exists and counsel has reviewed.
