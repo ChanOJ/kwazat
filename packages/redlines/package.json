@@ -1,0 +1,12 @@
+{
+  "name": "@kwazat/redlines",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "tsx --test test/*.test.ts"
+  }
+}
